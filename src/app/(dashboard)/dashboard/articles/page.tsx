@@ -62,7 +62,7 @@ import {
   Toast,
 } from '@/components/ui';
 import { formatTndCurrency, cn } from '@/lib/utils';
-import { fetchApi } from '@/lib/api';
+import { API_BASE_URL, fetchApi } from '@/lib/api';
 
 interface ProductItem {
   id: string;
@@ -896,16 +896,53 @@ export default function DashboardArticlesPage() {
     }
   };
 
-  // Local File Upload Handler
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Upload images to backend (/storefront-cms/cms/upload-image -> Data URI on Vercel or media path locally)
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const fileList = Array.from(e.target.files);
-    const newUrls = fileList.map((file) => URL.createObjectURL(file));
+    e.target.value = '';
 
-    setFormData((prev) => ({
-      ...prev,
-      images: [...prev.images, ...newUrls],
-    }));
+    const toDataUrl = (file: File) =>
+      new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+        reader.onerror = () => reject(new Error('read error'));
+        reader.readAsDataURL(file);
+      });
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('royal_token') : null;
+    const uploadedUrls = await Promise.all(
+      fileList.map(async (file) => {
+        try {
+          const fd = new FormData();
+          fd.append('file', file, file.name);
+          const headers: Record<string, string> = {};
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+          const res = await fetch(`${API_BASE_URL}/storefront-cms/cms/upload-image`, {
+            method: 'POST',
+            headers,
+            body: fd,
+            credentials: 'include',
+          });
+          if (res.ok) {
+            const json = await res.json();
+            const url = json?.data?.url || json?.url;
+            if (url) return url as string;
+          }
+        } catch {
+          // Fallback below
+        }
+        return toDataUrl(file);
+      }),
+    );
+
+    const validUrls = uploadedUrls.filter(Boolean);
+    if (validUrls.length > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        images: [...prev.images, ...validUrls],
+      }));
+    }
   };
 
   const handleAddImageUrl = () => {
