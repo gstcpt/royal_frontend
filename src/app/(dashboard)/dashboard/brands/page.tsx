@@ -88,6 +88,8 @@ export default function DashboardBrandsPage() {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [editingBrand, setEditingBrand] = React.useState<BrandItem | null>(null);
   const [brandToDelete, setBrandToDelete] = React.useState<BrandItem | null>(null);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = React.useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
   const [descriptionModalBrand, setDescriptionModalBrand] = React.useState<BrandItem | null>(null);
   const [articlesModalBrand, setArticlesModalBrand] = React.useState<BrandItem | null>(null);
   const [modalArticlesPage, setModalArticlesPage] = React.useState(1);
@@ -413,11 +415,35 @@ export default function DashboardBrandsPage() {
     try {
       await fetchApi(`/brands/${brandToDelete.id}`, { method: 'DELETE' });
       setBrands((prev) => prev.filter((b) => b.id !== brandToDelete.id));
+      setSelectedBrandIds((prev) => prev.filter((id) => id !== brandToDelete.id));
       showToast('success', `La marque ${brandToDelete.name} a été supprimée.`);
     } catch (err: any) {
       showToast('error', err?.message || 'Impossible de supprimer cette marque.');
     } finally {
       setBrandToDelete(null);
+    }
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedBrandIds.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const results = await Promise.allSettled(
+        selectedBrandIds.map((id) => fetchApi(`/brands/${id}`, { method: 'DELETE' })),
+      );
+      const deletedCount = results.filter((r) => r.status === 'fulfilled').length;
+      const failedCount = results.length - deletedCount;
+      setSelectedBrandIds([]);
+      setIsBulkDeleteModalOpen(false);
+      await loadBrands();
+      if (failedCount === 0) {
+        showToast('success', `${deletedCount} marque(s) supprimée(s) avec succès.`);
+      } else {
+        const firstErr = (results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined)?.reason;
+        showToast('error', `${deletedCount} supprimée(s), ${failedCount} refusée(s) : ${firstErr?.message || 'articles actifs liés.'}`);
+      }
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -823,6 +849,7 @@ export default function DashboardBrandsPage() {
         enableMultiSelect={true}
         selectedKeys={selectedBrandIds}
         onSelectionChange={setSelectedBrandIds}
+        onBulkDelete={() => setIsBulkDeleteModalOpen(true)}
         exportFileName="marques"
         printTitle="Catalogue des Marques et Constructeurs Royal"
         /* Mode Matrix (Grid Cards) */
@@ -1166,6 +1193,16 @@ export default function DashboardBrandsPage() {
             ? `Êtes-vous certain de vouloir supprimer définitivement la marque "${brandToDelete.name}" ? Les articles liés ne seront pas supprimés mais ne seront plus rattachés à cette marque.`
             : ''
         }
+      />
+
+      {/* MODAL 5: CONFIRMATION SUPPRESSION GROUPÉE */}
+      <DeleteConfirmModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onConfirm={confirmBulkDelete}
+        title="Suppression Groupée des Marques"
+        description={`Êtes-vous certain de vouloir supprimer les ${selectedBrandIds.length} marque(s) sélectionnée(s) ?`}
+        isDeleting={isBulkDeleting}
       />
 
       {/* Floating Toast Notification */}

@@ -95,6 +95,8 @@ export default function DashboardVariantsPage() {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [editingFamily, setEditingFamily] = React.useState<VariantFamily | null>(null);
   const [familyToDelete, setFamilyToDelete] = React.useState<VariantFamily | null>(null);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = React.useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
   const [optionsModalFamily, setOptionsModalFamily] = React.useState<VariantFamily | null>(null);
   const [articlesModalFamily, setArticlesModalFamily] = React.useState<VariantFamily | null>(null);
   const [modalArticlesPage, setModalArticlesPage] = React.useState(1);
@@ -370,11 +372,34 @@ export default function DashboardVariantsPage() {
     try {
       await fetchApi(`/variants/${familyToDelete.id}`, { method: 'DELETE' });
       setFamilies((prev) => prev.filter((f) => f.id !== familyToDelete.id));
+      setSelectedFamilyIds((prev) => prev.filter((id) => id !== familyToDelete.id));
       showToast('success', `La variante ${familyToDelete.name} a été supprimée.`);
     } catch (err: any) {
       showToast('error', err?.message || 'Impossible de supprimer cette famille.');
     } finally {
       setFamilyToDelete(null);
+    }
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedFamilyIds.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const results = await Promise.allSettled(
+        selectedFamilyIds.map((id) => fetchApi(`/variants/${id}`, { method: 'DELETE' })),
+      );
+      const deletedCount = results.filter((r) => r.status === 'fulfilled').length;
+      const failedCount = results.length - deletedCount;
+      setSelectedFamilyIds([]);
+      setIsBulkDeleteModalOpen(false);
+      await loadData();
+      if (failedCount === 0) {
+        showToast('success', `${deletedCount} famille(s) de variante supprimée(s) avec succès.`);
+      } else {
+        showToast('error', `${deletedCount} supprimée(s), ${failedCount} erreur(s) lors de la suppression.`);
+      }
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -675,6 +700,7 @@ export default function DashboardVariantsPage() {
         enableMultiSelect={true}
         selectedKeys={selectedFamilyIds}
         onSelectionChange={setSelectedFamilyIds}
+        onBulkDelete={() => setIsBulkDeleteModalOpen(true)}
         printTitle="Référentiel des Variantes et Déclinaisons — Royal"
         exportFileName="variantes"
         /* Mode Matrix (Grid Cards) */
@@ -1042,6 +1068,16 @@ export default function DashboardVariantsPage() {
             ? `Êtes-vous certain de vouloir supprimer la famille "${familyToDelete.name}" ? Les déclinaisons existantes conservent leurs libellés actuels.`
             : ''
         }
+      />
+
+      {/* MODAL 5: CONFIRMATION SUPPRESSION GROUPÉE */}
+      <DeleteConfirmModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onConfirm={confirmBulkDelete}
+        title="Suppression Groupée des Variantes"
+        description={`Êtes-vous certain de vouloir supprimer les ${selectedFamilyIds.length} famille(s) de variante sélectionnée(s) ?`}
+        isDeleting={isBulkDeleting}
       />
     </div>
   );

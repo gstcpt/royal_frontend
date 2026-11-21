@@ -41,6 +41,8 @@ export default function TvaRatesPage() {
   const [editing, setEditing] = React.useState<VatRateItem | null>(null);
   const [inspecting, setInspecting] = React.useState<VatRateItem | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<VatRateItem | null>(null);
+  const [bulkDeleteKeys, setBulkDeleteKeys] = React.useState<string[]>([]);
+  const [selectedKeys, setSelectedKeys] = React.useState<string[]>([]);
 
   const [form, setForm] = React.useState({ code: '', label: '', rate: 19, isDefault: false, isActive: true });
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
@@ -120,9 +122,17 @@ export default function TvaRatesPage() {
     setDeleteTarget(null);
   };
 
-  const handleBulkDelete = async (keys: string[]) => {
-    const s = new Set(keys);
-    await persist(rates.filter((r) => !s.has(r.id)), `${keys.length} taux supprimé(s).`);
+  const handleBulkDelete = (keys: string[]) => {
+    if (keys.length === 0) return;
+    setBulkDeleteKeys(keys);
+  };
+
+  const confirmBulkDelete = async () => {
+    if (bulkDeleteKeys.length === 0) return;
+    const s = new Set(bulkDeleteKeys);
+    await persist(rates.filter((r) => !s.has(r.id)), `${bulkDeleteKeys.length} taux supprimé(s).`);
+    setBulkDeleteKeys([]);
+    setSelectedKeys([]);
   };
 
   const columns: ColumnDef<VatRateItem>[] = [
@@ -236,6 +246,8 @@ export default function TvaRatesPage() {
         defaultMode="table"
         searchKeys={['code', 'label']}
         enableMultiSelect
+        selectedKeys={selectedKeys}
+        onSelectionChange={setSelectedKeys}
         onBulkDelete={handleBulkDelete}
         printTitle="Grille Fiscale TVA — Royal"
         exportFileName="tva-tunisie"
@@ -297,6 +309,14 @@ export default function TvaRatesPage() {
         onConfirm={handleDelete}
         title="Supprimer ce taux TVA ?"
         description={`Confirmez-vous la suppression de ${deleteTarget?.code} ?`}
+      />
+
+      <DeleteConfirmModal
+        isOpen={bulkDeleteKeys.length > 0}
+        onClose={() => setBulkDeleteKeys([])}
+        onConfirm={confirmBulkDelete}
+        title="Suppression Groupée des Taux TVA"
+        description={`Confirmez-vous la suppression des ${bulkDeleteKeys.length} taux TVA sélectionné(s) ?`}
       />
 
       <Toast isOpen={!!toastMsg} message={toastMsg || ''} type="success" onClose={() => setToastMsg(null)} />

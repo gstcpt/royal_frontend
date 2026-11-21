@@ -7,10 +7,12 @@ export type Locale = 'fr' | 'ar';
 interface I18nState {
   locale: Locale;
   dir: 'ltr' | 'rtl';
+  hydrated: boolean;
   translations: {
     fr: Record<string, any>;
     ar: Record<string, any>;
   };
+  hydrate: () => void;
   setLocale: (locale: Locale) => void;
   updateTranslations: (locale: Locale, data: Record<string, any>) => void;
   t: (keyPath: string, fallback?: string) => string;
@@ -31,24 +33,22 @@ function getNestedValue(obj: any, path: string): string | undefined {
 }
 
 export const useI18nStore = create<I18nState>((set, get) => {
-  // Initial locale from localStorage if available in browser
-  const savedLocale =
-    typeof window !== 'undefined'
-      ? (localStorage.getItem('royal_locale') as Locale) || 'fr'
-      : 'fr';
-
-  // Apply initial document direction
-  if (typeof window !== 'undefined') {
-    document.documentElement.dir = savedLocale === 'ar' ? 'rtl' : 'ltr';
-    document.documentElement.lang = savedLocale;
-  }
-
   return {
-    locale: savedLocale,
-    dir: savedLocale === 'ar' ? 'rtl' : 'ltr',
+    locale: 'fr',
+    dir: 'ltr',
+    hydrated: false,
     translations: {
       fr: frData,
       ar: arData,
+    },
+
+    hydrate: () => {
+      if (typeof window === 'undefined' || get().hydrated) return;
+      const savedLocale = (localStorage.getItem('royal_locale') as Locale) || 'fr';
+      const dir = savedLocale === 'ar' ? 'rtl' : 'ltr';
+      document.documentElement.dir = dir;
+      document.documentElement.lang = savedLocale;
+      set({ locale: savedLocale, dir, hydrated: true });
     },
 
     setLocale: (locale: Locale) => {

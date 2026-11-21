@@ -150,6 +150,8 @@ export default function DashboardCharacteristicsPage() {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [editingItem, setEditingItem] = React.useState<CharacteristicItem | null>(null);
   const [itemToDelete, setItemToDelete] = React.useState<CharacteristicItem | null>(null);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = React.useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
   const [categoriesModalItem, setCategoriesModalItem] = React.useState<CharacteristicItem | null>(null);
   const [articlesModalItem, setArticlesModalItem] = React.useState<CharacteristicItem | null>(null);
 
@@ -589,11 +591,34 @@ export default function DashboardCharacteristicsPage() {
     try {
       await fetchApi(`/characteristics/${itemToDelete.id}`, { method: 'DELETE' });
       setCharacteristics((prev) => prev.filter((c) => c.id !== itemToDelete.id));
+      setSelectedCharIds((prev) => prev.filter((id) => id !== itemToDelete.id));
       showToast('success', `Caractéristique "${itemToDelete.name}" supprimée.`);
     } catch (err: any) {
       showToast('error', err?.message || 'Impossible de supprimer cette caractéristique.');
     } finally {
       setItemToDelete(null);
+    }
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedCharIds.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const results = await Promise.allSettled(
+        selectedCharIds.map((id) => fetchApi(`/characteristics/${id}`, { method: 'DELETE' })),
+      );
+      const deletedCount = results.filter((r) => r.status === 'fulfilled').length;
+      const failedCount = results.length - deletedCount;
+      setSelectedCharIds([]);
+      setIsBulkDeleteModalOpen(false);
+      await loadData();
+      if (failedCount === 0) {
+        showToast('success', `${deletedCount} caractéristique(s) supprimée(s) avec succès.`);
+      } else {
+        showToast('error', `${deletedCount} supprimée(s), ${failedCount} erreur(s) lors de la suppression.`);
+      }
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -968,6 +993,7 @@ export default function DashboardCharacteristicsPage() {
         enableMultiSelect={true}
         selectedKeys={selectedCharIds}
         onSelectionChange={setSelectedCharIds}
+        onBulkDelete={() => setIsBulkDeleteModalOpen(true)}
         printTitle="Référentiel des Caractéristiques Techniques — Royal"
         exportFileName="caractéristiques"
         /* Mode Matrix (Grid Cards) */
@@ -1479,6 +1505,16 @@ export default function DashboardCharacteristicsPage() {
             ? `Êtes-vous certain de vouloir supprimer la caractéristique "${itemToDelete.name}" ? Les articles existants conservent leurs données historiques.`
             : ''
         }
+      />
+
+      {/* MODAL 5: CONFIRMATION SUPPRESSION GROUPÉE */}
+      <DeleteConfirmModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onConfirm={confirmBulkDelete}
+        title="Suppression Groupée des Caractéristiques"
+        description={`Êtes-vous certain de vouloir supprimer les ${selectedCharIds.length} caractéristique(s) sélectionnée(s) ?`}
+        isDeleting={isBulkDeleting}
       />
     </div>
   );

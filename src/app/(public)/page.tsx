@@ -68,12 +68,8 @@ async function getStorefrontData() {
     // Last added product for "Coup de Coeur de la Rédaction"
     const spotlightProduct = newProducts[0] || bestSellerPool[0] || null;
 
-    // Top ordered or random fallback product for "Nos Engagements & Réseau"
-    const fallbackRandomIdx =
-      bestSellerPool.length > 0
-        ? Math.floor(Math.random() * bestSellerPool.length)
-        : 0;
-    const highlightProduct = bestSellerPool[fallbackRandomIdx] || newProducts[1] || spotlightProduct;
+    // Deterministic highlight product so server renders never diverge
+    const highlightProduct = bestSellerPool[0] || newProducts[1] || spotlightProduct;
 
     // Featured products for Galerie & Inspirations
     const featuredProducts = newProducts.filter((p) => p.isFeatured).slice(0, 4);

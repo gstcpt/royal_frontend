@@ -121,6 +121,7 @@ interface CategoryOption {
   id: string;
   name: string;
   slug: string;
+  parentId?: string | null;
 }
 
 interface BrandOption {
@@ -1547,7 +1548,44 @@ export default function DashboardArticlesPage() {
         keyExtractor={(item) => item.id}
         searchPlaceholder="Rechercher un article par libellé, SKU, marque..."
         searchKeys={['name', 'sku', 'slug']}
-        categoryOptions={categories.map((c) => ({ label: c.name, value: c.name }))}
+        categoryOptions={categories.map((c) => ({ label: c.name, value: c.id }))}
+        categoryMatcher={(item, selectedCategoryVal) => {
+          const target = selectedCategoryVal.trim().toLowerCase();
+          const rootCat = categories.find(
+            (c) =>
+              c.id.toLowerCase() === target ||
+              c.slug.toLowerCase() === target ||
+              c.name.trim().toLowerCase() === target,
+          );
+          if (!rootCat) {
+            return (
+              item.category?.id?.toLowerCase() === target ||
+              (item as any).categoryId?.toLowerCase() === target ||
+              item.category?.name?.trim().toLowerCase() === target ||
+              item.category?.slug?.toLowerCase() === target
+            );
+          }
+          const descendantIds = new Set<string>([rootCat.id]);
+          let added = true;
+          while (added) {
+            added = false;
+            for (const c of categories) {
+              if (c.parentId && descendantIds.has(c.parentId) && !descendantIds.has(c.id)) {
+                descendantIds.add(c.id);
+                added = true;
+              }
+            }
+          }
+          const descendantNames = new Set(
+            categories.filter((c) => descendantIds.has(c.id)).map((c) => c.name.trim().toLowerCase()),
+          );
+          const itemCatId = item.category?.id || (item as any).categoryId;
+          const itemCatName = item.category?.name?.trim().toLowerCase();
+          return Boolean(
+            (itemCatId && descendantIds.has(itemCatId)) ||
+              (itemCatName && descendantNames.has(itemCatName)),
+          );
+        }}
         statusOptions={[
           { label: 'En ligne (Actifs)', value: 'ACTIVE' },
           { label: 'Masqués (Inactifs)', value: 'INACTIVE' },

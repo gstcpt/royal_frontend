@@ -100,6 +100,8 @@ export default function DashboardCategoriesPage() {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [editingCategory, setEditingCategory] = React.useState<CategoryItem | null>(null);
   const [categoryToDelete, setCategoryToDelete] = React.useState<CategoryItem | null>(null);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = React.useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
   const [descriptionModalCategory, setDescriptionModalCategory] = React.useState<CategoryItem | null>(null);
   const [articlesModalCategory, setArticlesModalCategory] = React.useState<CategoryItem | null>(null);
   const [articlesModalPage, setArticlesModalPage] = React.useState(1);
@@ -478,11 +480,33 @@ export default function DashboardCategoriesPage() {
     try {
       await fetchApi(`/categories/${categoryToDelete.id}`, { method: 'DELETE' });
       setCategories((prev) => prev.filter((c) => c.id !== categoryToDelete.id));
+      setSelectedCategoryIds((prev) => prev.filter((id) => id !== categoryToDelete.id));
       showToast('success', `Le rayon "${categoryToDelete.name}" a été supprimé.`);
+      await loadData();
     } catch (err: any) {
       showToast('error', err?.message || 'Impossible de supprimer ce rayon.');
     } finally {
       setCategoryToDelete(null);
+    }
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedCategoryIds.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const res = await fetchApi('/categories/bulk-delete', {
+        method: 'POST',
+        body: JSON.stringify({ ids: selectedCategoryIds }),
+      });
+      const deletedCount = Number(res?.deletedCount ?? selectedCategoryIds.length);
+      setSelectedCategoryIds([]);
+      setIsBulkDeleteModalOpen(false);
+      await loadData();
+      showToast('success', `${deletedCount} catégorie(s) supprimée(s) avec succès.`);
+    } catch (err: any) {
+      showToast('error', err?.message || 'Impossible de supprimer les catégories sélectionnées.');
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -831,6 +855,7 @@ export default function DashboardCategoriesPage() {
         enableMultiSelect={true}
         selectedKeys={selectedCategoryIds}
         onSelectionChange={setSelectedCategoryIds}
+        onBulkDelete={() => setIsBulkDeleteModalOpen(true)}
         printTitle="Référentiel des Rayons et Catégories — Royal"
         exportFileName="catégories"
         /* Mode Matrix (Grid Cards) */
@@ -1416,6 +1441,16 @@ export default function DashboardCategoriesPage() {
             ? `Êtes-vous certain de vouloir supprimer le rayon "${categoryToDelete.name}" ? Les sous-catégories seront rattachées à la racine.`
             : ''
         }
+      />
+
+      {/* MODAL 6: CONFIRMATION SUPPRESSION GROUPÉE */}
+      <DeleteConfirmModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onConfirm={confirmBulkDelete}
+        title="Suppression Groupée des Catégories"
+        description={`Êtes-vous certain de vouloir supprimer les ${selectedCategoryIds.length} catégorie(s) sélectionnée(s) (y compris sous-catégories sélectionnées en cascade) ?`}
+        isDeleting={isBulkDeleting}
       />
     </div>
   );

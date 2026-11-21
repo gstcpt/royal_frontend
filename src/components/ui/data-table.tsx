@@ -62,6 +62,7 @@ export interface DataTableProps<T = any> {
   searchKey?: string;
   statusOptions?: { label: string; value: string }[];
   categoryOptions?: { label: string; value: string }[];
+  categoryMatcher?: (item: T, categoryValue: string) => boolean;
   typeOptions?: { label: string; value: string }[];
   customFilters?: CustomFilter[];
   supportedModes?: DisplayMode[];
@@ -268,6 +269,7 @@ export function DataTable<T extends object = any>({
   searchKey,
   statusOptions = [],
   categoryOptions = [],
+  categoryMatcher,
   typeOptions = [],
   customFilters = [],
   supportedModes: explicitSupportedModes,
@@ -342,6 +344,15 @@ export function DataTable<T extends object = any>({
   const [internalSelectedKeys, setInternalSelectedKeys] = React.useState<string[]>([]);
   const selectedKeys = controlledSelectedKeys ?? internalSelectedKeys;
 
+  React.useEffect(() => {
+    if (controlledSelectedKeys !== undefined) return;
+    const validKeys = new Set(data.map((item) => keyExtractor(item)));
+    setInternalSelectedKeys((prev) => {
+      const next = prev.filter((k) => validKeys.has(k));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [data, controlledSelectedKeys, keyExtractor]);
+
   const updateSelection = React.useCallback(
     (newKeys: string[]) => {
       if (onSelectionChange) {
@@ -389,9 +400,21 @@ export function DataTable<T extends object = any>({
 
       // 3. Category Filter
       if (categoryFilter !== 'ALL') {
-        const itemCat =
-          it.categoryId || it.category?.slug || it.category?.name || it.category;
-        if (String(itemCat) !== categoryFilter) return false;
+        if (categoryMatcher) {
+          if (!categoryMatcher(item, categoryFilter)) return false;
+        } else {
+          const target = String(categoryFilter).trim().toLowerCase();
+          const candidates = [
+            it.categoryId,
+            it.category?.id,
+            it.category?.slug,
+            it.category?.name,
+            typeof it.category === 'string' ? it.category : null,
+          ]
+            .filter((v) => v !== null && v !== undefined && String(v).trim() !== '')
+            .map((v) => String(v).trim().toLowerCase());
+          if (!candidates.includes(target)) return false;
+        }
       }
 
       // 4. Type Filter

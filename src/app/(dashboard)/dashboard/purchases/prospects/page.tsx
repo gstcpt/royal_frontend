@@ -57,6 +57,8 @@ export default function ProspectsPage() {
   const [editing, setEditing] = React.useState<ProspectItem | null>(null);
   const [inspecting, setInspecting] = React.useState<ProspectItem | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<ProspectItem | null>(null);
+  const [bulkDeleteKeys, setBulkDeleteKeys] = React.useState<string[]>([]);
+  const [selectedKeys, setSelectedKeys] = React.useState<string[]>([]);
 
   const [form, setForm] = React.useState<Omit<ProspectItem, 'id' | 'createdAt'>>({
     companyName: '',
@@ -155,13 +157,20 @@ export default function ProspectsPage() {
     setDeleteTarget(null);
   };
 
-  const handleBulkDelete = async (keys: string[]) => {
+  const handleBulkDelete = (keys: string[]) => {
     if (keys.length === 0) return;
-    const set = new Set(keys);
+    setBulkDeleteKeys(keys);
+  };
+
+  const confirmBulkDelete = async () => {
+    if (bulkDeleteKeys.length === 0) return;
+    const set = new Set(bulkDeleteKeys);
     await persist(
       prospects.filter((p) => !set.has(p.id)),
-      `${keys.length} prospect(s) supprimé(s).`
+      `${bulkDeleteKeys.length} prospect(s) supprimé(s).`
     );
+    setBulkDeleteKeys([]);
+    setSelectedKeys([]);
   };
 
   const columns: ColumnDef<ProspectItem>[] = [
@@ -321,6 +330,8 @@ export default function ProspectsPage() {
         supportedModes={['table', 'list', 'matrix']}
         defaultMode="table"
         enableMultiSelect
+        selectedKeys={selectedKeys}
+        onSelectionChange={setSelectedKeys}
         onBulkDelete={handleBulkDelete}
         onRefresh={loadData}
         renderMatrixCard={(p, isChecked, onToggle) => (
@@ -480,6 +491,14 @@ export default function ProspectsPage() {
         onConfirm={handleDelete}
         title="Supprimer ce prospect ?"
         description={`Confirmez-vous la suppression de ${deleteTarget?.companyName} ?`}
+      />
+
+      <DeleteConfirmModal
+        isOpen={bulkDeleteKeys.length > 0}
+        onClose={() => setBulkDeleteKeys([])}
+        onConfirm={confirmBulkDelete}
+        title="Suppression Groupée des Prospects"
+        description={`Confirmez-vous la suppression des ${bulkDeleteKeys.length} prospect(s) sélectionné(s) ?`}
       />
 
       <Toast isOpen={!!toastMsg} message={toastMsg || ''} type="success" onClose={() => setToastMsg(null)} />

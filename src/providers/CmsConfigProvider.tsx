@@ -1,6 +1,9 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { useWishlistStore } from '@/stores/wishlist.store';
+import { useCompareStore } from '@/stores/compare.store';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export interface CmsThemeConfig {
   primaryHex: string;
@@ -734,6 +737,9 @@ export function CmsConfigProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    useWishlistStore.getState().hydrate();
+    useCompareStore.getState().hydrate();
+    useI18nStore.getState().hydrate();
     loadConfig();
     const handler = () => loadConfig();
     if (typeof window !== 'undefined') {

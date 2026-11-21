@@ -60,6 +60,8 @@ export default function ReferencePrefixesPage() {
   const [editing, setEditing] = React.useState<PrefixItem | null>(null);
   const [inspecting, setInspecting] = React.useState<PrefixItem | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<PrefixItem | null>(null);
+  const [bulkDeleteKeys, setBulkDeleteKeys] = React.useState<string[]>([]);
+  const [selectedKeys, setSelectedKeys] = React.useState<string[]>([]);
 
   const [form, setForm] = React.useState({
     code: 'CMD',
@@ -257,10 +259,9 @@ export default function ReferencePrefixesPage() {
         defaultMode="table"
         searchKeys={['code', 'docType', 'format', 'preview']}
         enableMultiSelect
-        onBulkDelete={async (keys) => {
-          const s = new Set(keys);
-          await persist(prefixes.filter((p) => !s.has(p.id)), `${keys.length} règle(s) supprimée(s).`);
-        }}
+        selectedKeys={selectedKeys}
+        onSelectionChange={setSelectedKeys}
+        onBulkDelete={(keys) => setBulkDeleteKeys(keys)}
         printTitle="Règles de Numérotation ERP — Royal"
         exportFileName="prefixes-codification"
       />
@@ -321,6 +322,19 @@ export default function ReferencePrefixesPage() {
         onConfirm={handleDelete}
         title="Supprimer cette règle ?"
         description={`Supprimer le préfixe ${deleteTarget?.code} ?`}
+      />
+
+      <DeleteConfirmModal
+        isOpen={bulkDeleteKeys.length > 0}
+        onClose={() => setBulkDeleteKeys([])}
+        onConfirm={async () => {
+          const s = new Set(bulkDeleteKeys);
+          await persist(prefixes.filter((p) => !s.has(p.id)), `${bulkDeleteKeys.length} règle(s) supprimée(s).`);
+          setBulkDeleteKeys([]);
+          setSelectedKeys([]);
+        }}
+        title="Suppression Groupée des Préfixes"
+        description={`Confirmez-vous la suppression des ${bulkDeleteKeys.length} règle(s) sélectionnée(s) ?`}
       />
 
       <Toast isOpen={!!toastMsg} message={toastMsg || ''} type="success" onClose={() => setToastMsg(null)} />

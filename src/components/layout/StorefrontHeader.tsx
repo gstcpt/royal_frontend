@@ -33,6 +33,7 @@ export function StorefrontHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const categoryMenuRef = React.useRef<HTMLDivElement>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [dynamicCategories, setDynamicCategories] = useState<Array<{ id: string; name: string; slug: string; productsCount?: number }>>([]);
   const [freeThreshold, setFreeThreshold] = useState<number>(150);
@@ -56,6 +57,23 @@ export function StorefrontHeader() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    setCategoryMenuOpen(false);
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (categoryMenuRef.current && !categoryMenuRef.current.contains(e.target as Node)) {
+        setCategoryMenuOpen(false);
+      }
+    };
+    if (categoryMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [categoryMenuOpen]);
 
   useEffect(() => {
     fetchCart();
@@ -212,17 +230,17 @@ export function StorefrontHeader() {
           </Link>
 
           {/* Rayons Dropdown */}
-          <div className="relative">
+          <div className="relative" ref={categoryMenuRef}>
             <button
               type="button"
-              onClick={() => setCategoryMenuOpen(!categoryMenuOpen)}
-              onBlur={() => setTimeout(() => setCategoryMenuOpen(false), 200)}
+              onClick={() => setCategoryMenuOpen((prev) => !prev)}
+              aria-expanded={categoryMenuOpen}
               className={`flex items-center gap-1.5 cursor-pointer py-1 transition-colors ${
                 isTransparent ? 'text-white/90 hover:text-white' : 'text-neutral-700 hover:text-neutral-950'
               }`}
             >
               <span>Rayons</span>
-              <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+              <ChevronDown className={`w-3.5 h-3.5 opacity-60 transition-transform ${categoryMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {categoryMenuOpen && (
@@ -230,7 +248,8 @@ export function StorefrontHeader() {
                 {dynamicCategories.map((cat) => (
                   <Link
                     key={cat.id}
-                    href={`/articles?category=${cat.slug}`}
+                    href={`/articles?category=${encodeURIComponent(cat.slug)}`}
+                    onClick={() => setCategoryMenuOpen(false)}
                     className="block px-4 py-2.5 text-xs font-semibold hover:bg-neutral-50 text-neutral-800"
                   >
                     {cat.name}
@@ -239,6 +258,7 @@ export function StorefrontHeader() {
                 <div className="border-t border-neutral-100 my-1" />
                 <Link
                   href="/articles"
+                  onClick={() => setCategoryMenuOpen(false)}
                   className="block px-4 py-2 text-xs font-bold text-neutral-950 hover:bg-neutral-50"
                 >
                   Voir tout le catalogue →

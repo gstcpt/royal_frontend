@@ -13,6 +13,8 @@ export interface WishlistItem {
 
 interface WishlistState {
   items: WishlistItem[];
+  hydrated: boolean;
+  hydrate: () => void;
   addItem: (item: WishlistItem) => void;
   removeItem: (id: string) => void;
   isInWishlist: (id: string) => boolean;
@@ -20,11 +22,6 @@ interface WishlistState {
 }
 
 export const useWishlistStore = create<WishlistState>((set, get) => {
-  const initialItems: WishlistItem[] =
-    typeof window !== 'undefined'
-      ? JSON.parse(localStorage.getItem('royal_wishlist') || '[]')
-      : [];
-
   const persist = (items: WishlistItem[]) => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('royal_wishlist', JSON.stringify(items));
@@ -32,7 +29,18 @@ export const useWishlistStore = create<WishlistState>((set, get) => {
   };
 
   return {
-    items: initialItems,
+    items: [],
+    hydrated: false,
+
+    hydrate: () => {
+      if (typeof window === 'undefined' || get().hydrated) return;
+      try {
+        const stored = JSON.parse(localStorage.getItem('royal_wishlist') || '[]');
+        set({ items: Array.isArray(stored) ? stored : [], hydrated: true });
+      } catch {
+        set({ items: [], hydrated: true });
+      }
+    },
 
     addItem: (item: WishlistItem) => {
       const { items } = get();

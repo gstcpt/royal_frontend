@@ -52,6 +52,8 @@ export default function PrintTemplatesPage() {
   const [editing, setEditing] = React.useState<PrintTemplateItem | null>(null);
   const [inspecting, setInspecting] = React.useState<PrintTemplateItem | null>(null);
   const [deleteTarget, setDeleteTarget] = React.useState<PrintTemplateItem | null>(null);
+  const [bulkDeleteKeys, setBulkDeleteKeys] = React.useState<string[]>([]);
+  const [selectedKeys, setSelectedKeys] = React.useState<string[]>([]);
 
   const [form, setForm] = React.useState<Omit<PrintTemplateItem, 'id' | 'createdAt'>>({
     code: '',
@@ -267,10 +269,9 @@ export default function PrintTemplatesPage() {
         defaultMode="table"
         searchKeys={['code', 'name', 'prefixCode', 'paperFormat']}
         enableMultiSelect
-        onBulkDelete={async (keys) => {
-          const s = new Set(keys);
-          await persist(templates.filter((t) => !s.has(t.id)), `${keys.length} modèle(s) supprimé(s).`);
-        }}
+        selectedKeys={selectedKeys}
+        onSelectionChange={setSelectedKeys}
+        onBulkDelete={(keys) => setBulkDeleteKeys(keys)}
         printTitle="Modèles d'Impression ERP — Royal"
         exportFileName="modeles-impression"
       />
@@ -375,6 +376,19 @@ export default function PrintTemplatesPage() {
         onConfirm={handleDelete}
         title="Supprimer ce modèle ?"
         description={`Supprimer ${deleteTarget?.code} ?`}
+      />
+
+      <DeleteConfirmModal
+        isOpen={bulkDeleteKeys.length > 0}
+        onClose={() => setBulkDeleteKeys([])}
+        onConfirm={async () => {
+          const s = new Set(bulkDeleteKeys);
+          await persist(templates.filter((t) => !s.has(t.id)), `${bulkDeleteKeys.length} modèle(s) supprimé(s).`);
+          setBulkDeleteKeys([]);
+          setSelectedKeys([]);
+        }}
+        title="Suppression Groupée des Modèles"
+        description={`Confirmez-vous la suppression des ${bulkDeleteKeys.length} modèle(s) sélectionné(s) ?`}
       />
 
       <Toast isOpen={!!toastMsg} message={toastMsg || ''} type="success" onClose={() => setToastMsg(null)} />

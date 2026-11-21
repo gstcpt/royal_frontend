@@ -16,6 +16,8 @@ export interface ComparedProduct {
 interface CompareState {
   items: ComparedProduct[];
   isOpen: boolean;
+  hydrated: boolean;
+  hydrate: () => void;
   addToCompare: (product: ComparedProduct) => boolean;
   removeFromCompare: (productId: string) => void;
   clearCompare: () => void;
@@ -24,17 +26,6 @@ interface CompareState {
 }
 
 export const useCompareStore = create<CompareState>((set, get) => {
-  // Load persisted from localStorage on client
-  let initialItems: ComparedProduct[] = [];
-  if (typeof window !== 'undefined') {
-    try {
-      const stored = localStorage.getItem('royal_compare_items');
-      if (stored) {
-        initialItems = JSON.parse(stored);
-      }
-    } catch {}
-  }
-
   const persist = (items: ComparedProduct[]) => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('royal_compare_items', JSON.stringify(items));
@@ -42,8 +33,21 @@ export const useCompareStore = create<CompareState>((set, get) => {
   };
 
   return {
-    items: initialItems,
-    isOpen: initialItems.length > 0,
+    items: [],
+    isOpen: false,
+    hydrated: false,
+
+    hydrate: () => {
+      if (typeof window === 'undefined' || get().hydrated) return;
+      try {
+        const stored = localStorage.getItem('royal_compare_items');
+        const parsed = stored ? JSON.parse(stored) : [];
+        const items = Array.isArray(parsed) ? parsed : [];
+        set({ items, isOpen: items.length > 0, hydrated: true });
+      } catch {
+        set({ items: [], isOpen: false, hydrated: true });
+      }
+    },
 
     addToCompare: (product: ComparedProduct) => {
       const { items } = get();
