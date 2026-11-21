@@ -1,0 +1,237 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Roboto:wght@300;400;500;700&family=Cairo:wght@400;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ═══════════════════════════════════════════════════════════════
+       CENTRALIZED TYPOGRAPHY TOKENS
+       Modify here to update the entire application font in one place
+       ═══════════════════════════════════════════════════════════════ */
+    --font-sans: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-heading: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    --font-arabic: 'Cairo', 'Poppins', sans-serif;
+
+    /* ═══════════════════════════════════════════════════════════════
+       CENTRALIZED COLOR SYSTEM TOKENS (HSL)
+       Modify here to re-theme the entire application in one place
+       ═══════════════════════════════════════════════════════════════ */
+    --background: 40 33% 99%; /* Soft Warm Porcelain #FDFCF9 */
+    --foreground: 220 23% 15%; /* Refined Platinum Charcoal #1D232E */
+    --card: 0 0% 100%;
+    --card-foreground: 220 23% 15%;
+    --card-pearl: 220 14% 96%; /* #F4F5F7 Brushed Silver Light */
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 23% 15%;
+
+    /* Royal Platinum Charcoal + Warm Gold Primary */
+    --primary: 220 23% 15%; /* #1D232E */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 95%; /* Silver Mist #F1F2F5 */
+    --secondary-foreground: 220 23% 15%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 215 16% 45%;
+    --accent: 43 60% 95%; /* Soft Champagne Gold Tint #FBF6E8 */
+    --accent-foreground: 43 75% 34%; /* Deep Antique Gold #9A7414 */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 24% 87%; /* Subtle Gold-Tinted Silver Border #E6E1D6 */
+    --input: 220 14% 88%;
+    --ring: 43 67% 46%;
+    --radius: 0.875rem;
+
+    /* Semantic Royal Gold & Silver Tokens */
+    --gold: 43 67% 46%; /* #C59B27 Metallic Crown Gold */
+    --gold-dark: 43 78% 35%; /* #9A7414 */
+    --gold-light: 44 69% 95%; /* #FBF6E8 */
+    --gold-foreground: 0 0% 100%;
+    --silver: 214 20% 82%; /* #CBD5E1 Brushed Silver */
+    --silver-light: 220 16% 96%; /* #F4F5F7 */
+    --royal-primary: #C59B27;
+    --royal-primary-hover: #A67C1E;
+    --royal-primary-text: #FFFFFF;
+    --royal-ink: #1D232E;
+    --royal-gold: #C59B27;
+    --royal-gold-dark: #9A7414;
+    --royal-gold-light: #FBF6E8;
+    --royal-silver: #CBD5E1;
+    --royal-silver-light: #F4F5F7;
+    --royal-bg: #FDFCF9;
+    --royal-card: #FFFFFF;
+    --royal-border: #E6E1D6;
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+    --warning: 43 67% 46%;
+    --warning-foreground: 0 0% 100%;
+    --info: 215 20% 45%;
+    --info-foreground: 0 0% 100%;
+  }
+
+  .dark {
+    --background: 222 47% 8%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --card-pearl: 222 47% 14%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 222 47% 11%;
+    --border: 217 33% 18%;
+    --input: 217 33% 18%;
+    --ring: 0 0% 100%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html, body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+  }
+  button, input, select, textarea, optgroup {
+    font-family: inherit;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+  .font-heading {
+    font-family: var(--font-heading);
+  }
+  .font-body {
+    font-family: var(--font-sans);
+  }
+  .font-arabic {
+    font-family: var(--font-arabic);
+  }
+}
+
+/* Luxury Glassmorphism Utilities */
+.glass-navbar {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.75);
+}
+
+.dark .glass-navbar {
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(30, 41, 59, 0.75);
+}
+
+.shadow-subtle {
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+}
+
+/* Print Stylesheet — Royal Precision Commercial Engine */
+@media print {
+  @page {
+    margin: 10mm 12mm;
+    size: A4 portrait;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+    font-size: 9.5pt !important;
+    line-height: 1.35 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  aside,
+  header,
+  footer,
+  nav,
+  .no-print,
+  button,
+  .glass-navbar {
+    display: none !important;
+  }
+
+  #royal-print-bon {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: #ffffff !important;
+  }
+
+  #royal-printable-table {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  #royal-printable-table table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto;
+  }
+
+  #royal-printable-table tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  #royal-printable-table thead {
+    display: table-header-group;
+  }
+
+  #royal-printable-table th,
+  #royal-printable-table td {
+    border: 1px solid #d1d5db !important;
+    padding: 6px 10px !important;
+    font-size: 9pt !important;
+    vertical-align: middle;
+  }
+
+  #royal-printable-table th {
+    background-color: #f3f4f6 !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    font-size: 8pt !important;
+    color: #111827 !important;
+  }
+
+  #royal-printable-table img {
+    display: inline-block !important;
+    max-width: 36px !important;
+    max-height: 36px !important;
+    object-fit: contain !important;
+    border-radius: 4px !important;
+    vertical-align: middle !important;
+  }
+
+  #royal-printable-table svg {
+    display: inline-block !important;
+    vertical-align: middle !important;
+  }
+}
+

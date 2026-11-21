@@ -1,0 +1,432 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useCartStore } from '@/stores/cart.store';
+import { getCartHeaders, getSafeImageUrl } from '@/lib/cart-session';
+import {
+  ShoppingBag,
+  Trash2,
+  Plus,
+  Minus,
+  ArrowRight,
+  ShieldCheck,
+  Truck,
+  Sparkles,
+  Tag,
+  CheckCircle2,
+  AlertCircle,
+} from 'lucide-react';
+
+interface CartItem {
+  id: string;
+  productId: string;
+  variantId: string;
+  productName: string;
+  variantName: string | null;
+  sku: string;
+  image: string | null;
+  unitPrice: number;
+  quantity: number;
+  lineTotal: number;
+  availableQty: number;
+  isAvailable: boolean;
+}
+
+export default function CartPage() {
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discountAmount: number;
+    description?: string;
+  } | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
+  const [couponSuccess, setCouponSuccess] = useState('');
+
+  const [shippingThreshold, setShippingThreshold] = useState<number>(150.0);
+  const [standardShippingFee, setStandardShippingFee] = useState<number>(7.0);
+
+  // Fetch cart & shipping config
+  const fetchCart = async () => {
+    try {
+      setLoading(true);
+      const [res, cfgRes] = await Promise.all([
+        fetch('/api/v1/cart', { headers: getCartHeaders(), credentials: 'include' }),
+        fetch('/api/v1/storefront-cms/config').catch(() => null),
+      ]);
+      const data = await res.json();
+      if (data.data?.items) {
+        setItems(data.data.items);
+      }
+      if (cfgRes?.ok) {
+        const cfgJson = await cfgRes.json();
+        const cfg = cfgJson?.data || cfgJson;
+        if (cfg?.freeShippingThreshold !== undefined) setShippingThreshold(Number(cfg.freeShippingThreshold));
+        if (cfg?.standardShippingFee !== undefined) setStandardShippingFee(Number(cfg.standardShippingFee));
+      }
+      useCartStore.getState().fetchCart();
+    } catch (e) {
+      console.error('Failed to load cart', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCart();
+  }, []);
+
+  const handleUpdateQty = async (itemId: string, currentQty: number, delta: number) => {
+    const newQty = currentQty + delta;
+    if (newQty < 1) return;
+
+    try {
+      const res = await fetch(`/api/v1/cart/items/${itemId}`, {
+        method: 'PUT',
+        headers: getCartHeaders(true),
+        body: JSON.stringify({ quantity: newQty }),
+      });
+      const data = await res.json();
+      if (data.data?.items) {
+        setItems(data.data.items);
+      }
+      useCartStore.getState().fetchCart();
+    } catch (e) {
+      console.error('Failed to update quantity', e);
+    }
+  };
+
+  const handleRemove = async (itemId: string) => {
+    try {
+      const res = await fetch(`/api/v1/cart/items/${itemId}`, {
+        method: 'DELETE',
+        headers: getCartHeaders(),
+      });
+      const data = await res.json();
+      if (data.data?.items) {
+        setItems(data.data.items);
+      }
+      useCartStore.getState().fetchCart();
+    } catch (e) {
+      console.error('Failed to remove item', e);
+    }
+  };
+
+  const handleApplyCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!couponCode.trim()) return;
+
+    setCouponLoading(true);
+    setCouponError('');
+    setCouponSuccess('');
+
+    try {
+      const subtotal = items.reduce((sum, it) => sum + it.lineTotal, 0);
+      const res = await fetch('/api/v1/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: couponCode.trim().toUpperCase(),
+          orderAmount: subtotal,
+          items: items.map((it) => ({
+            productId: it.productId,
+            variantId: it.variantId,
+            quantity: it.quantity,
+            unitPrice: it.unitPrice,
+          })),
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.data?.valid) {
+        setAppliedCoupon({
+          code: data.data.coupon.code,
+          discountAmount: data.data.discountAmount,
+          description: data.data.coupon.description,
+        });
+        setCouponSuccess(`Coupon ${data.data.coupon.code} appliqué avec succès ! (-${data.data.discountAmount.toFixed(3)} TND)`);
+      } else {
+        setCouponError(data.message || 'Code promo invalide ou expiré.');
+      }
+    } catch {
+      setCouponError('Erreur de validation du coupon.');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const subtotal = items.reduce((sum, it) => sum + it.lineTotal, 0);
+  const discount = appliedCoupon ? appliedCoupon.discountAmount : 0;
+  const subtotalAfterDiscount = Math.max(0, subtotal - discount);
+  const shippingCost = subtotalAfterDiscount >= shippingThreshold || subtotal === 0 ? 0 : standardShippingFee;
+  const taxAmount = Number((subtotalAfterDiscount * 0.19).toFixed(3));
+  const finalTotal = Number((subtotalAfterDiscount + shippingCost).toFixed(3));
+  const missingForFreeShipping = Math.max(0, shippingThreshold - subtotalAfterDiscount);
+  const progressPercent = Math.min(100, Math.round((subtotalAfterDiscount / shippingThreshold) * 100));
+
+  return (
+    <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-24 py-12">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-2 text-xs text-[#0C1A14]/60 uppercase tracking-widest mb-6">
+        <Link href="/" className="hover:text-[#D4AF37] transition">Accueil</Link>
+        <span>/</span>
+        <span className="text-[#0C1A14] font-semibold">Mon Panier Privilège</span>
+      </nav>
+
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#EFECE6] pb-6 mb-10">
+        <div>
+          <h1 className="font-sans font-bold tracking-tight text-3xl sm:text-4xl text-[#0C1A14] tracking-tight">
+            Votre Panier Culinaire
+          </h1>
+          <p className="text-sm text-[#0C1A14]/70 mt-1">
+            {items.length} {items.length > 1 ? 'articles sélectionnés' : 'article sélectionné'} d’exception.
+          </p>
+        </div>
+        <Link
+          href="/articles"
+          className="text-xs uppercase font-medium tracking-widest text-[#0C1A14] hover:text-[#D4AF37] flex items-center gap-1.5 transition"
+        >
+          <span>Continuer mes achats</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+
+      {loading ? (
+        <div className="py-24 text-center">
+          <div className="w-12 h-12 border-3 border-[#D4AF37] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-sm text-[#0C1A14]/70">Chargement de votre sélection...</p>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="py-20 text-center bg-white rounded-3xl border border-[#EFECE6] shadow-sm max-w-2xl mx-auto px-6">
+          <div className="w-20 h-20 bg-[#FBF9F5] rounded-full flex items-center justify-center mx-auto mb-6 text-[#0C1A14]/40">
+            <ShoppingBag className="w-10 h-10" />
+          </div>
+          <h2 className="font-sans font-bold tracking-tight text-2xl text-[#0C1A14] mb-2">Votre panier est actuellement vide</h2>
+          <p className="text-sm text-[#0C1A14]/60 max-w-md mx-auto mb-8">
+            Explorez nos collections d’ustensiles de chef et d’équipements gastronomiques pour composer votre cuisine idéale.
+          </p>
+          <Link
+            href="/articles"
+            className="inline-flex items-center justify-center px-8 py-3.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs uppercase font-semibold tracking-widest hover:bg-[var(--royal-primary-hover)] transition-all shadow-md"
+          >
+            Découvrir le Catalogue
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+          {/* Items List */}
+          <div className="lg:col-span-8 space-y-6">
+            {/* Free shipping progress bar */}
+            <div className="bg-[var(--royal-gold-light)] text-[var(--royal-ink)] p-5 rounded-2xl shadow-sm border border-[var(--royal-primary)]/40">
+              <div className="flex items-center justify-between mb-2 text-xs">
+                <span className="flex items-center gap-2 font-medium">
+                  <Truck className="w-4 h-4 text-[var(--royal-primary)]" />
+                  {missingForFreeShipping === 0 ? (
+                    <span className="text-[var(--royal-gold-dark)] font-bold">Félicitations ! Vous bénéficiez de la livraison offerte en Tunisie.</span>
+                  ) : (
+                    <span>
+                      Plus que <strong className="text-[var(--royal-gold-dark)]">{missingForFreeShipping.toFixed(3)} TND</strong> pour débloquer la livraison gratuite !
+                    </span>
+                  )}
+                </span>
+                <span className="text-[var(--royal-ink)]/70 font-semibold">{progressPercent}%</span>
+              </div>
+              <div className="w-full bg-white/80 border border-[var(--royal-primary)]/20 h-2 rounded-full overflow-hidden">
+                <div
+                  className="bg-[var(--royal-primary)] h-full rounded-full transition-all duration-500"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Cart Table / Cards */}
+            <div className="bg-white rounded-3xl border border-[#EFECE6] divide-y divide-[#EFECE6] overflow-hidden shadow-sm">
+              {items.map((item) => (
+                <div key={item.id} className="p-6 sm:flex items-center justify-between gap-6 hover:bg-[#FBF9F5]/50 transition">
+                  {/* Image & Details */}
+                  <div className="flex items-center gap-5 flex-1">
+                    <div className="w-20 h-20 rounded-2xl bg-[#FBF9F5] border border-[#EFECE6] flex-shrink-0 overflow-hidden flex items-center justify-center p-2">
+                      <img src={getSafeImageUrl(item.image)} alt={item.productName} className="w-full h-full object-contain" />
+                    </div>
+                    <div>
+                      <h3 className="font-sans font-bold tracking-tight text-lg text-[#0C1A14] font-medium leading-snug">
+                        {item.productName}
+                      </h3>
+                      {item.variantName && (
+                        <p className="text-xs text-[#0C1A14]/60 mt-0.5">
+                          Variante : <span className="font-medium text-[#0C1A14]">{item.variantName}</span>
+                        </p>
+                      )}
+                      <p className="text-xs text-[#0C1A14]/40 font-mono mt-0.5">SKU : {item.sku}</p>
+                      <div className="mt-2 text-sm font-semibold text-[#0C1A14]">
+                        {item.unitPrice.toFixed(3)} TND
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quantity Stepper & Total */}
+                  <div className="flex items-center justify-between sm:justify-end gap-6 mt-4 sm:mt-0">
+                    <div className="flex items-center border border-[#EFECE6] rounded-full bg-[#FBF9F5] px-2 py-1">
+                      <button
+                        onClick={() => handleUpdateQty(item.id, item.quantity, -1)}
+                        className="p-1 rounded-full text-[#0C1A14]/60 hover:text-[#0C1A14] hover:bg-white transition"
+                        title="Diminuer"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="w-8 text-center text-xs font-semibold text-[#0C1A14]">
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={() => handleUpdateQty(item.id, item.quantity, 1)}
+                        className="p-1 rounded-full text-[#0C1A14]/60 hover:text-[#0C1A14] hover:bg-white transition"
+                        title="Augmenter"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="text-right min-w-[90px]">
+                      <span className="block font-sans font-bold tracking-tight text-lg font-bold text-[#0C1A14]">
+                        {item.lineTotal.toFixed(3)} TND
+                      </span>
+                      <span className="text-[10px] text-[#0C1A14]/50">TVA 19% inc.</span>
+                    </div>
+
+                    <button
+                      onClick={() => handleRemove(item.id)}
+                      className="p-2 rounded-full text-[#0C1A14]/30 hover:text-red-500 hover:bg-red-50 transition"
+                      title="Supprimer l'article"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick Guarantees */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
+              <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-[#EFECE6]">
+                <ShieldCheck className="w-6 h-6 text-[#D4AF37] shrink-0" />
+                <span className="text-xs text-[#0C1A14]/80">Garantie constructeur selon fiche article</span>
+              </div>
+              <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-[#EFECE6]">
+                <Truck className="w-6 h-6 text-[#D4AF37] shrink-0" />
+                <span className="text-xs text-[#0C1A14]/80">Livraison 24-48h sur toute la Tunisie</span>
+              </div>
+              <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-[#EFECE6]">
+                <Sparkles className="w-6 h-6 text-[#D4AF37] shrink-0" />
+                <span className="text-xs text-[#0C1A14]/80">Paiement comptant sécurisé à la livraison</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Cart Summary Card */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bg-white rounded-3xl border border-[#EFECE6] p-6 shadow-sm sticky top-28">
+              <h2 className="font-sans font-bold tracking-tight text-xl text-[#0C1A14] font-semibold pb-4 border-b border-[#EFECE6]">
+                Récapitulatif de Commande
+              </h2>
+
+              {/* Promo code form */}
+              <div className="pt-5 pb-5 border-b border-[#EFECE6]">
+                <form onSubmit={handleApplyCoupon} className="space-y-2">
+                  <label className="text-xs font-medium text-[#0C1A14]/70 flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    <span>Code privilège ou bon de réduction</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      placeholder="Ex: ROYALVIP"
+                      className="flex-1 px-4 py-2.5 rounded-full border border-[#EFECE6] bg-[#FBF9F5] text-xs font-mono uppercase tracking-wider focus:outline-none focus:border-[#D4AF37]"
+                    />
+                    <button
+                      type="submit"
+                      disabled={couponLoading || !couponCode.trim()}
+                      className="px-5 py-2.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-semibold tracking-wider hover:bg-[var(--royal-primary-hover)] transition disabled:opacity-50"
+                    >
+                      {couponLoading ? '...' : 'Appliquer'}
+                    </button>
+                  </div>
+                </form>
+
+                {couponSuccess && (
+                  <div className="mt-3 p-2.5 rounded-xl bg-emerald-50 text-emerald-800 text-xs flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <span>{couponSuccess}</span>
+                  </div>
+                )}
+                {couponError && (
+                  <div className="mt-3 p-2.5 rounded-xl bg-red-50 text-red-700 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                    <span>{couponError}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Price Breakdown */}
+              <div className="space-y-3 py-5 text-sm text-[#0C1A14]/80">
+                <div className="flex justify-between">
+                  <span>Sous-total articles</span>
+                  <span className="font-semibold text-[#0C1A14]">{subtotal.toFixed(3)} TND</span>
+                </div>
+
+                {appliedCoupon && (
+                  <div className="flex justify-between text-emerald-700 font-medium">
+                    <span>Remise ({appliedCoupon.code})</span>
+                    <span>-{discount.toFixed(3)} TND</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between">
+                  <span>Frais de livraison</span>
+                  {shippingCost === 0 ? (
+                    <span className="text-emerald-700 font-semibold uppercase text-xs">Offerts</span>
+                  ) : (
+                    <span className="font-semibold text-[#0C1A14]">{shippingCost.toFixed(3)} TND</span>
+                  )}
+                </div>
+
+                <div className="flex justify-between text-xs text-[#0C1A14]/50">
+                  <span>TVA estimée incluse (19%)</span>
+                  <span>{taxAmount.toFixed(3)} TND</span>
+                </div>
+              </div>
+
+              {/* Total & Checkout CTA */}
+              <div className="pt-5 border-t border-[#EFECE6] space-y-5">
+                <div className="flex justify-between items-baseline">
+                  <span className="font-sans font-bold tracking-tight text-lg font-bold text-[#0C1A14]">Net à payer</span>
+                  <div className="text-right">
+                    <span className="font-sans font-bold tracking-tight text-3xl font-extrabold text-[#0C1A14]">
+                      {finalTotal.toFixed(3)} <span className="text-lg font-normal">TND</span>
+                    </span>
+                  </div>
+                </div>
+
+                <Link
+                  href="/checkout"
+                  className="w-full py-4 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs uppercase font-bold tracking-widest hover:bg-[var(--royal-primary-hover)] transition-all flex items-center justify-center gap-2 shadow-lg"
+                >
+                  <span>Finaliser ma Commande</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+
+                <p className="text-[11px] text-center text-[#0C1A14]/50 leading-relaxed">
+                  Paiement comptant à la livraison après vérification de votre commande.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

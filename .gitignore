@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output (root only; keep vendored packages/shared-*/dist/ and public/uploads/)
+/.next/
+/dist/
+/out/
+
+# Environment files
+.env
+.env.local
+.env.neon
+.env.vercel
+.env.*.local
+
+# Logs & Cache
+logs/
+*.log
+.turbo/
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+.vercel/

@@ -1,0 +1,20 @@
+FROM node:24-alpine
+
+WORKDIR /app
+RUN npm install -g pnpm@10.15.0
+
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY packages ./packages
+COPY apps/frontend ./apps/frontend
+
+RUN pnpm install --no-frozen-lockfile
+RUN pnpm --filter "@royal/shared-types" run build
+RUN pnpm --filter "@royal/shared-validators" run build
+RUN pnpm --filter "@royal/shared-utils" run build
+
+WORKDIR /app/apps/frontend
+EXPOSE 3100
+ENV PORT=3100
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["pnpm", "dev"]

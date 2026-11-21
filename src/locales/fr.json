@@ -1,0 +1,89 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "catalog": "Catalogue",
+    "categories": "Catégories",
+    "compare": "Comparateur",
+    "wishlist": "Liste d'envies",
+    "cart": "Panier",
+    "account": "Mon Compte",
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "dashboard": "Tableau de Bord",
+    "track_order": "Suivi de Commande",
+    "all_categories": "Toutes les catégories"
+  },
+  "header": {
+    "search_placeholder": "Rechercher un produit, une marque, une référence...",
+    "free_shipping": "Livraison offerte sur toute la Tunisie dès 100 TND d'achat",
+    "contact_support": "Service Client 7j/7 : +216 71 888 999"
+  },
+  "actions": {
+    "add_to_cart": "Ajouter au Panier",
+    "buy_now": "Commander Immédiatement",
+    "added_to_cart": "Ajouté avec succès !",
+    "view_cart": "Voir mon Panier",
+    "checkout": "Passer à la caisse",
+    "continue_shopping": "Poursuivre mes achats",
+    "compare": "Comparer",
+    "save": "Enregistrer",
+    "filter": "Filtrer",
+    "clear_filters": "Réinitialiser les filtres",
+    "remove": "Supprimer"
+  },
+  "storefront": {
+    "hero_title": "L'Excellence Culinaire & l'Art de Vivre",
+    "hero_subtitle": "Découvrez notre collection raffinée d'équipements de cuisine, d'art de la table et d'accessoires gastronomiques d'exception.",
+    "explore_collection": "Explorer la Collection",
+    "featured_categories": "Nos Univers d'Exception",
+    "new_arrivals": "Nouveautés & Tendances",
+    "trending": "Produits Populaires",
+    "satisfaction_guarantee": "Garantie Authenticité & Qualité Supérieure",
+    "fast_delivery": "Livraison Express 24/48h",
+    "secure_payment": "Paiement 100% Sécurisé (ClicToPay & Espèces)",
+    "customer_service": "Conseils d'Experts Personnalisés"
+  },
+  "cart": {
+    "title": "Votre Panier d'Achat",
+    "empty": "Votre panier est actuellement vide",
+    "empty_subtitle": "Laissez-vous inspirer par nos sélections exclusives et ajoutez vos coups de cœur.",
+    "subtotal": "Sous-total HT",
+    "shipping": "Frais de livraison",
+    "free": "Gratuit",
+    "tax": "TVA (19%)",
+    "total": "Total TTC",
+    "coupon_code": "Code Promotionnel / Coupon",
+    "apply_coupon": "Appliquer",
+    "checkout_button": "Valider ma commande"
+  },
+  "checkout": {
+    "title": "Finalisation de Commande",
+    "guest_mode": "Commande Rapide sans Compte (Invité)",
+    "personal_info": "Informations Personnelles",
+    "first_name": "Prénom",
+    "last_name": "Nom",
+    "email": "Adresse Email",
+    "phone": "Numéro de Téléphone",
+    "delivery_address": "Adresse de Livraison",
+    "street": "Adresse (Rue, Immeuble, Appartement)",
+    "city": "Gouvernorat / Ville",
+    "postal_code": "Code Postal",
+    "payment_method": "Mode de Paiement",
+    "cod": "Paiement en espèces à la livraison",
+    "clictopay": "Carte Bancaire en Ligne (ClicToPay)",
+    "confirm_order": "Confirmer et Commander",
+    "order_success": "Félicitations ! Votre commande a été enregistrée avec succès."
+  },
+  "wishlist": {
+    "title": "Ma Liste d'Envies",
+    "subtitle": "Retrouvez vos articles favoris et ajoutez-les à votre panier quand vous le souhaitez.",
+    "empty": "Votre liste d'envies est vide pour le moment.",
+    "add_all_to_cart": "Tout ajouter au panier"
+  },
+  "compare": {
+    "title": "Comparateur d'Articles",
+    "subtitle": "Comparez les spécifications techniques, prix et fonctionnalités de vos articles favoris.",
+    "empty": "Aucun article sélectionné pour la comparaison.",
+    "empty_desc": "Ajoutez jusqu'à 4 articles depuis le catalogue pour visualiser leurs différences côte à côte."
+  }
+}
