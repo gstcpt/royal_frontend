@@ -67,6 +67,7 @@ import {
   Compass,
   Sparkles,
   Eye,
+  Globe,
 } from 'lucide-react';
 
 interface NavNode {
@@ -142,6 +143,7 @@ function DashboardLayoutInner({
     '/dashboard/reports/interactions': 'PRIVATE',
     '/dashboard/community/newsletters': 'PRIVATE',
     '/dashboard/seo/testimonials': 'PRIVATE',
+    '/dashboard/seo/pixels': 'PRIVATE',
     '/dashboard/analytics': 'PRIVATE',
     '/dashboard/reports/sales': 'PRIVATE',
     '/dashboard/reports/treasury': 'PRIVATE',
@@ -741,6 +743,7 @@ function DashboardLayoutInner({
         { id: 'seo-interactions', label: 'Interactions', href: '/dashboard/reports/interactions', icon: <ThumbsUp className="h-4 w-4" /> },
         { id: 'seo-newsletter', label: 'Abonnements', href: '/dashboard/community/newsletters', icon: <Send className="h-4 w-4" /> },
         { id: 'seo-testimonials', label: 'Témoignages', href: '/dashboard/seo/testimonials', icon: <Sparkles className="h-4 w-4" /> },
+        { id: 'seo-pixels', label: 'Pixels & Référencement SEO', href: '/dashboard/seo/pixels', icon: <Globe className="h-4 w-4" /> },
       ],
     },
 

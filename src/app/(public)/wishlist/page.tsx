@@ -10,13 +10,13 @@ import { ProductCard, StorefrontProduct } from '@/components/storefront/ProductC
 import { Heart, ShoppingBag, ArrowRight, Check } from 'lucide-react';
 
 export default function WishlistPage() {
-  const { items, removeItem, clearWishlist, addItem } = useWishlistStore();
+  const { items, removeItem, clearWishlist, setItems } = useWishlistStore();
   const { addItem: addToCart } = useCartStore();
   const { isAuthenticated } = useAuthStore();
   const [serverProducts, setServerProducts] = useState<StorefrontProduct[] | null>(null);
   const [addedAll, setAddedAll] = useState(false);
 
-  useEffect(() => {
+  const syncFromServer = React.useCallback(() => {
     if (!isAuthenticated) {
       setServerProducts(null);
       return;
@@ -30,34 +30,36 @@ export default function WishlistPage() {
         const list = json?.data || json;
         if (Array.isArray(list)) {
           setServerProducts(list);
-          list.forEach((p: StorefrontProduct) => {
-            const activeP =
-              p.discountPrice && Number(p.discountPrice) > 0 && Number(p.discountPrice) < Number(p.sellingPrice)
-                ? Number(p.discountPrice)
-                : Number(p.sellingPrice);
-            addItem({
-              id: p.id,
-              name: p.name,
-              slug: p.slug,
-              price: activeP,
-              image: getSafeImageUrl(p.primaryImage),
-              category: p.category?.name,
-              sku: p.sku,
-              inStock: true,
-            });
-          });
+          setItems(
+            list.map((p: StorefrontProduct) => {
+              const activeP =
+                p.discountPrice && Number(p.discountPrice) > 0 && Number(p.discountPrice) < Number(p.sellingPrice)
+                  ? Number(p.discountPrice)
+                  : Number(p.sellingPrice);
+              return {
+                id: p.id,
+                name: p.name,
+                slug: p.slug,
+                price: activeP,
+                image: getSafeImageUrl(p.primaryImage),
+                category: p.category?.name,
+                sku: p.sku,
+                inStock: true,
+              };
+            }),
+          );
         }
       })
       .catch(() => null);
-  }, [isAuthenticated, addItem]);
+  }, [isAuthenticated, setItems]);
+
+  useEffect(() => {
+    syncFromServer();
+  }, [syncFromServer]);
 
   const cardProducts: StorefrontProduct[] = useMemo(() => {
     const serverById = new Map<string, StorefrontProduct>();
     (serverProducts || []).forEach((p) => serverById.set(p.id, p));
-
-    if (isAuthenticated && serverProducts && serverProducts.length > 0 && items.length === 0) {
-      return serverProducts;
-    }
 
     return items.map((item) => {
       const full = serverById.get(item.id);
@@ -75,7 +77,7 @@ export default function WishlistPage() {
         brand: { name: 'Royal' },
       };
     });
-  }, [items, serverProducts, isAuthenticated]);
+  }, [items, serverProducts]);
 
   const handleClearAll = async () => {
     if (isAuthenticated && cardProducts.length > 0) {
@@ -85,7 +87,7 @@ export default function WishlistPage() {
             method: 'POST',
             headers: getCartHeaders(true),
             credentials: 'include',
-            body: JSON.stringify({ productId: p.id }),
+            body: JSON.stringify({ productId: p.id, action: 'REMOVE' }),
           }).catch(() => null),
         ),
       );

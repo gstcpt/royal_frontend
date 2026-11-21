@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCartStore } from '@/stores/cart.store';
 import { getCartHeaders, getSafeImageUrl } from '@/lib/cart-session';
+import { trackMarketingEvent } from '@/components/storefront/MarketingPixelsTracker';
 import {
   ShieldCheck,
   Truck,
@@ -301,6 +302,12 @@ export default function CheckoutPage() {
 
       const data = await res.json();
       if (res.ok && data.data?.reference) {
+        const orderTotal = items.reduce((sum, it) => sum + it.lineTotal, 0);
+        trackMarketingEvent('Purchase', {
+          value: orderTotal,
+          transaction_id: data.data.reference,
+          content_ids: items.map((it) => it.productId || it.variantId),
+        });
         await useCartStore.getState().clearCart();
         router.push(`/order-confirmation/${data.data.reference}`);
       } else {

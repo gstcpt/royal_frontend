@@ -15,6 +15,7 @@ interface WishlistState {
   items: WishlistItem[];
   hydrated: boolean;
   hydrate: () => void;
+  setItems: (items: WishlistItem[]) => void;
   addItem: (item: WishlistItem) => void;
   removeItem: (id: string) => void;
   isInWishlist: (id: string) => boolean;
@@ -49,6 +50,19 @@ export const useWishlistStore = create<WishlistState>((set, get) => {
         set({ items: next });
         persist(next);
       }
+    },
+
+    setItems: (items: WishlistItem[]) => {
+      const unique: WishlistItem[] = [];
+      const seen = new Set<string>();
+      for (const it of items) {
+        if (it?.id && !seen.has(it.id)) {
+          seen.add(it.id);
+          unique.push(it);
+        }
+      }
+      set({ items: unique, hydrated: true });
+      persist(unique);
     },
 
     removeItem: (id: string) => {

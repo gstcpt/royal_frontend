@@ -26,6 +26,7 @@ import { formatTndCurrency } from '@/lib/utils';
 import { ProductMediaViewer } from './ProductMediaViewer';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { Modal } from '@/components/ui';
+import { trackMarketingEvent } from './MarketingPixelsTracker';
 
 export interface StorefrontVariant {
   id: string;
@@ -127,13 +128,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
   const handleToggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (typeof window !== 'undefined' && localStorage.getItem('royal_token')) {
-      fetch('/api/v1/storefront-cms/wishlist/toggle', {
-        method: 'POST',
-        headers: getCartHeaders(true),
-        body: JSON.stringify({ productId: product.id, variantId: selectedVariant?.id }),
-      }).catch(() => null);
-    }
+    const nextAction = inWishlist ? 'REMOVE' : 'ADD';
     if (inWishlist) {
       removeFromWishlist(product.id);
     } else {
@@ -147,6 +142,27 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
         sku: product.sku,
         inStock: true,
       });
+      trackMarketingEvent('AddToWishlist', {
+        value: currentPrice,
+        content_name: product.name,
+        content_ids: [product.id],
+      });
+    }
+    if (typeof window !== 'undefined') {
+      if (localStorage.getItem('royal_token')) {
+        fetch('/api/v1/storefront-cms/wishlist/toggle', {
+          method: 'POST',
+          headers: getCartHeaders(true),
+          credentials: 'include',
+          keepalive: true,
+          body: JSON.stringify({
+            productId: product.id,
+            variantId: selectedVariant?.id,
+            action: nextAction,
+          }),
+        }).catch(() => null);
+      }
+      window.dispatchEvent(new Event('royal-wishlist-updated'));
     }
   };
 
@@ -191,6 +207,11 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
       price: selectedVariant?.sellingPrice || currentPrice,
       sku: selectedVariant?.sku || product.sku,
       productName: product.name,
+    });
+    trackMarketingEvent('AddToCart', {
+      value: (selectedVariant?.sellingPrice || currentPrice) * quantity,
+      content_name: product.name,
+      content_ids: [product.id],
     });
     setIsBuyModalOpen(false);
     setIsQuickViewOpen(false);

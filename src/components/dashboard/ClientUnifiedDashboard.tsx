@@ -187,15 +187,15 @@ export function ClientUnifiedDashboard() {
 
   const handleToggleWishlist = async (prod: any) => {
     if (!prod?.id) return;
-    fetch('/api/v1/storefront-cms/wishlist/toggle', {
-      method: 'POST',
-      headers: getCartHeaders(true),
-      credentials: 'include',
-      body: JSON.stringify({ productId: prod.id }),
-    }).catch(() => null);
+    const currentlySaved = isInWishlist(prod.id);
+    const nextAction = currentlySaved ? 'REMOVE' : 'ADD';
 
-    if (isInWishlist(prod.id)) {
+    if (currentlySaved) {
       removeItem(prod.id);
+      setInteractions((prev) => ({
+        ...prev,
+        wishlistProducts: prev.wishlistProducts.filter((w) => w.id !== prod.id),
+      }));
     } else {
       addItem({
         id: prod.id,
@@ -208,6 +208,14 @@ export function ClientUnifiedDashboard() {
         inStock: true,
       });
     }
+
+    fetch('/api/v1/storefront-cms/wishlist/toggle', {
+      method: 'POST',
+      headers: getCartHeaders(true),
+      credentials: 'include',
+      keepalive: true,
+      body: JSON.stringify({ productId: prod.id, action: nextAction }),
+    }).catch(() => null);
   };
 
   const initials = `${user?.firstName?.[0] || 'U'}${user?.lastName?.[0] || ''}`;

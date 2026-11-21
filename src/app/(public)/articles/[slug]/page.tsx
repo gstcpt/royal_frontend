@@ -12,6 +12,7 @@ import { getSafeImageUrl, getCartHeaders } from '@/lib/cart-session';
 import { formatCurrency, formatPriceAdjustment } from '@/lib/utils';
 import { ProductMediaViewer } from '@/components/storefront/ProductMediaViewer';
 import { ProductCard, StorefrontProduct } from '@/components/storefront/ProductCard';
+import { trackMarketingEvent } from '@/components/storefront/MarketingPixelsTracker';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import {
   Star,
@@ -195,6 +196,11 @@ export default function ArticleDetailPage() {
           const resJson = await res.json();
           const data: ProductDetailData = resJson?.data || resJson;
           setProduct(data);
+          trackMarketingEvent('ViewContent', {
+            value: Number(data.discountPrice || data.sellingPrice || 0),
+            content_name: data.name,
+            content_ids: [data.id],
+          });
           const primaryImg = getSafeImageUrl(
             data.images?.find((img) => img.isPrimary)?.url || data.images?.[0]?.url
           );
@@ -304,18 +310,18 @@ export default function ArticleDetailPage() {
       productName: product.name,
       image: selectedImage,
     });
+    trackMarketingEvent('AddToCart', {
+      value: activePrice * quantity,
+      content_name: product.name,
+      content_ids: [product.id],
+    });
     setAddedToCartToast(true);
     setTimeout(() => setAddedToCartToast(false), 3800);
   };
 
   const handleToggleWishlist = () => {
-    if (typeof window !== 'undefined' && localStorage.getItem('royal_token') && product) {
-      fetch('/api/v1/storefront-cms/wishlist/toggle', {
-        method: 'POST',
-        headers: getCartHeaders(true),
-        body: JSON.stringify({ productId: product.id, variantId: selectedVariant?.id }),
-      }).catch(() => null);
-    }
+    if (!product) return;
+    const nextAction = inWishlist ? 'REMOVE' : 'ADD';
     if (inWishlist) removeFromWishlist(product.id);
     else {
       addToWishlist({
@@ -328,6 +334,20 @@ export default function ArticleDetailPage() {
         sku: product.sku,
         inStock: true,
       });
+      trackMarketingEvent('AddToWishlist', {
+        value: activePrice,
+        content_name: product.name,
+        content_ids: [product.id],
+      });
+    }
+    if (typeof window !== 'undefined' && localStorage.getItem('royal_token')) {
+      fetch('/api/v1/storefront-cms/wishlist/toggle', {
+        method: 'POST',
+        headers: getCartHeaders(true),
+        credentials: 'include',
+        keepalive: true,
+        body: JSON.stringify({ productId: product.id, variantId: selectedVariant?.id, action: nextAction }),
+      }).catch(() => null);
     }
   };
 

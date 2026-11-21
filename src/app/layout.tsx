@@ -1,6 +1,8 @@
+import React, { Suspense } from 'react';
 import type { Metadata } from 'next';
 import './globals.css';
 import { CmsConfigProvider } from '@/providers/CmsConfigProvider';
+import { MarketingPixelsTracker } from '@/components/storefront/MarketingPixelsTracker';
 
 export const metadata: Metadata = {
   title: 'Royal — Electro de Maison | E-Commerce & Électroménager Tunisie',
@@ -23,7 +25,12 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <body className="min-h-screen antialiased bg-[var(--royal-bg)] text-[var(--royal-ink)]">
-        <CmsConfigProvider>{children}</CmsConfigProvider>
+        <CmsConfigProvider>
+          <Suspense fallback={null}>
+            <MarketingPixelsTracker />
+          </Suspense>
+          {children}
+        </CmsConfigProvider>
       </body>
     </html>
   );
