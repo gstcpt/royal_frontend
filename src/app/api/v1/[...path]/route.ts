@@ -1,12 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const COLLISION_BACKEND_HOSTS = new Set([
+  'royal-backend.vercel.app',
+  'royalbackend.vercel.app',
+]);
+
 function getBackendBaseUrl(): string {
-  const raw =
-    process.env.INTERNAL_API_URL ||
-    process.env.BACKEND_URL ||
-    process.env.NEXT_PUBLIC_BACKEND_URL ||
-    'http://backend:4000';
-  return raw.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
+  const candidates = [
+    process.env.INTERNAL_API_URL,
+    process.env.BACKEND_INTERNAL_URL,
+    process.env.BACKEND_URL,
+    process.env.NEXT_PUBLIC_BACKEND_URL,
+    process.env.NEXT_PUBLIC_API_URL?.startsWith('http') ? process.env.NEXT_PUBLIC_API_URL : undefined,
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const cleaned = candidate.trim().replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
+    if (!cleaned) continue;
+    try {
+      const parsed = new URL(cleaned);
+      if (COLLISION_BACKEND_HOSTS.has(parsed.hostname.toLowerCase())) {
+        continue;
+      }
+    } catch {
+      continue;
+    }
+    return cleaned;
+  }
+
+  if (process.env.VERCEL) {
+    return 'https://royal-electro-backend.vercel.app';
+  }
+  return 'http://backend:4000';
 }
 
 async function handleProxy(
@@ -60,6 +86,8 @@ async function handleProxy(
         responseHeaders.append(key, value);
       }
     });
+
+    responseHeaders.set('x-proxy-target', backendBase);
 
     return new NextResponse(res.body, {
       status: res.status,

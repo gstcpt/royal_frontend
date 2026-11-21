@@ -5,14 +5,41 @@ import { getSafeImageUrl } from '@/lib/cart-session';
 
 export const dynamic = 'force-dynamic';
 
+const COLLISION_BACKEND_HOSTS = new Set([
+  'royal-backend.vercel.app',
+  'royalbackend.vercel.app',
+]);
+
+function resolveServerApiBase(): string {
+  const candidates = [
+    process.env.INTERNAL_API_URL,
+    process.env.BACKEND_INTERNAL_URL,
+    process.env.BACKEND_URL,
+    process.env.NEXT_PUBLIC_BACKEND_URL,
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const cleaned = candidate.trim().replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
+    if (!cleaned) continue;
+    try {
+      const parsed = new URL(cleaned);
+      if (COLLISION_BACKEND_HOSTS.has(parsed.hostname.toLowerCase())) {
+        continue;
+      }
+      return `${cleaned}/api/v1`;
+    } catch {
+      continue;
+    }
+  }
+
+  return process.env.VERCEL
+    ? 'https://royal-electro-backend.vercel.app/api/v1'
+    : 'http://localhost:4000/api/v1';
+}
+
 async function getStorefrontData() {
-  const internalUrl = process.env.INTERNAL_API_URL
-    ? `${process.env.INTERNAL_API_URL.replace(/\/+$/, '')}/api/v1`
-    : null;
-  const backendInternal =
-    internalUrl ||
-    process.env.BACKEND_INTERNAL_URL ||
-    'http://localhost:4000/api/v1';
+  const backendInternal = resolveServerApiBase();
 
   try {
     const [catRes, newRes, popRes, promoRes, bestRes, brandRes] = await Promise.all([
