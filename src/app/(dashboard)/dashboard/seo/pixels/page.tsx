@@ -33,6 +33,11 @@ import {
   trackMarketingEvent,
 } from '@/components/storefront/MarketingPixelsTracker';
 
+function extractMetaContent(raw: string): string {
+  const match = raw.match(/content=["']([^"']+)["']/i);
+  return match ? match[1].trim() : raw;
+}
+
 const INITIAL_STATE: MarketingPixelsConfig = {
   metaPixelEnabled: false,
   metaPixelId: '',
@@ -45,12 +50,12 @@ const INITIAL_STATE: MarketingPixelsConfig = {
   gtmContainerId: '',
   snapPixelEnabled: false,
   snapPixelId: '',
-  googleSiteVerification: '',
+  googleSiteVerification: '-sVFiqQAIiUhoCkCLkoOVY060WD77TF-eev_zSTzshA',
   seoTitle: 'Royal — Électro de Maison | Électroménager & Cuisine en Tunisie',
   seoDescription:
     'Découvrez notre collection d’électroménager, robots culinaires, cuisson et art de la table en Tunisie. Livraison 24–48h et garantie officielle.',
   seoKeywords: 'électroménager tunisie, cuisine tunisie, airfryer, robot pétrin, royal tunisie',
-  canonicalBaseUrl: '',
+  canonicalBaseUrl: 'https://royalfrontend.vercel.app',
   robotsIndex: true,
   trackAddToCart: true,
   trackPurchase: true,
@@ -258,7 +263,13 @@ export default function MarketingPixelsSeoPage() {
       const res = await fetchApi('/storefront-cms/sys-config/marketingPixels');
       const val = res?.value || res?.data?.value || res;
       if (val && typeof val === 'object') {
-        setForm({ ...INITIAL_STATE, ...val });
+        setForm({
+          ...INITIAL_STATE,
+          ...val,
+          googleSiteVerification:
+            val.googleSiteVerification || INITIAL_STATE.googleSiteVerification,
+          canonicalBaseUrl: val.canonicalBaseUrl || INITIAL_STATE.canonicalBaseUrl,
+        });
       }
     } catch {
       // keep defaults
@@ -514,7 +525,12 @@ export default function MarketingPixelsSeoPage() {
               label="Meta Domain Verification (Optionnel — balise meta)"
               placeholder="ex: abc123xyz456..."
               value={form.facebookDomainVerification}
-              onChange={(e) => setForm((p) => ({ ...p, facebookDomainVerification: e.target.value }))}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  facebookDomainVerification: extractMetaContent(e.target.value),
+                }))
+              }
             />
           </div>
 
@@ -731,9 +747,14 @@ export default function MarketingPixelsSeoPage() {
             />
             <Input
               label="Google Site Verification (Search Console)"
-              placeholder="ex: verification-token"
+              placeholder="ex: -sVFiqQAIiUhoCkCLkoOVY060WD77TF-eev_zSTzshA"
               value={form.googleSiteVerification}
-              onChange={(e) => setForm((p) => ({ ...p, googleSiteVerification: e.target.value }))}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  googleSiteVerification: extractMetaContent(e.target.value),
+                }))
+              }
             />
             <Input
               label="Domaine Canonique (Optionnel)"

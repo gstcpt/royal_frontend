@@ -7,6 +7,9 @@ import { MarketingPixelsTracker } from '@/components/storefront/MarketingPixelsT
 export const metadata: Metadata = {
   title: 'Royal — Electro de Maison | E-Commerce & Électroménager Tunisie',
   description: 'Plateforme E-Commerce Royal — Électroménager et équipement de cuisine d’excellence en Tunisie.',
+  verification: {
+    google: '-sVFiqQAIiUhoCkCLkoOVY060WD77TF-eev_zSTzshA',
+  },
   icons: {
     icon: [
       { url: '/icon.png', type: 'image/png', sizes: '256x256' },
