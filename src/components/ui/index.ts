@@ -11,3 +11,4 @@ export * from './toast';
 export * from './avatar-picker';
 export * from './toggle';
 export * from './image-dropzone-cropper';
+export * from './view-guide-modal';
