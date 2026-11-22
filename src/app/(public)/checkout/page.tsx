@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCartStore } from '@/stores/cart.store';
+import { useI18nStore } from '@/stores/i18n.store';
 import { getCartHeaders, getSafeImageUrl } from '@/lib/cart-session';
 import { trackMarketingEvent } from '@/components/storefront/MarketingPixelsTracker';
 import {
@@ -66,6 +67,7 @@ const EMPTY_CART_ITEMS: CartItem[] = [];
 export default function CheckoutPage() {
   const router = useRouter();
   const { user, fetchMe } = useAuthStore();
+  const { t } = useI18nStore();
   const storeCart = useCartStore((s) => s.cart);
   const storeCartItems = React.useMemo(() => storeCart?.items ?? EMPTY_CART_ITEMS, [storeCart]);
 
@@ -379,37 +381,37 @@ export default function CheckoutPage() {
       <div className="flex items-center justify-between border-b border-[#EFECE6] pb-6 mb-10">
         <div>
           <span className="text-xs uppercase font-semibold text-[#D4AF37] tracking-widest block mb-1">
-            Tunnel de Commande Sécurisé
+            {t('checkout.badge')}
           </span>
           <h1 className="font-sans font-bold tracking-tight text-3xl sm:text-4xl text-[#0C1A14] font-medium tracking-tight">
-            Finalisation de Commande
+            {t('checkout.title')}
           </h1>
         </div>
         <div className="hidden sm:flex items-center gap-2 text-xs text-[#0C1A14]/70 bg-white px-4 py-2 rounded-full border border-[#EFECE6]">
           <Lock className="w-3.5 h-3.5 text-[#D4AF37]" />
-          <span>Chiffrement bancaire SSL 256 bits</span>
+          <span>{t('checkout.ssl_badge')}</span>
         </div>
       </div>
 
       <form onSubmit={handleSubmitOrder}>
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
           {/* Main Form (Steps) */}
           <div className="lg:col-span-7 space-y-8">
             {/* Step 1: Contact Information */}
-            <div className="bg-white rounded-3xl border border-[#EFECE6] p-7 shadow-sm">
+            <div className="bg-white rounded-3xl border border-[#EFECE6] p-5 sm:p-7 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
                 <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-full bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] border border-[var(--royal-primary)]/40 text-xs font-bold flex items-center justify-center">
+                  <span className="w-8 h-8 rounded-full bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] border border-[var(--royal-primary)]/40 text-xs font-bold flex items-center justify-center shrink-0">
                     1
                   </span>
                   <h2 className="font-sans font-bold tracking-tight text-xl text-[#0C1A14] font-semibold">
-                    Coordonnées &amp; Contact
+                    {t('checkout.step1')}
                   </h2>
                 </div>
                 {prefilledFromProfile && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    Pré-rempli depuis votre compte Royal
+                    {t('checkout.prefilled')}
                   </span>
                 )}
               </div>
@@ -417,7 +419,7 @@ export default function CheckoutPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-[#0C1A14]/80 mb-1">
-                    Prénom *
+                    {t('checkout.first_name')}
                   </label>
                   <input
                     type="text"
@@ -430,7 +432,7 @@ export default function CheckoutPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[#0C1A14]/80 mb-1">
-                    Nom de famille *
+                    {t('checkout.last_name')}
                   </label>
                   <input
                     type="text"
@@ -443,7 +445,7 @@ export default function CheckoutPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[#0C1A14]/80 mb-1">
-                    Adresse Email (Optionnel)
+                    {t('checkout.email')}
                   </label>
                   <input
                     type="email"
@@ -455,7 +457,7 @@ export default function CheckoutPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[#0C1A14]/80 mb-1">
-                    Téléphone (pour le livreur) *
+                    {t('checkout.phone')}
                   </label>
                   <input
                     type="tel"
@@ -470,13 +472,13 @@ export default function CheckoutPage() {
             </div>
 
             {/* Step 2: Shipping Address */}
-            <div className="bg-white rounded-3xl border border-[#EFECE6] p-7 shadow-sm">
+            <div className="bg-white rounded-3xl border border-[#EFECE6] p-5 sm:p-7 shadow-sm">
               <div className="flex items-center gap-3 mb-6">
-                <span className="w-8 h-8 rounded-full bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] border border-[var(--royal-primary)]/40 text-xs font-bold flex items-center justify-center">
+                <span className="w-8 h-8 rounded-full bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] border border-[var(--royal-primary)]/40 text-xs font-bold flex items-center justify-center shrink-0">
                   2
                 </span>
                 <h2 className="font-sans font-bold tracking-tight text-xl text-[#0C1A14] font-semibold">
-                  Adresse de Livraison en Tunisie
+                  {t('checkout.step2')}
                 </h2>
               </div>
 
@@ -540,13 +542,13 @@ export default function CheckoutPage() {
             </div>
 
             {/* Step 3: Delivery Options */}
-            <div className="bg-white rounded-3xl border border-[#EFECE6] p-7 shadow-sm">
+            <div className="bg-white rounded-3xl border border-[#EFECE6] p-5 sm:p-7 shadow-sm">
               <div className="flex items-center gap-3 mb-6">
-                <span className="w-8 h-8 rounded-full bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] border border-[var(--royal-primary)]/40 text-xs font-bold flex items-center justify-center">
+                <span className="w-8 h-8 rounded-full bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] border border-[var(--royal-primary)]/40 text-xs font-bold flex items-center justify-center shrink-0">
                   3
                 </span>
                 <h2 className="font-sans font-bold tracking-tight text-xl text-[#0C1A14] font-semibold">
-                  Mode d'Expédition
+                  {t('checkout.step3')}
                 </h2>
               </div>
 
@@ -580,19 +582,19 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Step 4: Payment Options (Cash on Delivery Only) */}
-            <div className="bg-white rounded-3xl border border-[#EFECE6] p-7 shadow-sm">
+            {/* Step 4: Payment Options */}
+            <div className="bg-white rounded-3xl border border-[#EFECE6] p-5 sm:p-7 shadow-sm">
               <div className="flex items-center gap-3 mb-6">
-                <span className="w-8 h-8 rounded-full bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] border border-[var(--royal-primary)]/40 text-xs font-bold flex items-center justify-center">
+                <span className="w-8 h-8 rounded-full bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] border border-[var(--royal-primary)]/40 text-xs font-bold flex items-center justify-center shrink-0">
                   4
                 </span>
                 <h2 className="font-sans font-bold tracking-tight text-xl text-[#0C1A14] font-semibold">
-                  Mode de Règlement Sécurisé
+                  {t('checkout.step4')}
                 </h2>
               </div>
 
               <div className="space-y-4">
-                <label className={`p-5 rounded-2xl border cursor-pointer transition flex items-start gap-4 ${selectedGatewayCode === 'CASH_ON_DELIVERY' ? 'border-[#D4AF37] bg-[#FBF9F5]' : 'border-[#EFECE6] bg-white'}`}>
+                <label className={`p-4 sm:p-5 rounded-2xl border cursor-pointer transition flex items-start gap-3 sm:gap-4 ${selectedGatewayCode === 'CASH_ON_DELIVERY' ? 'border-[#D4AF37] bg-[#FBF9F5]' : 'border-[#EFECE6] bg-white'}`}>
                   <input
                     type="radio"
                     name="paymentMethod"
@@ -601,15 +603,15 @@ export default function CheckoutPage() {
                     onChange={() => setSelectedGatewayCode('CASH_ON_DELIVERY')}
                     className="accent-[var(--royal-primary)] mt-1"
                   />
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <Banknote className="w-5 h-5 text-emerald-700" />
+                      <Banknote className="w-5 h-5 text-emerald-700 shrink-0" />
                       <span className="font-semibold text-sm text-[#0C1A14]">
-                        Paiement à la livraison (Espèces)
+                        {t('checkout.cod')}
                       </span>
                     </div>
                     <p className="text-xs text-[#0C1A14]/60 mt-1">
-                      Réglez directement en espèces auprès du livreur lors de la réception de votre colis.
+                      {t('cart.cod_note')}
                     </p>
                   </div>
                 </label>
@@ -705,39 +707,39 @@ export default function CheckoutPage() {
 
           {/* Sidebar Summary */}
           <div className="lg:col-span-5 space-y-6">
-            <div className="bg-white rounded-3xl border border-[#EFECE6] p-7 shadow-sm sticky top-28">
+            <div className="bg-white rounded-3xl border border-[#EFECE6] p-5 sm:p-7 shadow-sm sticky top-28">
               <h2 className="font-sans font-bold tracking-tight text-xl text-[#0C1A14] font-semibold pb-4 border-b border-[#EFECE6] flex items-center justify-between">
-                <span>Votre Sélection</span>
-                <span className="text-xs font-sans text-[#0C1A14]/50">{items.length} article(s)</span>
+                <span>{t('cart.summary_title')}</span>
+                <span className="text-xs font-sans text-[#0C1A14]/50">{items.length} {t('catalog.articles_word')}</span>
               </h2>
 
               {/* Items List Snapshot */}
               {!loadingCart && items.length === 0 ? (
                 <div className="py-8 text-center space-y-3">
                   <ShoppingBag className="w-10 h-10 text-neutral-300 mx-auto" />
-                  <p className="text-xs text-neutral-500">Votre panier est actuellement vide.</p>
+                  <p className="text-xs text-neutral-500">{t('cart.empty')}</p>
                   <Link
                     href="/articles"
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] hover:bg-[var(--royal-primary-hover)] text-xs font-bold"
                   >
-                    <span>Explorer le Catalogue</span>
+                    <span>{t('wishlist.discover_catalog')}</span>
                   </Link>
                 </div>
               ) : (
                 <div className="py-4 divide-y divide-[#EFECE6]">
                   {items.map((it) => (
                     <div key={it.id} className="py-3 flex items-center justify-between gap-3 text-xs">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
                         <div className="w-12 h-12 rounded-xl bg-[#FBF9F5] border border-[#EFECE6] flex-shrink-0 flex items-center justify-center p-1 overflow-hidden">
                           <img src={getSafeImageUrl(it.image)} alt={it.productName} className="w-full h-full object-contain" />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <div className="font-medium text-[#0C1A14] line-clamp-1">{it.productName}</div>
-                          <div className="text-[11px] text-[#0C1A14]/50 font-mono">Qté : {it.quantity}</div>
+                          <div className="text-[11px] text-[#0C1A14]/50 font-mono">{t('common.qty')} : {it.quantity}</div>
                         </div>
                       </div>
-                      <div className="font-semibold text-[#0C1A14]">
-                        {it.lineTotal.toFixed(3)} TND
+                      <div className="font-semibold text-[#0C1A14] shrink-0">
+                        {it.lineTotal.toFixed(3)} {t('common.currency')}
                       </div>
                     </div>
                   ))}
@@ -751,21 +753,21 @@ export default function CheckoutPage() {
                     type="text"
                     value={couponCodeInput}
                     onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
-                    placeholder="Code promo (ex: ROYALVIP)"
-                    className="flex-1 px-3 py-2 rounded-xl border border-[#EFECE6] bg-[#FBF9F5] text-xs font-mono uppercase focus:outline-none focus:border-[#D4AF37]"
+                    placeholder={t('cart.coupon_placeholder')}
+                    className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-[#EFECE6] bg-[#FBF9F5] text-xs font-mono uppercase focus:outline-none focus:border-[#D4AF37]"
                   />
                   <button
                     type="button"
                     onClick={handleApplyCoupon}
-                    className="px-4 py-2 rounded-xl bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-semibold hover:bg-[var(--royal-primary-hover)] transition"
+                    className="px-4 py-2 rounded-xl bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-semibold hover:bg-[var(--royal-primary-hover)] transition shrink-0"
                   >
-                    Valider
+                    {t('auth.validate')}
                   </button>
                 </div>
                 {appliedCoupon && (
                   <div className="mt-2 text-xs text-emerald-700 flex items-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Coupon <strong>{appliedCoupon.code}</strong> appliqué (-{appliedCoupon.discountAmount.toFixed(3)} TND)</span>
+                    <span>{t('cart.discount')} <strong>{appliedCoupon.code}</strong> (-{appliedCoupon.discountAmount.toFixed(3)} {t('common.currency')})</span>
                   </div>
                 )}
                 {couponError && (
@@ -776,25 +778,25 @@ export default function CheckoutPage() {
               {/* Financial Calculation */}
               <div className="space-y-2.5 py-4 border-t border-[#EFECE6] text-xs text-[#0C1A14]/70">
                 <div className="flex justify-between">
-                  <span>Sous-total HT estimé</span>
-                  <span className="font-medium text-[#0C1A14]">{(subtotalAfterDiscount / 1.19).toFixed(3)} TND</span>
+                  <span>{t('cart.subtotal')}</span>
+                  <span className="font-medium text-[#0C1A14]">{(subtotalAfterDiscount / 1.19).toFixed(3)} {t('common.currency')}</span>
                 </div>
                 {appliedCoupon && (
                   <div className="flex justify-between text-emerald-700 font-medium">
-                    <span>Remise privilège</span>
-                    <span>-{discount.toFixed(3)} TND</span>
+                    <span>{t('cart.discount')}</span>
+                    <span>-{discount.toFixed(3)} {t('common.currency')}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span>TVA légale (19%)</span>
-                  <span className="font-medium text-[#0C1A14]">{taxAmount.toFixed(3)} TND</span>
+                  <span>{t('cart.tax')}</span>
+                  <span className="font-medium text-[#0C1A14]">{taxAmount.toFixed(3)} {t('common.currency')}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Frais de port</span>
+                  <span>{t('cart.shipping')}</span>
                   {shippingCost === 0 ? (
-                    <span className="text-emerald-700 font-semibold uppercase">Offerts</span>
+                    <span className="text-emerald-700 font-semibold uppercase">{t('cart.free')}</span>
                   ) : (
-                    <span className="font-semibold text-[#0C1A14]">{shippingCost.toFixed(3)} TND</span>
+                    <span className="font-semibold text-[#0C1A14]">{shippingCost.toFixed(3)} {t('common.currency')}</span>
                   )}
                 </div>
               </div>
@@ -802,9 +804,9 @@ export default function CheckoutPage() {
               {/* Total & Submit */}
               <div className="pt-4 border-t border-[#EFECE6] space-y-4">
                 <div className="flex justify-between items-baseline">
-                  <span className="font-sans font-bold tracking-tight text-base font-bold text-[#0C1A14]">Total TTC</span>
+                  <span className="font-sans font-bold tracking-tight text-base font-bold text-[#0C1A14]">{t('cart.total')}</span>
                   <span className="font-sans font-bold tracking-tight text-3xl font-extrabold text-[#0C1A14]">
-                    {finalTotal.toFixed(3)} <span className="text-base font-normal">TND</span>
+                    {finalTotal.toFixed(3)} <span className="text-base font-normal">{t('common.currency')}</span>
                   </span>
                 </div>
 
@@ -820,10 +822,10 @@ export default function CheckoutPage() {
                   className="w-full py-4 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs uppercase font-bold tracking-widest hover:bg-[var(--royal-primary-hover)] transition-all flex items-center justify-center gap-2 shadow-xl disabled:opacity-50"
                 >
                   {submitting ? (
-                    <span>Enregistrement sécurisé...</span>
+                    <span>{t('checkout.processing')}</span>
                   ) : (
                     <>
-                      <span>Confirmer et Commander</span>
+                      <span>{t('checkout.confirm_order')}</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}

@@ -34,7 +34,9 @@ interface AuthState {
     email: string;
     password: string;
     phone?: string;
-  }) => Promise<AuthUser>;
+  }) => Promise<{ requiresEmailVerification?: boolean; email: string; message?: string; user?: AuthUser }>;
+  verifyEmail: (email: string, code: string) => Promise<AuthUser>;
+  resendVerification: (email: string) => Promise<{ message: string }>;
   logout: () => Promise<void>;
 
   hasRole: (role: string) => boolean;
@@ -126,12 +128,42 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true });
     try {
       const response = await fetchApi<{
-        accessToken: string;
-        refreshToken: string;
-        user: AuthUser;
+        requiresEmailVerification?: boolean;
+        email?: string;
+        message?: string;
+        accessToken?: string;
+        refreshToken?: string;
+        user?: AuthUser;
       }>('/auth/register', {
         method: 'POST',
         body: JSON.stringify(data),
+      });
+
+      if (response.accessToken && response.user) {
+        get().setAuth(response.user, response.accessToken);
+        return { email: response.user.email, user: response.user };
+      }
+
+      return {
+        requiresEmailVerification: true,
+        email: response.email || data.email,
+        message: response.message,
+      };
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  verifyEmail: async (email, code) => {
+    set({ isLoading: true });
+    try {
+      const response = await fetchApi<{
+        accessToken: string;
+        refreshToken: string;
+        user: AuthUser;
+      }>('/auth/verify-email', {
+        method: 'POST',
+        body: JSON.stringify({ email, code }),
       });
 
       get().setAuth(response.user, response.accessToken);
@@ -139,6 +171,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } finally {
       set({ isLoading: false });
     }
+  },
+
+  resendVerification: async (email) => {
+    return fetchApi<{ message: string }>('/auth/resend-verification', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
   },
 
   logout: async () => {

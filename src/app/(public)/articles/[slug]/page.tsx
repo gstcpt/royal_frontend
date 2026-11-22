@@ -14,6 +14,7 @@ import { ProductMediaViewer } from '@/components/storefront/ProductMediaViewer';
 import { ProductCard, StorefrontProduct } from '@/components/storefront/ProductCard';
 import { trackMarketingEvent } from '@/components/storefront/MarketingPixelsTracker';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 import {
   Star,
   ShieldCheck,
@@ -102,6 +103,7 @@ export default function ArticleDetailPage() {
   const params = useParams();
   const slug = params?.slug as string;
   const { config } = useCmsConfig();
+  const { locale, t } = useI18nStore();
   const detailCfg = config.views.productDetail;
 
   const [product, setProduct] = useState<ProductDetailData | null>(null);
@@ -379,10 +381,10 @@ export default function ArticleDetailPage() {
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-24">
         {/* Breadcrumb */}
         {detailCfg.showBreadcrumb !== false && (
-          <nav className="flex items-center gap-2 text-xs text-neutral-400 mb-8 overflow-x-auto whitespace-nowrap">
-            <Link href="/" className="hover:text-neutral-900 transition">Accueil</Link>
-            <ChevronRight className="w-3.5 h-3.5 text-neutral-300" />
-            <Link href="/articles" className="hover:text-neutral-900 transition">Articles</Link>
+          <nav className="flex items-center gap-2 text-xs text-neutral-400 mb-6 sm:mb-8 overflow-x-auto whitespace-nowrap">
+            <Link href="/" className="hover:text-neutral-900 transition">{t('nav.home')}</Link>
+            <ChevronRight className="w-3.5 h-3.5 text-neutral-300 shrink-0" />
+            <Link href="/articles" className="hover:text-neutral-900 transition">{t('nav.articles')}</Link>
             {product.category && (
               <>
                 <ChevronRight className="w-3.5 h-3.5 text-neutral-300" />
@@ -412,12 +414,12 @@ export default function ArticleDetailPage() {
                 : 'lg:col-span-6 xl:col-span-7'
             }`}
           >
-            <div style={{ minHeight: `${Math.max(360, Number(detailCfg.galleryHeightPx || 540))}px` }}>
+            <div className="min-h-[340px] sm:min-h-[460px] lg:min-h-[540px]">
               <ProductMediaViewer
                 images={(product.images || []).map((im) => im.url)}
                 alt={product.name}
-                heightClassName="h-[420px] sm:h-[520px] lg:h-[580px]"
-                roundedClassName="rounded-[32px]"
+                heightClassName="h-[340px] sm:h-[500px] lg:h-[580px]"
+                roundedClassName="rounded-[24px] sm:rounded-[32px]"
                 enableZoomOnHover={detailCfg.enableImageZoom}
                 defaultAutoPlay={detailCfg.enableImageAutoplay}
                 displayMode={detailCfg.imageDisplayMode || 'thumbnails-bottom'}
@@ -425,8 +427,8 @@ export default function ArticleDetailPage() {
                 objectFit={detailCfg.imageObjectFit || 'cover'}
                 badgeOverlay={
                   hasPromo ? (
-                    <div className="absolute top-5 left-5 z-20 px-3.5 py-1 rounded-full bg-rose-600 text-white text-[11px] font-extrabold uppercase tracking-widest shadow-md">
-                      Promotion
+                    <div className="absolute top-4 left-4 sm:top-5 sm:left-5 z-20 px-3.5 py-1 rounded-full bg-rose-600 text-white text-[11px] font-extrabold uppercase tracking-widest shadow-md">
+                      {t('product.promo_badge')}
                     </div>
                   ) : null
                 }
@@ -485,13 +487,13 @@ export default function ArticleDetailPage() {
                   )}
                 </div>
                 <span className="text-[11px] text-neutral-400 block mt-1">
-                  Prix TTC • Paiement sécurisé à la livraison
+                  {t('product.ttc_cod_note')}
                 </span>
               </div>
 
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200 shrink-0">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                En Stock
+                {t('product.in_stock')}
               </span>
             </div>
 
@@ -504,7 +506,7 @@ export default function ArticleDetailPage() {
             <div className="space-y-2.5 py-1 text-xs text-neutral-700">
               <div className="flex items-center gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Livraison express 24–48h dans les 24 gouvernorats de Tunisie</span>
+                <span>{t('product.delivery_bullet')}</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -512,7 +514,7 @@ export default function ArticleDetailPage() {
               </div>
               <div className="flex items-center gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Paiement à la livraison en espèces</span>
+                <span>{t('product.cod_bullet')}</span>
               </div>
             </div>
 
@@ -595,7 +597,7 @@ export default function ArticleDetailPage() {
                   className="flex-1 py-4 px-6 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs uppercase tracking-widest font-bold shadow-lg flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   <ShoppingCart className="w-4 h-4" />
-                  <span>{detailCfg.addToCartText || 'Ajouter au panier'}</span>
+                  <span>{locale === 'ar' ? t('product.add_to_cart') : (detailCfg.addToCartText || t('product.add_to_cart'))}</span>
                 </button>
               </div>
 
@@ -612,7 +614,7 @@ export default function ArticleDetailPage() {
                       }`}
                     >
                       <ThumbsUp className={`w-3.5 h-3.5 ${myReaction === 'LIKE' ? 'fill-current' : ''}`} />
-                      <span>J&apos;aime ({reactionCounts.likeCount})</span>
+                      <span>{t('actions.like')} ({reactionCounts.likeCount})</span>
                     </button>
                     <button
                       type="button"
@@ -639,7 +641,7 @@ export default function ArticleDetailPage() {
                     }`}
                   >
                     <Heart className={`w-3.5 h-3.5 ${inWishlist ? 'fill-current' : ''}`} />
-                    <span>Favoris</span>
+                    <span>{t('actions.favorite')}</span>
                   </button>
                 )}
                 {detailCfg.showCompare !== false && (
@@ -653,7 +655,7 @@ export default function ArticleDetailPage() {
                     }`}
                   >
                     <Layers className="w-3.5 h-3.5" />
-                    <span>Comparer</span>
+                    <span>{t('actions.compare')}</span>
                   </button>
                 )}
                 {detailCfg.showShareButton !== false && (
@@ -667,15 +669,15 @@ export default function ArticleDetailPage() {
                     className="col-span-2 sm:col-span-1 py-2.5 rounded-xl border bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
                   >
                     <Share2 className="w-3.5 h-3.5" />
-                    <span>Partager</span>
+                    <span>{t('actions.share')}</span>
                   </button>
                 )}
               </div>
               {authPromptProductId === product.id && (
                 <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center justify-between gap-2">
-                  <span>Connectez-vous pour aimer ou ne pas aimer cet article.</span>
+                  <span>{t('product.login_prompt')}</span>
                   <Link href="/login" className="font-bold underline shrink-0">
-                    Se connecter →
+                    {t('product.login_cta')}
                   </Link>
                 </div>
               )}
@@ -684,29 +686,29 @@ export default function ArticleDetailPage() {
             {addedToCartToast && (
               <div className="p-4 rounded-2xl bg-[var(--royal-gold-light)] text-[var(--royal-ink)] border border-[var(--royal-primary)]/40 text-xs font-semibold flex items-center gap-2.5 shadow-sm">
                 <Check className="w-4 h-4 text-[var(--royal-gold-dark)] shrink-0" />
-                <span>{quantity} article(s) ajouté(s) à votre panier.</span>
+                <span>{quantity} {t('product.added_banner')}</span>
                 <Link href="/cart" className="ml-auto underline text-[var(--royal-gold-dark)] hover:text-[var(--royal-primary)] font-bold">
-                  Voir le panier →
+                  {t('product.view_cart')}
                 </Link>
               </div>
             )}
 
             {detailCfg.showTrustBadges !== false && (
-              <div className="pt-6 border-t border-neutral-100 grid grid-cols-3 gap-3 text-center text-xs text-neutral-600">
+              <div className="pt-6 border-t border-neutral-100 grid grid-cols-1 sm:grid-cols-3 gap-3 text-center text-xs text-neutral-600">
                 <div className="p-3.5 rounded-2xl bg-[var(--royal-silver-light)] flex flex-col items-center gap-1.5 border border-[var(--royal-border)]">
                   <Truck className="w-5 h-5 text-[var(--royal-primary)]" />
-                  <span className="font-bold text-[var(--royal-ink)]">{detailCfg.trustBadges?.[0]?.title || 'Livraison 24–48h'}</span>
-                  <span className="text-[10px] text-neutral-500">{detailCfg.trustBadges?.[0]?.subtitle || 'Toute la Tunisie'}</span>
+                  <span className="font-bold text-[var(--royal-ink)]">{locale === 'ar' ? t('product.badge_delivery_title') : (detailCfg.trustBadges?.[0]?.title || t('product.badge_delivery_title'))}</span>
+                  <span className="text-[10px] text-neutral-500">{locale === 'ar' ? t('product.badge_delivery_sub') : (detailCfg.trustBadges?.[0]?.subtitle || t('product.badge_delivery_sub'))}</span>
                 </div>
                 <div className="p-3.5 rounded-2xl bg-[var(--royal-silver-light)] flex flex-col items-center gap-1.5 border border-[var(--royal-border)]">
                   <ShieldCheck className="w-5 h-5 text-[var(--royal-primary)]" />
-                  <span className="font-bold text-[var(--royal-ink)]">{detailCfg.trustBadges?.[1]?.title || 'Garantie Constructeur'}</span>
-                  <span className="text-[10px] text-neutral-500">{product.dimensionsJson?.garantie || detailCfg.trustBadges?.[1]?.subtitle || 'Selon fiche'}</span>
+                  <span className="font-bold text-[var(--royal-ink)]">{locale === 'ar' ? t('product.badge_warranty_title') : (detailCfg.trustBadges?.[1]?.title || t('product.badge_warranty_title'))}</span>
+                  <span className="text-[10px] text-neutral-500">{locale === 'ar' ? t('product.badge_warranty_sub') : (product.dimensionsJson?.garantie || detailCfg.trustBadges?.[1]?.subtitle || t('product.badge_warranty_sub'))}</span>
                 </div>
                 <div className="p-3.5 rounded-2xl bg-[var(--royal-silver-light)] flex flex-col items-center gap-1.5 border border-[var(--royal-border)]">
                   <Banknote className="w-5 h-5 text-[var(--royal-primary)]" />
-                  <span className="font-bold text-[var(--royal-ink)]">{detailCfg.trustBadges?.[2]?.title || 'Paiement Livraison'}</span>
-                  <span className="text-[10px] text-neutral-500">{detailCfg.trustBadges?.[2]?.subtitle || 'Espèces à réception'}</span>
+                  <span className="font-bold text-[var(--royal-ink)]">{locale === 'ar' ? t('product.badge_payment_title') : (detailCfg.trustBadges?.[2]?.title || t('product.badge_payment_title'))}</span>
+                  <span className="text-[10px] text-neutral-500">{locale === 'ar' ? t('product.badge_payment_sub') : (detailCfg.trustBadges?.[2]?.subtitle || t('product.badge_payment_sub'))}</span>
                 </div>
               </div>
             )}
@@ -719,7 +721,7 @@ export default function ArticleDetailPage() {
           detailCfg.showReviews !== false ||
           detailCfg.showDeliveryTab) && (
         <div className="mt-16 pt-10 border-t border-neutral-200">
-          <div className="flex flex-wrap gap-8 border-b border-neutral-200 pb-3">
+          <div className="flex flex-wrap gap-4 sm:gap-8 border-b border-neutral-200 pb-3">
             {detailCfg.showDescription !== false && (
               <button
                 type="button"
@@ -730,7 +732,7 @@ export default function ArticleDetailPage() {
                     : 'border-transparent text-neutral-400 hover:text-[var(--royal-ink)]'
                 }`}
               >
-                {detailCfg.descriptionTabLabel || 'Description'}
+                {locale === 'ar' ? t('product.tab_desc') : (detailCfg.descriptionTabLabel || t('product.tab_desc'))}
               </button>
             )}
             {detailCfg.showSpecs !== false && (
@@ -743,7 +745,7 @@ export default function ArticleDetailPage() {
                     : 'border-transparent text-neutral-400 hover:text-[var(--royal-ink)]'
                 }`}
               >
-                {detailCfg.specsTabLabel || 'Fiche Technique'}
+                {locale === 'ar' ? t('product.tab_specs') : (detailCfg.specsTabLabel || t('product.tab_specs'))}
               </button>
             )}
             {detailCfg.showReviews !== false && (
@@ -756,7 +758,7 @@ export default function ArticleDetailPage() {
                     : 'border-transparent text-neutral-400 hover:text-[var(--royal-ink)]'
                 }`}
               >
-                {detailCfg.reviewsTabLabel || 'Avis & Commentaires'} ({reviewsData.totalReviews})
+                {locale === 'ar' ? t('product.tab_reviews') : (detailCfg.reviewsTabLabel || t('product.tab_reviews'))} ({reviewsData.totalReviews})
               </button>
             )}
             {detailCfg.showDeliveryTab && (
@@ -769,7 +771,7 @@ export default function ArticleDetailPage() {
                     : 'border-transparent text-neutral-400 hover:text-[var(--royal-ink)]'
                 }`}
               >
-                {detailCfg.deliveryTabLabel || 'Livraison & Garantie'}
+                {locale === 'ar' ? t('product.tab_delivery') : (detailCfg.deliveryTabLabel || t('product.tab_delivery'))}
               </button>
             )}
           </div>

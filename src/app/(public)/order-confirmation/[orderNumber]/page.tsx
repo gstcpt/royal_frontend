@@ -19,10 +19,12 @@ import {
   PrintableOrderSheet,
 } from '@/components/common/PrintableOrderSheet';
 import { getSafeImageUrl } from '@/lib/cart-session';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export default function OrderConfirmationPage() {
   const params = useParams();
   const orderRef = params?.orderNumber as string;
+  const { t } = useI18nStore();
 
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -50,7 +52,7 @@ export default function OrderConfirmationPage() {
     return (
       <div className="py-32 text-center">
         <div className="w-12 h-12 border-3 border-[#D4AF37] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-sm text-[#0C1A14]/70">Génération de votre bon de commande...</p>
+        <p className="text-sm text-[#0C1A14]/70">{t('order_confirm.loading')}</p>
       </div>
     );
   }
@@ -75,21 +77,21 @@ export default function OrderConfirmationPage() {
         </div>
 
         <span className="text-xs uppercase font-semibold text-[#D4AF37] tracking-widest block mb-2">
-          Maison Royal — Électro de Maison
+          {t('order_confirm.brand_eyebrow')}
         </span>
 
         <h1 className="font-heading font-bold tracking-tight text-2xl sm:text-4xl text-[#0C1A14] mb-3">
-          {isCancelled ? 'Commande Annulée' : 'Suivi & Confirmation de Commande'}
+          {isCancelled ? t('order_confirm.cancelled_title') : t('order_confirm.title')}
         </h1>
 
         <p className="text-sm text-[#0C1A14]/70 max-w-lg mx-auto mb-6">
-          Statut actuel : <strong className="text-[#0C1A14]">{ORDER_STATUS_LABEL_MAP[currentStatus] || currentStatus}</strong>. Suivez en direct chacune des 9 étapes de traitement de votre colis.
+          {t('order_confirm.status_current')} <strong className="text-[#0C1A14]">{ORDER_STATUS_LABEL_MAP[currentStatus] || currentStatus}</strong>. {t('order_confirm.status_desc')}
         </p>
 
         {/* Order Reference Pill */}
-        <div className="inline-flex items-center gap-3 bg-[#FBF9F5] border border-[#EFECE6] px-6 py-3 rounded-full mb-7">
-          <span className="text-xs text-[#0C1A14]/60 uppercase tracking-wider">Référence :</span>
-          <span className="font-mono text-base font-bold text-[#0C1A14]">{orderRef}</span>
+        <div className="inline-flex flex-wrap items-center justify-center gap-2 sm:gap-3 bg-[#FBF9F5] border border-[#EFECE6] px-5 sm:px-6 py-3 rounded-full mb-7 max-w-full">
+          <span className="text-xs text-[#0C1A14]/60 uppercase tracking-wider">{t('order_confirm.reference')}</span>
+          <span className="font-mono text-sm sm:text-base font-bold text-[#0C1A14] break-all">{orderRef}</span>
         </div>
 
         {/* Action buttons */}

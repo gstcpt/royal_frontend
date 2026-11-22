@@ -4,9 +4,11 @@ import React from 'react';
 import Link from 'next/link';
 import { Store, MapPin, Phone, Clock, ArrowRight } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export default function ShowroomsPublicPage() {
   const { config } = useCmsConfig();
+  const { locale, t } = useI18nStore();
   const srCfg = config.views.showrooms;
   const order = Array.isArray(srCfg.sectionOrder) && srCfg.sectionOrder.length > 0 ? srCfg.sectionOrder : ['hero', 'cards', 'map'];
   const showrooms =
@@ -28,10 +30,10 @@ export default function ShowroomsPublicPage() {
       <div className="bg-[var(--royal-bg)] min-h-[60vh] flex items-center justify-center px-4">
         <div className="max-w-md text-center space-y-4 bg-white p-8 rounded-3xl border border-[var(--royal-border)] shadow-sm">
           <Store className="w-10 h-10 text-[var(--royal-primary)] mx-auto" />
-          <h1 className="font-heading text-xl font-black text-[var(--royal-ink)]">Salles d&apos;Exposition</h1>
-          <p className="text-xs text-slate-500">Cette page est actuellement masquée depuis la configuration CMS.</p>
+          <h1 className="font-heading text-xl font-black text-[var(--royal-ink)]">{t('stores.hidden_title')}</h1>
+          <p className="text-xs text-slate-500">{t('stores.hidden_desc')}</p>
           <Link href="/" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-bold">
-            Retour à l&apos;accueil
+            {t('common.back_home')}
           </Link>
         </div>
       </div>
@@ -43,13 +45,13 @@ export default function ShowroomsPublicPage() {
       <div key="hero" className="text-center max-w-2xl mx-auto mb-12">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] mb-4">
           <Store className="w-4 h-4 text-[var(--royal-primary)]" />
-          <span>{srCfg.badgeText || 'Réseau de Points de Vente'}</span>
+          <span>{locale === 'ar' ? t('stores.badge') : (srCfg.badgeText || t('stores.badge'))}</span>
         </div>
         <h1 className="font-heading text-3xl sm:text-5xl font-black text-[var(--royal-ink)] tracking-tight">
-          {srCfg.title || "Nos Salles d'Exposition"}
+          {locale === 'ar' ? t('stores.title') : (srCfg.title || t('stores.title'))}
         </h1>
         <p className="mt-3 text-sm text-slate-500">
-          {srCfg.subtitle || 'Découvrez nos showrooms en Tunisie pour tester nos appareils et retirer vos commandes.'}
+          {locale === 'ar' ? t('stores.subtitle') : (srCfg.subtitle || t('stores.subtitle'))}
         </p>
       </div>
     ),
@@ -99,7 +101,7 @@ export default function ShowroomsPublicPage() {
               href="/contact"
               className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--royal-primary)] hover:underline pt-2"
             >
-              <span>Contacter ce showroom</span>
+              <span>{t('stores.contact_us')}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>

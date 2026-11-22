@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowRight, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { getSafeImageUrl } from '@/lib/cart-session';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export interface SlideItem {
   id: string;
@@ -82,6 +83,7 @@ function sanitizeSlides(raw: unknown): SlideItem[] {
 
 export function HeroBanner({ slides: propSlides }: { slides?: SlideItem[] }) {
   const { config } = useCmsConfig();
+  const { locale, t } = useI18nStore();
 
   const slides = useMemo(() => {
     const fromProps = sanitizeSlides(propSlides);
@@ -99,8 +101,51 @@ export function HeroBanner({ slides: propSlides }: { slides?: SlideItem[] }) {
   const [isPaused, setIsPaused] = useState(false);
   const swipeStartXRef = React.useRef<number | null>(null);
 
+  const HERO_FR_TO_AR: Record<string, string> = {
+    'INNOVATION CULINAIRE & CONFORT': 'الابتكار في المطبخ والراحة',
+    'L’Art de Vivre.': 'فن العيش الراقي.',
+    "L'Art de Vivre.": 'فن العيش الراقي.',
+    'La Précision Culinaire.': 'الدقة في عالم الطهي.',
+    'Découvrez notre collection exclusive d’équipements culinaires, friteuses sans huile, robots pétrins et appareils conçus pour durer.': 'اكتشفوا تشكيلتنا الحصرية من تجهيزات المطبخ، القلايات بدون زيت، العجانات والأجهزة المصممة لتدوم طويلاً.',
+    "Découvrez notre collection exclusive d'équipements culinaires, friteuses sans huile, robots pétrins et appareils conçus pour durer.": 'اكتشفوا تشكيلتنا الحصرية من تجهيزات المطبخ، القلايات بدون زيت، العجانات والأجهزة المصممة لتدوم طويلاً.',
+    'Explorer la Collection': 'استكشف التشكيلة',
+    'GROS ÉLECTROMÉNAGER & CUISSON': 'الأجهزة الكبيرة ومعدات الطهي',
+    'Fours & Plaques.': 'الأفران ومواقد الطبخ.',
+    'Ingénierie & Performance.': 'هندسة متقنة وأداء فائق.',
+    'Chaleur tournante, foyers haute puissance et finitions inox brossé. Équipez votre cuisine avec les références les plus fiables.': 'حرارة دوارة، مواقد عالية القدرة وتشطيبات ستانلس ستيل مصقول. جهّز مطبخك بأكثر المنتجات موثوقية.',
+    'Voir les Nouveautés': 'اكتشف أحدث الوصولات',
+    'OFFRES PRIVILÈGES ROYAL': 'عروض امتيازات رويال',
+    'Équipez Votre Maison.': 'جهّز منزلك بأناقة.',
+    'Qualité & Prix Directs.': 'جودة عالية وأسعار مباشرة.',
+    'Profitez de nos promotions actives avec garantie constructeur et livraison rapide partout dans les 24 gouvernorats de Tunisie.': 'استفيدوا من تخفيضاتنا الجارية مع ضمان المصنع وتوصيل سريع لكافة ولايات الجمهورية التونسية الـ 24.',
+    'Voir les Promotions': 'عرض التخفيضات',
+    'Voir le Catalogue': 'تصفح الكتالوج',
+    Catalogue: 'الكتالوج',
+    Promotions: 'التخفيضات',
+  };
+
+  const translateSlideText = (val?: string | null, arVal?: string | null) => {
+    if (locale !== 'ar') return val || '';
+    if (arVal && arVal.trim()) return arVal;
+    if (!val) return '';
+    return HERO_FR_TO_AR[val.trim()] || val;
+  };
+
   const safeIndex = slides.length > 0 ? ((currentIndex % slides.length) + slides.length) % slides.length : 0;
-  const currentSlide = slides[safeIndex] || luxuryHeroSlides[0];
+  const rawSlide = slides[safeIndex] || luxuryHeroSlides[0];
+  const anySlide = rawSlide as unknown as Record<string, string | undefined>;
+  const isFallbackFirst = slides === luxuryHeroSlides && safeIndex === 0;
+  const currentSlide =
+    locale === 'ar'
+      ? {
+          ...rawSlide,
+          tagline: translateSlideText(rawSlide.tagline, anySlide?.taglineAr),
+          title: anySlide?.titleAr || HERO_FR_TO_AR[(rawSlide.title || '').trim()] || (isFallbackFirst ? t('storefront.hero_title') : rawSlide.title),
+          highlightText: isFallbackFirst && !anySlide?.highlightTextAr ? '' : translateSlideText(rawSlide.highlightText, anySlide?.highlightTextAr),
+          subtitle: anySlide?.subtitleAr || HERO_FR_TO_AR[(rawSlide.subtitle || '').trim()] || (isFallbackFirst ? t('storefront.hero_subtitle') : rawSlide.subtitle),
+          primaryCtaText: anySlide?.primaryCtaTextAr || HERO_FR_TO_AR[(rawSlide.primaryCtaText || '').trim()] || (isFallbackFirst ? t('storefront.explore_collection') : rawSlide.primaryCtaText),
+        }
+      : rawSlide;
 
   useEffect(() => {
     if (currentIndex >= slides.length && slides.length > 0) {
@@ -154,7 +199,7 @@ export function HeroBanner({ slides: propSlides }: { slides?: SlideItem[] }) {
       className="relative w-full overflow-hidden bg-neutral-950 text-white flex items-center pt-20 sm:pt-24 select-none cursor-grab active:cursor-grabbing"
     >
       {/* Background Slider Track / Stack (zero-leak full-bleed overflow-hidden) */}
-      <div className="absolute inset-0 z-0 overflow-hidden">
+      <div dir="ltr" className="absolute inset-0 z-0 overflow-hidden">
         {heroAnim === 'slide' ? (
           <div
             className="flex w-full h-full transition-transform duration-700 ease-out will-change-transform"
@@ -233,7 +278,7 @@ export function HeroBanner({ slides: propSlides }: { slides?: SlideItem[] }) {
             </p>
           )}
 
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-heading font-extrabold text-white tracking-tight leading-[1.08]">
+          <h1 className="text-3xl sm:text-6xl lg:text-7xl font-heading font-extrabold text-white tracking-tight leading-[1.08]">
             {currentSlide.title}
             {currentSlide.highlightText && (
               <span className="block text-slate-200 font-heading font-bold mt-1">
@@ -243,25 +288,25 @@ export function HeroBanner({ slides: propSlides }: { slides?: SlideItem[] }) {
           </h1>
 
           {currentSlide.subtitle && (
-            <p className="mt-5 text-sm sm:text-base text-slate-200/90 max-w-lg leading-relaxed font-normal">
+            <p className="mt-4 sm:mt-5 text-xs sm:text-base text-slate-200/90 max-w-lg leading-relaxed font-normal">
               {currentSlide.subtitle}
             </p>
           )}
 
-          <div className="mt-8 flex flex-wrap items-center gap-4">
+          <div className="mt-6 sm:mt-8 flex flex-wrap items-center gap-3 sm:gap-4">
             <Link
               href={currentSlide.primaryCtaLink || '/articles'}
-              className="group inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white text-slate-950 font-bold text-xs uppercase tracking-wider transition-all shadow-xl hover:bg-slate-100 hover:scale-[1.02]"
+              className="group inline-flex items-center gap-2.5 px-6 sm:px-8 py-3.5 sm:py-4 rounded-full bg-white text-slate-950 font-bold text-xs uppercase tracking-wider transition-all shadow-xl hover:bg-slate-100 hover:scale-[1.02]"
             >
-              <span>{currentSlide.primaryCtaText || 'Découvrir'}</span>
+              <span>{currentSlide.primaryCtaText || t('storefront.explore_collection')}</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
 
             <Link
               href="/articles?sortBy=promo"
-              className="inline-flex items-center gap-2 px-6 py-4 rounded-full bg-white/15 hover:bg-white/25 border border-white/30 text-white font-semibold text-xs tracking-wider uppercase backdrop-blur-md transition"
+              className="inline-flex items-center gap-2 px-5 sm:px-6 py-3.5 sm:py-4 rounded-full bg-white/15 hover:bg-white/25 border border-white/30 text-white font-semibold text-xs tracking-wider uppercase backdrop-blur-md transition"
             >
-              <span>Offres en Promo</span>
+              <span>{t('storefront.promo_offers')}</span>
             </Link>
           </div>
         </div>

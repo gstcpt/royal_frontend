@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, ArrowUpRight } from 'lucide-react';
 import { getSafeImageUrl } from '@/lib/cart-session';
 import { useDragScroll } from '@/hooks/useDragScroll';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 
 interface CategoryItem {
   id: string;
@@ -23,6 +24,7 @@ interface CategoriesCarouselProps {
 
 export function CategoriesCarousel({ categories }: CategoriesCarouselProps) {
   const { config } = useCmsConfig();
+  const { locale, t } = useI18nStore();
   const home = config.views.home;
   const { scrollRef: scrollContainerRef, isDragging, dragProps } = useDragScroll<HTMLDivElement>();
 
@@ -54,19 +56,19 @@ export function CategoriesCarousel({ categories }: CategoriesCarouselProps) {
             <div className="flex items-center gap-2 mb-1.5">
               <span className="w-2 h-2 rounded-full bg-[var(--royal-primary)]" />
               <span className="text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)]">
-                {home.categoriesTag || 'Collections & Rayons'}
+                {locale === 'ar' ? t('storefront.categories_tag') : (home.categoriesTag || t('storefront.categories_tag'))}
               </span>
             </div>
             <h2 className="font-heading font-extrabold text-2xl sm:text-3xl text-[var(--royal-ink)] tracking-tight">
-              {home.categoriesTitle || 'Explorer par Catégories'}
+              {locale === 'ar' ? t('storefront.categories_title') : (home.categoriesTitle || t('storefront.categories_title'))}
             </h2>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => scroll('left')}
-              aria-label="Catégorie précédente"
+              aria-label={t('storefront.category_prev')}
               className="w-10 h-10 rounded-full border border-[#E6E1D6] bg-white hover:bg-[#C59B27] hover:text-white hover:border-[#C59B27] text-[#1D232E] transition flex items-center justify-center shadow-sm cursor-pointer"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -74,7 +76,7 @@ export function CategoriesCarousel({ categories }: CategoriesCarouselProps) {
             <button
               type="button"
               onClick={() => scroll('right')}
-              aria-label="Catégorie suivante"
+              aria-label={t('storefront.category_next')}
               className="w-10 h-10 rounded-full border border-[#E6E1D6] bg-white hover:bg-[#C59B27] hover:text-white hover:border-[#C59B27] text-[#1D232E] transition flex items-center justify-center shadow-sm cursor-pointer"
             >
               <ChevronRight className="w-4 h-4" />

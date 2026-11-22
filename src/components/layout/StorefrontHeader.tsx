@@ -45,7 +45,7 @@ export function StorefrontHeader() {
   );
   const fetchCart = useCartStore((state) => state.fetchCart);
   const { user, isAuthenticated, fetchMe, logout } = useAuthStore();
-  const { locale, setLocale } = useI18nStore();
+  const { locale, setLocale, t } = useI18nStore();
 
   const isClientOnly =
     Boolean(user?.roles?.includes('CLIENT')) &&
@@ -134,21 +134,23 @@ export function StorefrontHeader() {
             : 'border-[#E6E1D6] bg-[#FBF9F4] text-slate-600'
         }`}
       >
-        <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#C59B27] animate-pulse" />
-            <span>
-              {config.header.announcementText || 'Livraison 24–48h partout en Tunisie'} • Offerte dès {(config.freeShippingThreshold ?? freeThreshold).toFixed(0)} TND
+        <div className="w-full max-w-[1720px] mx-auto px-3 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#C59B27] animate-pulse shrink-0" />
+            <span className="truncate">
+              {locale === 'ar'
+                ? `${t('header.announcement_default')} • ${t('header.free_shipping_from')} ${(config.freeShippingThreshold ?? freeThreshold).toFixed(0)} ${t('common.currency')}`
+                : `${config.header.announcementText || t('header.announcement_default')} • ${t('header.free_shipping_from')} ${(config.freeShippingThreshold ?? freeThreshold).toFixed(0)} ${t('common.currency')}`}
             </span>
           </div>
 
-          <div className="hidden sm:flex items-center gap-5 text-xs">
+          <div className="flex items-center gap-3 sm:gap-5 text-xs shrink-0">
             {config.header.showTrackOrder !== false && (
               <Link
                 href="/track-order"
-                className={`transition ${isTransparent ? 'hover:text-white' : 'hover:text-[var(--royal-primary)]'}`}
+                className={`hidden sm:inline transition ${isTransparent ? 'hover:text-white' : 'hover:text-[var(--royal-primary)]'}`}
               >
-                Suivre ma commande
+                {t('header.track_order')}
               </Link>
             )}
             {config.header.showLanguageSwitch !== false && (
@@ -172,40 +174,40 @@ export function StorefrontHeader() {
       </div>
 
       {/* Main Navbar Row */}
-      <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 py-3 flex items-center justify-between gap-6">
+      <div className="w-full max-w-[1720px] mx-auto px-3 sm:px-5 lg:px-12 xl:px-16 2xl:px-20 py-3 flex items-center justify-between gap-2 sm:gap-3 lg:gap-6">
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className={`lg:hidden p-2 rounded-xl transition ${
+          className={`lg:hidden p-2 rounded-xl transition shrink-0 ${
             isTransparent ? 'text-white hover:bg-white/10' : 'text-neutral-900 hover:bg-neutral-100'
           }`}
-          aria-label="Menu de navigation"
+          aria-label={t('header.nav_menu_aria')}
         >
           {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
 
         {/* Official Brand Logo */}
-        <Link href="/" className="flex items-center gap-3 group shrink-0">
-          <div className="w-11 h-11 rounded-xl overflow-hidden border border-[#C59B27]/60 bg-[#FDF9F0] shadow-sm flex items-center justify-center shrink-0">
+        <Link href="/" className="flex items-center gap-2 sm:gap-3 group shrink-0 min-w-0">
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl overflow-hidden border border-[#C59B27]/60 bg-[#FDF9F0] shadow-sm flex items-center justify-center shrink-0">
             <img
               src={config.logoUrl || '/images/royal-logo.jpg'}
               alt={config.appName || 'Royal Electro de Maison'}
               className="w-full h-full object-cover"
             />
           </div>
-          <div className="flex flex-col">
+          <div className="flex flex-col min-w-0">
             <span
-              className={`font-heading font-black text-xl sm:text-2xl tracking-tight leading-none transition-colors uppercase ${
+              className={`font-heading font-black text-lg sm:text-2xl tracking-tight leading-none transition-colors uppercase ${
                 isTransparent ? 'text-white' : 'text-[#1D232E]'
               }`}
             >
               {config.appName || 'ROYAL'}
             </span>
             <span
-              className={`text-[9px] uppercase tracking-[0.26em] font-bold mt-0.5 transition-colors ${
+              className={`hidden sm:block text-[9px] uppercase tracking-[0.26em] font-bold mt-0.5 transition-colors ${
                 isTransparent ? 'text-[#E6C86E]' : 'text-[#B8860B]'
               }`}
             >
-              Electro de Maison
+              {t('header.brand_tagline')}
             </span>
           </div>
         </Link>
@@ -218,7 +220,7 @@ export function StorefrontHeader() {
               isTransparent ? 'text-white/90 hover:text-white' : 'text-neutral-700 hover:text-neutral-950'
             }`}
           >
-            Accueil
+            {t('nav.home')}
           </Link>
           <Link
             href="/articles"
@@ -226,7 +228,7 @@ export function StorefrontHeader() {
               isTransparent ? 'text-white/90 hover:text-white' : 'text-neutral-700 hover:text-neutral-950'
             }`}
           >
-            Tous les Articles
+            {t('nav.articles')}
           </Link>
 
           {/* Rayons Dropdown */}
@@ -239,12 +241,12 @@ export function StorefrontHeader() {
                 isTransparent ? 'text-white/90 hover:text-white' : 'text-neutral-700 hover:text-neutral-950'
               }`}
             >
-              <span>Rayons</span>
+              <span>{t('nav.rays')}</span>
               <ChevronDown className={`w-3.5 h-3.5 opacity-60 transition-transform ${categoryMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {categoryMenuOpen && (
-              <div className="absolute left-0 mt-3 w-72 rounded-2xl bg-white border border-neutral-200 shadow-2xl py-2 z-50 text-neutral-900">
+              <div className="absolute start-0 mt-3 w-72 rounded-2xl bg-white border border-neutral-200 shadow-2xl py-2 z-50 text-neutral-900">
                 {dynamicCategories.map((cat) => (
                   <Link
                     key={cat.id}
@@ -261,7 +263,7 @@ export function StorefrontHeader() {
                   onClick={() => setCategoryMenuOpen(false)}
                   className="block px-4 py-2 text-xs font-bold text-neutral-950 hover:bg-neutral-50"
                 >
-                  Voir tout le catalogue →
+                  {t('header.view_full_catalog')}
                 </Link>
               </div>
             )}
@@ -273,19 +275,19 @@ export function StorefrontHeader() {
               isTransparent ? 'text-amber-300 hover:text-amber-200' : 'text-amber-600 hover:text-amber-700'
             }`}
           >
-            Promotions
+            {t('nav.promos')}
           </Link>
         </nav>
 
         {/* Right Action Elements */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-3 shrink-0">
           {config.header.showSearch !== false && (
-            <form onSubmit={handleSearchSubmit} className="hidden sm:block relative w-44 lg:w-56">
+            <form onSubmit={handleSearchSubmit} className="hidden sm:block relative w-36 md:w-44 lg:w-56">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Rechercher un article..."
+                placeholder={t('header.search_placeholder')}
                 className={`w-full pl-8 pr-3 py-1.5 text-xs rounded-full border transition-all focus:outline-none ${
                   isTransparent
                     ? 'bg-white/10 border-white/20 text-white placeholder-white/60 focus:bg-white focus:text-neutral-900 focus:placeholder-neutral-400'
@@ -303,12 +305,12 @@ export function StorefrontHeader() {
           {config.header.showCompare !== false && (
             <Link
               href="/compare"
-              className={`relative p-2 rounded-full transition ${
+              className={`relative p-1.5 sm:p-2 rounded-full transition ${
                 isTransparent
                   ? 'text-white hover:bg-white/10'
                   : 'text-[var(--royal-ink)] hover:bg-[var(--royal-gold-light)]'
               }`}
-              title="Comparateur d'articles"
+              title={t('header.compare_title')}
             >
               <Layers className="w-5 h-5" />
               {compareCount > 0 && (
@@ -322,12 +324,12 @@ export function StorefrontHeader() {
           {config.header.showWishlist !== false && (
             <Link
               href="/wishlist"
-              className={`relative p-2 rounded-full transition ${
+              className={`relative p-1.5 sm:p-2 rounded-full transition ${
                 isTransparent
                   ? 'text-white hover:bg-white/10'
                   : 'text-[var(--royal-ink)] hover:bg-[var(--royal-gold-light)]'
               }`}
-              title="Liste d'envies"
+              title={t('header.wishlist_title')}
             >
               <Heart className="w-5 h-5" />
               {wishlistCount > 0 && (
@@ -340,12 +342,12 @@ export function StorefrontHeader() {
 
           <Link
             href="/cart"
-            className={`relative p-2 rounded-full transition ${
+            className={`relative p-1.5 sm:p-2 rounded-full transition ${
               isTransparent
                 ? 'text-white hover:bg-white/10'
                 : 'text-neutral-700 hover:text-neutral-950 hover:bg-neutral-100'
             }`}
-            title="Mon Panier"
+            title={t('header.cart_title')}
           >
             <ShoppingBag className="w-5 h-5" />
             {cartItemsCount > 0 && (
@@ -377,12 +379,12 @@ export function StorefrontHeader() {
                     <span>{user?.firstName?.[0] || 'U'}</span>
                   )}
                 </span>
-                <span>{user?.firstName || 'Espace'}</span>
+                <span>{user?.firstName || t('nav.space')}</span>
                 <ChevronDown className="w-3.5 h-3.5 opacity-80" />
               </button>
 
               {userMenuOpen && (
-                <div className="absolute right-0 top-full pt-2 w-56 z-50">
+                <div className="absolute end-0 top-full pt-2 w-56 z-50">
                   <div className="bg-white rounded-2xl border border-neutral-200 shadow-2xl py-2 text-neutral-900">
                     <div className="px-4 py-2.5 border-b border-neutral-100">
                       <div className="text-xs font-black text-neutral-950 truncate">
@@ -397,7 +399,7 @@ export function StorefrontHeader() {
                       className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 hover:text-neutral-950 transition"
                     >
                       <LayoutDashboard className="w-4 h-4 text-amber-600" />
-                      <span>Dashboard</span>
+                      <span>{t('nav.dashboard')}</span>
                     </Link>
 
                     <Link
@@ -406,7 +408,7 @@ export function StorefrontHeader() {
                       className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 hover:text-neutral-950 transition"
                     >
                       <User className="w-4 h-4 text-neutral-500" />
-                      <span>Profil</span>
+                      <span>{t('nav.profile')}</span>
                     </Link>
 
                     <div className="my-1 border-t border-neutral-100" />
@@ -418,10 +420,10 @@ export function StorefrontHeader() {
                         await logout();
                         router.push('/');
                       }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 transition text-left cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 transition text-start cursor-pointer"
                     >
                       <LogOut className="w-4 h-4" />
-                      <span>Déconnexion</span>
+                      <span>{t('nav.logout')}</span>
                     </button>
                   </div>
                 </div>
@@ -430,14 +432,14 @@ export function StorefrontHeader() {
           ) : (
             <Link
               href="/login"
-              className={`hidden sm:inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold tracking-wide transition shadow-sm ml-1 ${
+              className={`hidden sm:inline-flex items-center gap-1.5 lg:gap-2 px-3.5 lg:px-5 py-2 rounded-full text-xs font-bold tracking-wide transition shadow-sm ms-1 ${
                 isTransparent
                   ? 'bg-white/20 hover:bg-white text-white hover:text-[#1D232E] border border-white/30 backdrop-blur-md'
                   : 'bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)]'
               }`}
             >
               <User className="w-3.5 h-3.5" />
-              <span>Connexion</span>
+              <span>{t('nav.login')}</span>
             </Link>
           )}
         </div>
@@ -445,37 +447,55 @@ export function StorefrontHeader() {
 
       {/* Mobile Navigation Drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-neutral-200 bg-white text-neutral-900 px-6 py-5 space-y-4 shadow-xl">
+        <div className="lg:hidden border-t border-neutral-200 bg-white text-neutral-900 px-5 py-5 space-y-4 shadow-xl max-h-[80vh] overflow-y-auto">
+          {config.header.showSearch !== false && (
+            <form
+              onSubmit={(e) => {
+                handleSearchSubmit(e);
+                setMobileMenuOpen(false);
+              }}
+              className="relative"
+            >
+              <Search className="w-4 h-4 text-[var(--royal-primary)] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t('header.search_placeholder')}
+                className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-[var(--royal-border)] bg-[var(--royal-bg)] text-[var(--royal-ink)] focus:outline-none focus:border-[var(--royal-primary)]"
+              />
+            </form>
+          )}
           <nav className="flex flex-col space-y-3 font-semibold text-sm">
             <Link href="/" onClick={() => setMobileMenuOpen(false)} className="py-1">
-              Accueil
+              {t('nav.home')}
             </Link>
             <Link href="/articles" onClick={() => setMobileMenuOpen(false)} className="py-1">
-              Tous les Articles
+              {t('nav.articles')}
             </Link>
             {dynamicCategories.slice(0, 5).map((cat) => (
               <Link
                 key={cat.id}
                 href={`/articles?category=${cat.slug}`}
                 onClick={() => setMobileMenuOpen(false)}
-                className="py-1 text-neutral-600 pl-3"
+                className="py-1 text-neutral-600 ps-3"
               >
                 • {cat.name}
               </Link>
             ))}
             {config.header.showWishlist !== false && (
               <Link href="/wishlist" onClick={() => setMobileMenuOpen(false)} className="py-1 flex items-center justify-between">
-                <span>Liste d&apos;envies</span>
+                <span>{t('nav.wishlist')}</span>
                 <span className="font-bold text-rose-600">({wishlistCount})</span>
               </Link>
             )}
             {config.header.showTrackOrder !== false && (
               <Link href="/track-order" onClick={() => setMobileMenuOpen(false)} className="py-1">
-                Suivre ma commande
+                {t('header.track_order')}
               </Link>
             )}
             <Link href="/cart" onClick={() => setMobileMenuOpen(false)} className="py-1 flex items-center justify-between">
-              <span>Mon Panier</span>
+              <span>{t('nav.my_cart')}</span>
               <span className="font-bold text-neutral-900">({cartItemsCount})</span>
             </Link>
             {isAuthenticated ? (
@@ -483,16 +503,16 @@ export function StorefrontHeader() {
                 <Link
                   href="/dashboard"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="py-2.5 px-3 rounded-xl bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-center text-xs font-bold transition"
+                  className="py-2.5 px-2 rounded-xl bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-center text-xs font-bold transition truncate"
                 >
-                  Dashboard
+                  {t('nav.dashboard')}
                 </Link>
                 <Link
                   href="/account/profile"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="py-2.5 px-3 rounded-xl bg-neutral-100 text-neutral-900 text-center text-xs font-bold"
+                  className="py-2.5 px-2 rounded-xl bg-neutral-100 text-neutral-900 text-center text-xs font-bold truncate"
                 >
-                  Profil
+                  {t('nav.profile')}
                 </Link>
                 <button
                   type="button"
@@ -501,9 +521,9 @@ export function StorefrontHeader() {
                     await logout();
                     router.push('/');
                   }}
-                  className="py-2.5 px-3 rounded-xl bg-rose-50 text-rose-600 text-center text-xs font-bold"
+                  className="py-2.5 px-2 rounded-xl bg-rose-50 text-rose-600 text-center text-xs font-bold truncate"
                 >
-                  Déconnexion
+                  {t('nav.logout')}
                 </button>
               </div>
             ) : (
@@ -512,7 +532,7 @@ export function StorefrontHeader() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="py-2.5 px-4 rounded-xl bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-center text-xs font-bold uppercase mt-2 transition"
               >
-                Se Connecter
+                {t('header.sign_in')}
               </Link>
             )}
           </nav>

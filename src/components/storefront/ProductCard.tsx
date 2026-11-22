@@ -25,6 +25,7 @@ import { getSafeImageUrl, getCartHeaders } from '@/lib/cart-session';
 import { formatTndCurrency } from '@/lib/utils';
 import { ProductMediaViewer } from './ProductMediaViewer';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 import { Modal } from '@/components/ui';
 import { trackMarketingEvent } from './MarketingPixelsTracker';
 
@@ -76,6 +77,7 @@ export interface ProductCardProps {
 
 export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
   const { config } = useCmsConfig();
+  const { t } = useI18nStore();
   const articleFlags = config.views.articles;
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
@@ -236,14 +238,14 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
             <Check className="w-3.5 h-3.5" />
           </span>
           <div className="max-w-[220px]">
-            <p className="font-bold text-[var(--royal-ink)] line-clamp-1">Ajouté au panier ({quantity})</p>
+            <p className="font-bold text-[var(--royal-ink)] line-clamp-1">{t('actions.added_to_cart_qty')} ({quantity})</p>
             <p className="text-[11px] text-slate-600 line-clamp-1">{product.name}</p>
           </div>
           <Link
             href="/cart"
             className="ml-2 px-3 py-1.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] font-bold hover:bg-[var(--royal-primary-hover)] transition shrink-0"
           >
-            Voir panier →
+            {t('actions.view_cart_short')}
           </Link>
         </div>
       )}
@@ -260,15 +262,15 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
       {authPromptProductId === product.id && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="fixed bottom-6 left-6 z-[9999] bg-white text-neutral-900 px-4 py-3 rounded-2xl shadow-2xl border border-amber-300 flex items-center gap-3 text-xs"
+          className="fixed bottom-6 left-6 right-6 sm:right-auto max-w-sm z-[9999] bg-white text-neutral-900 px-4 py-3 rounded-2xl shadow-2xl border border-amber-300 flex items-center gap-3 text-xs"
         >
           <ThumbsUp className="w-4 h-4 text-amber-600 shrink-0" />
-          <span className="font-semibold">Connectez-vous pour aimer ou ne pas aimer cet article.</span>
+          <span className="font-semibold">{t('storefront.login_to_react')}</span>
           <Link
             href="/login"
             className="px-3 py-1 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] font-bold hover:bg-[var(--royal-primary-hover)] transition shrink-0"
           >
-            Connexion
+            {t('nav.login')}
           </Link>
         </div>
       )}
@@ -287,7 +289,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
               onClick={() => setIsBuyModalOpen(false)}
               className="px-4 py-2.5 rounded-full border border-neutral-200 text-neutral-700 hover:bg-neutral-50 text-xs font-semibold cursor-pointer"
             >
-              Annuler
+              {t('actions.cancel')}
             </button>
             <button
               type="button"
@@ -295,7 +297,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
               className="flex-1 sm:flex-initial py-2.5 px-5 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold uppercase tracking-wider transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
             >
               <ShoppingBag className="w-4 h-4" />
-              <span>Confirmer l’ajout au panier</span>
+              <span>{t('actions.confirm_add_to_cart')}</span>
             </button>
           </div>
         }
@@ -332,7 +334,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
           {product.variants && product.variants.length > 0 && (
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-wider text-neutral-700 block">
-                Variante / Finition
+                {t('storefront.variant_finish')}
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {product.variants.map((v) => {
@@ -365,7 +367,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
 
           <div className="flex items-center justify-between pt-2 border-t border-neutral-100">
             <span className="text-xs font-bold uppercase tracking-wider text-neutral-700">
-              Quantité
+              {t('common.qty')}
             </span>
             <div className="flex items-center gap-3 bg-[#F4F5F7] rounded-full px-3 py-1.5 border border-neutral-200">
               <button
@@ -404,14 +406,14 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
               href={`/articles/${product.slug}`}
               className="py-2 px-4 rounded-full border border-neutral-300 text-xs font-bold text-neutral-800 hover:bg-neutral-50 transition"
             >
-              Voir la fiche complète →
+              {t('actions.view_full_sheet')}
             </Link>
             <button
               type="button"
               onClick={() => setIsQuickViewOpen(false)}
               className="py-2 px-4 rounded-full border border-neutral-200 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition cursor-pointer"
             >
-              Fermer
+              {t('actions.close')}
             </button>
           </div>
         }
@@ -535,7 +537,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                   }`}
                 >
                   <Heart className={`w-3.5 h-3.5 ${inWishlist ? 'fill-current' : ''}`} />
-                  <span>Favoris</span>
+                  <span>{t('actions.favorite')}</span>
                 </button>
               </div>
             </div>
@@ -594,8 +596,8 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
             </div>
           </div>
 
-          <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-3 shrink-0">
-            <div className="text-left sm:text-right">
+          <div className="flex flex-col sm:items-end justify-between w-full sm:w-auto gap-2.5 sm:gap-3 shrink-0 min-w-0">
+            <div className="flex sm:block items-baseline justify-between w-full sm:w-auto text-left sm:text-right">
               <div className="text-lg font-black text-slate-950 font-mono">
                 {formatTndCurrency(currentPrice)}
               </div>
@@ -606,7 +608,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={(e) => {
@@ -661,7 +663,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
               <button
                 type="button"
                 onClick={handleToggleWishlist}
-                title={inWishlist ? 'Retirer de la liste d’envies' : 'Ajouter à la liste d’envies'}
+                title={inWishlist ? t('actions.wishlist_remove') : t('actions.wishlist_add')}
                 className={`w-9 h-9 rounded-full border flex items-center justify-center cursor-pointer ${
                   inWishlist
                     ? 'bg-rose-50 text-rose-600 border-rose-200'
@@ -680,7 +682,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                 className="px-4 py-2 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold flex items-center gap-1.5 cursor-pointer"
               >
                 <ShoppingBag className="w-3.5 h-3.5" />
-                <span>Acheter</span>
+                <span>{t('actions.buy')}</span>
               </button>
             </div>
           </div>
@@ -783,7 +785,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-[var(--royal-primary)] hover:text-[var(--royal-primary-text)] border border-[var(--royal-border)] text-xs font-bold text-[var(--royal-ink)] transition shadow-2xs cursor-pointer"
               >
                 <ShoppingBag className="w-3.5 h-3.5" />
-                <span>Acheter</span>
+                <span>{t('actions.buy')}</span>
               </button>
             ) : <span />}
 
@@ -816,7 +818,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                 ))}
               </div>
               <span className="text-[11px] text-slate-500 truncate">
-                {product.reviewCount || product.reviewsCount || 0} avis
+                {product.reviewCount || product.reviewsCount || 0} {t('storefront.reviews_count')}
               </span>
             </div>
 
@@ -824,7 +826,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
               <button
                 type="button"
                 onClick={(e) => handleReaction(e, 'LIKE')}
-                title="J'aime"
+                title={t('actions.like')}
                 className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-bold transition cursor-pointer ${
                   myReaction === 'LIKE'
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -837,7 +839,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
               <button
                 type="button"
                 onClick={(e) => handleReaction(e, 'DISLIKE')}
-                title="Je n'aime pas"
+                title={t('actions.dislike')}
                 className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-bold transition cursor-pointer ${
                   myReaction === 'DISLIKE'
                     ? 'bg-rose-50 text-rose-700 border-rose-200'

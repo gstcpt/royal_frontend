@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowRight, ChevronLeft, ChevronRight, Sparkles, Star, Percent } from 'lucide-react';
 import { ProductCard, StorefrontProduct } from './ProductCard';
 import { useDragScroll } from '@/hooks/useDragScroll';
+import { useI18nStore } from '@/stores/i18n.store';
 
 interface ProductTabsSectionProps {
   newProducts: StorefrontProduct[];
@@ -29,6 +30,7 @@ export function IsolatedProductCarousel({
   viewAllHref: string;
   displayMode?: 'carousel' | 'grid';
 }) {
+  const { t } = useI18nStore();
   const { scrollRef, isDragging, dragProps } = useDragScroll<HTMLDivElement>();
 
   const scroll = (dir: 'left' | 'right') => {
@@ -65,7 +67,7 @@ export function IsolatedProductCarousel({
               href={viewAllHref}
               className="text-xs font-bold text-[#9A7414] hover:text-[#1D232E] hover:underline inline-flex items-center gap-1 mr-2"
             >
-              <span>Voir tout</span>
+              <span>{t('common.view_all')}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
             {displayMode !== 'grid' && (
@@ -123,6 +125,7 @@ export function ProductTabsSection({
   topRatedProducts,
   promoProducts,
 }: ProductTabsSectionProps) {
+  const { t } = useI18nStore();
   return (
     <section className="py-12 md:py-16 bg-white border-b border-slate-100">
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
@@ -130,21 +133,21 @@ export function ProductTabsSection({
           <div className="flex items-center gap-2 mb-2">
             <span className="w-2.5 h-2.5 rounded-sm bg-[var(--royal-primary)]" />
             <span className="text-xs uppercase tracking-widest font-bold text-slate-500">
-              Catalogue Officiel Royal
+              {t('storefront.recommended_tag')}
             </span>
           </div>
           <h2 className="font-heading font-extrabold text-2xl sm:text-4xl text-slate-900 tracking-tight">
-            Nos Articles Recommandés
+            {t('storefront.recommended_title')}
           </h2>
           <p className="mt-2 text-xs sm:text-sm text-slate-500 max-w-xl">
-            Découvrez nos dernières nouveautés, nos références les mieux notées et nos offres promotionnelles en cours.
+            {t('storefront.recommended_subtitle')}
           </p>
         </div>
 
         {/* 1. Nouveautés Carousel */}
         <IsolatedProductCarousel
-          title="Nouveautés"
-          tag="Derniers Arrivages"
+          title={t('storefront.new_arrivals')}
+          tag={t('storefront.new_arrivals_tag')}
           icon={<Sparkles className="w-4 h-4 text-amber-500" />}
           products={newProducts}
           viewAllHref="/articles?sortBy=newest"
@@ -152,8 +155,8 @@ export function ProductTabsSection({
 
         {/* 2. Mieux Notés Carousel */}
         <IsolatedProductCarousel
-          title="Mieux Notés"
-          tag="Sélection Plébiscitée"
+          title={t('storefront.top_rated')}
+          tag={t('storefront.top_rated_tag')}
           icon={<Star className="w-4 h-4 text-amber-500 fill-current" />}
           products={topRatedProducts}
           viewAllHref="/articles?sortBy=popular"
@@ -161,8 +164,8 @@ export function ProductTabsSection({
 
         {/* 3. Promotions Carousel */}
         <IsolatedProductCarousel
-          title="Promotions"
-          tag="Meilleures Réductions TND"
+          title={t('storefront.promotions')}
+          tag={t('storefront.promotions_tag')}
           icon={<Percent className="w-4 h-4 text-rose-600" />}
           products={promoProducts}
           viewAllHref="/articles?sortBy=promo"
@@ -173,7 +176,7 @@ export function ProductTabsSection({
             href="/articles"
             className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs uppercase tracking-wider font-bold transition shadow-md"
           >
-            <span>Découvrir tout le catalogue Royal</span>
+            <span>{t('storefront.discover_full_catalog')}</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

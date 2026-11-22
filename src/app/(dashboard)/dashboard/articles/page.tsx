@@ -1625,11 +1625,11 @@ export default function DashboardArticlesPage() {
         renderListItem={(item, isSelected, onSelect, isChecked, onToggleCheck) => (
           <div
             onClick={onSelect}
-            className={`p-3.5 flex items-center justify-between gap-4 transition-all ${
+            className={`p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 transition-all ${
               isSelected ? 'bg-neutral-100/70' : 'hover:bg-neutral-50/60'
             }`}
           >
-            <div className="flex items-center gap-3.5 min-w-0">
+            <div className="flex items-center gap-3.5 min-w-0 flex-1">
               <button
                 type="button"
                 onClick={onToggleCheck}
@@ -1663,26 +1663,26 @@ export default function DashboardArticlesPage() {
                 )}
               </div>
 
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-neutral-900 text-xs truncate">{item.name}</span>
                 </div>
-                <div className="flex items-center gap-2.5 mt-1 text-[11px] text-neutral-500">
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 mt-1 text-[11px] text-neutral-500">
                   <span className="font-mono text-neutral-600 font-semibold">{item.sku}</span>
                   <span>•</span>
-                  <span>{item.category?.name || 'Général'}</span>
+                  <span className="truncate">{item.category?.name || 'Général'}</span>
                   {item.brand && (
                     <>
                       <span>•</span>
-                      <span className="font-medium text-neutral-700">{item.brand.name}</span>
+                      <span className="font-medium text-neutral-700 truncate">{item.brand.name}</span>
                     </>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-5 shrink-0">
-              <div className="text-right">
+            <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-5 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-neutral-100 shrink-0">
+              <div className="text-left sm:text-right">
                 <div className="font-heading font-black text-neutral-900 text-xs">
                   {formatTndCurrency(item.sellingPrice)}
                 </div>

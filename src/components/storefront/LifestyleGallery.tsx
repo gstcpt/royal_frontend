@@ -7,39 +7,41 @@ import { getSafeImageUrl } from '@/lib/cart-session';
 import { formatTndCurrency } from '@/lib/utils';
 import { StorefrontProduct } from './ProductCard';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export function LifestyleGallery({ featuredProducts = [] }: { featuredProducts?: StorefrontProduct[] }) {
   const { config } = useCmsConfig();
+  const { locale, t } = useI18nStore();
   const home = config.views.home;
   const items = featuredProducts.slice(0, 4);
   if (items.length === 0) return null;
   const bannerImg = home.lifestyleCustomBannerUrl ? getSafeImageUrl(home.lifestyleCustomBannerUrl) : '';
 
   return (
-    <section className="py-20 bg-white border-b border-[var(--royal-border)]">
+    <section className="py-14 sm:py-20 bg-white border-b border-[var(--royal-border)]">
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
         {bannerImg && (
           <div className="mb-10 rounded-3xl overflow-hidden border border-[#E6E1D6] h-48 sm:h-64 relative shadow-sm">
-            <img src={bannerImg} alt={home.lifestyleTitle || 'Sélection Privilège Royal'} className="w-full h-full object-cover" />
+            <img src={bannerImg} alt={t('storefront.lifestyle_title')} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 to-transparent flex items-end p-6 sm:p-8">
               <div className="text-white">
                 <span className="text-[11px] font-bold uppercase tracking-widest text-amber-300 block mb-1">
-                  {home.lifestyleTag || 'Articles en Vedette'}
+                  {locale === 'ar' ? t('storefront.lifestyle_tag') : (home.lifestyleTag || t('storefront.lifestyle_tag'))}
                 </span>
                 <p className="font-heading text-xl sm:text-3xl font-extrabold">
-                  {home.lifestyleTitle || 'Sélection Privilège Royal'}
+                  {locale === 'ar' ? t('storefront.lifestyle_title') : (home.lifestyleTitle || t('storefront.lifestyle_title'))}
                 </p>
               </div>
             </div>
           </div>
         )}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-12 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 sm:mb-12 gap-4">
           <div>
             <span className="text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] block mb-2">
-              {home.lifestyleTag || 'Articles en Vedette'}
+              {locale === 'ar' ? t('storefront.lifestyle_tag') : (home.lifestyleTag || t('storefront.lifestyle_tag'))}
             </span>
-            <h2 className="font-heading text-3xl sm:text-4xl font-extrabold text-[var(--royal-ink)] tracking-tight">
-              {home.lifestyleTitle || 'Sélection Privilège Royal'}
+            <h2 className="font-heading text-2xl sm:text-4xl font-extrabold text-[var(--royal-ink)] tracking-tight">
+              {locale === 'ar' ? t('storefront.lifestyle_title') : (home.lifestyleTitle || t('storefront.lifestyle_title'))}
             </h2>
           </div>
 
@@ -47,7 +49,7 @@ export function LifestyleGallery({ featuredProducts = [] }: { featuredProducts?:
             href="/articles?collection=featured"
             className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest font-bold text-[var(--royal-primary)] hover:underline transition"
           >
-            <span>{home.lifestyleCtaText || 'Voir toute la sélection'}</span>
+            <span>{locale === 'ar' ? t('storefront.lifestyle_cta') : (home.lifestyleCtaText || t('storefront.lifestyle_cta'))}</span>
             <ArrowUpRight className="w-4 h-4" />
           </Link>
         </div>

@@ -4,6 +4,7 @@ import React, { useEffect, useState, useTransition, useMemo, useRef, Suspense } 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ProductCard, StorefrontProduct } from '@/components/storefront/ProductCard';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 import { getSafeImageUrl } from '@/lib/cart-session';
 import {
   Filter,
@@ -82,7 +83,7 @@ function LuxuryDropdown({
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 min-w-[205px] rounded-2xl bg-white border border-neutral-200 shadow-2xl py-1.5 z-50">
+        <div className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-2rem)] rounded-2xl bg-white border border-neutral-200 shadow-2xl py-1.5 z-50">
           {options.map((opt) => {
             const active = opt.value === value;
             return (
@@ -113,6 +114,7 @@ function LuxuryDropdown({
 
 function ArticlesContent() {
   const { config } = useCmsConfig();
+  const { locale, t } = useI18nStore();
   const articlesCfg = config.views.articles;
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -546,13 +548,13 @@ function ArticlesContent() {
           <div className="relative z-10">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)] mb-3">
               <Sparkles className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
-              <span>{articlesCfg.headerBadge || `${config?.appName || 'Royal'} • Électro de Maison`}</span>
+              <span>{locale === 'ar' ? t('catalog.badge') : (articlesCfg.headerBadge || `${config?.appName || 'Royal'} • Électro de Maison`)}</span>
             </div>
-            <h1 className="font-heading text-3xl md:text-5xl font-black text-[var(--royal-ink)] tracking-tight">
-              {articlesCfg.headerTitle || 'Catalogue des Articles Royal'}
+            <h1 className="font-heading text-2xl sm:text-3xl md:text-5xl font-black text-[var(--royal-ink)] tracking-tight">
+              {locale === 'ar' ? t('catalog.title') : (articlesCfg.headerTitle || t('catalog.title'))}
             </h1>
             <p className="mt-2 text-xs sm:text-sm text-neutral-500 max-w-2xl font-normal">
-              {articlesCfg.headerSubtitle || 'Explorez l’ensemble de nos appareils culinaires, petit et gros électroménager, coiffure et arts de la table disponibles en stock en Tunisie.'}
+              {locale === 'ar' ? t('catalog.subtitle') : (articlesCfg.headerSubtitle || t('catalog.subtitle'))}
             </p>
           </div>
         </div>
@@ -560,18 +562,18 @@ function ArticlesContent() {
 
       {/* Unified Top Toolbar: [Toggle Sidebar Icon] -> [Article Count] -> [Search Input] -> [Grid/List, 3/4/6, PerPage, Sort] */}
       <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-neutral-200 shadow-sm mb-6 flex flex-wrap items-center gap-3 justify-between">
-        <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto sm:flex-1 min-w-0">
           {/* 1. First Position: Sidebar Toggle Icon aligned above Filter Sidebar */}
           {articlesCfg.showFiltersSection !== false && (
             <button
               type="button"
               onClick={() => setIsSidebarOpen((prev) => !prev)}
-              title={isSidebarOpen ? 'Masquer les filtres' : 'Afficher les filtres'}
-              aria-label={isSidebarOpen ? 'Masquer les filtres' : 'Afficher les filtres'}
+              title={isSidebarOpen ? t('actions.hide_filters') : t('actions.show_filters')}
+              aria-label={isSidebarOpen ? t('actions.hide_filters') : t('actions.show_filters')}
               className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#F4F5F7] border border-neutral-200 hover:bg-[var(--royal-primary)] hover:text-[var(--royal-primary-text)] text-xs font-bold text-neutral-900 transition cursor-pointer shrink-0"
             >
               {isSidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
-              <span className="hidden sm:inline">Filtres</span>
+              <span className="hidden sm:inline">{t('actions.filters')}</span>
               {activeFiltersCount > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-black leading-none">
                   {activeFiltersCount}
@@ -581,30 +583,30 @@ function ArticlesContent() {
           )}
 
           {/* 2. Article Count Display */}
-          <span className="text-xs font-medium text-neutral-500 whitespace-nowrap">
+          <span className="text-xs font-medium text-neutral-500 sm:whitespace-nowrap">
             {totalCount > 0 ? (
               <>
-                Affichage de{' '}
+                {t('catalog.showing')}{' '}
                 <strong className="text-neutral-950">
                   {(currentPage - 1) * perPage + 1}–{Math.min(currentPage * perPage, totalCount)}
                 </strong>{' '}
-                sur <strong className="text-neutral-950">{totalCount}</strong> article(s)
+                {t('catalog.of')} <strong className="text-neutral-950">{totalCount}</strong> {t('catalog.articles_word')}
               </>
             ) : (
               <>
-                <strong className="text-neutral-950">{products.length}</strong> article(s)
+                <strong className="text-neutral-950">{products.length}</strong> {t('catalog.articles_word')}
               </>
             )}
           </span>
 
           {/* 3. Search Input right after the article count in the exact same line */}
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <div className="relative basis-full sm:basis-auto sm:flex-1 min-w-0 sm:min-w-[200px] w-full sm:w-auto sm:max-w-sm">
             <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
-              placeholder="Rechercher un article, SKU, puissance..."
+              placeholder={t('catalog.search_placeholder')}
               className="w-full pl-9 pr-8 py-2 text-xs bg-[#F8F9FA] border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-950 transition"
             />
             {localSearch && (
@@ -722,29 +724,29 @@ function ArticlesContent() {
           </div>
 
           <LuxuryDropdown
-            ariaLabel="Articles par page"
+            ariaLabel={t('catalog.per_page_aria')}
             value={String(perPage)}
             onChange={(val) => updateQuery({ limit: val })}
             options={[
-              { value: '12', label: '12 / page' },
-              { value: '24', label: '24 / page' },
-              { value: '36', label: '36 / page' },
-              { value: '60', label: '60 / page' },
-              { value: '96', label: '96 / page' },
+              { value: '12', label: `12 ${t('catalog.per_page_suffix')}` },
+              { value: '24', label: `24 ${t('catalog.per_page_suffix')}` },
+              { value: '36', label: `36 ${t('catalog.per_page_suffix')}` },
+              { value: '60', label: `60 ${t('catalog.per_page_suffix')}` },
+              { value: '96', label: `96 ${t('catalog.per_page_suffix')}` },
             ]}
           />
 
           <LuxuryDropdown
-            ariaLabel="Trier les articles"
+            ariaLabel={t('catalog.sort_aria')}
             value={selectedSort}
             onChange={(val) => updateQuery({ sortBy: val })}
             icon={<ArrowUpDown className="w-3.5 h-3.5 text-amber-600" />}
             options={[
-              { value: 'newest', label: 'Nouveautés d’abord' },
-              { value: 'promo', label: 'Promotions d’abord' },
-              { value: 'price_asc', label: 'Prix croissant (TND)' },
-              { value: 'price_desc', label: 'Prix décroissant (TND)' },
-              { value: 'popular', label: 'Popularité & Vues' },
+              { value: 'newest', label: t('catalog.sort_newest') },
+              { value: 'promo', label: t('catalog.sort_promo') },
+              { value: 'price_asc', label: t('catalog.sort_price_asc') },
+              { value: 'price_desc', label: t('catalog.sort_price_desc') },
+              { value: 'popular', label: t('catalog.sort_popular') },
             ]}
           />
         </div>
@@ -762,7 +764,7 @@ function ArticlesContent() {
             <div className="flex items-center justify-between pb-3.5 border-b border-neutral-100">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-900">
                 <Filter className="w-4 h-4 text-amber-600" />
-                <span>Filtres Dynamiques</span>
+                <span>{t('catalog.dynamic_filters')}</span>
               </div>
               {activeFiltersCount > 0 && (
                 <button
@@ -770,7 +772,7 @@ function ArticlesContent() {
                   onClick={clearAllFilters}
                   className="text-[11px] text-rose-600 hover:underline font-bold cursor-pointer"
                 >
-                  Réinitialiser ({activeFiltersCount})
+                  {t('catalog.reset')} ({activeFiltersCount})
                 </button>
               )}
             </div>
@@ -779,7 +781,7 @@ function ArticlesContent() {
             {articlesCfg.showCategoryFilter !== false && (
               <div className="space-y-2">
                 <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 block">
-                  Rayons &amp; Sous-Catégories ({categories.length})
+                  {t('catalog.categories_subcategories')} ({categories.length})
                 </label>
                 <div className="space-y-0.5 max-h-80 overflow-y-auto pr-1">
                   {categoryTree.roots.map((root) => renderCategoryNode(root, 0))}
@@ -791,7 +793,7 @@ function ArticlesContent() {
             {articlesCfg.showPriceFilter !== false && (
               <div className="space-y-2 pt-3 border-t border-neutral-100">
                 <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 block">
-                  Budget (TND)
+                  {t('catalog.budget_tnd')}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <input
@@ -799,7 +801,7 @@ function ArticlesContent() {
                     min={0}
                     value={minPriceInput}
                     onChange={(e) => setMinPriceInput(e.target.value)}
-                    placeholder="Min (DT)"
+                    placeholder={t('catalog.min_dt')}
                     className="w-full px-3 py-2 text-xs bg-[#F8F9FA] border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900"
                   />
                   <input
@@ -807,7 +809,7 @@ function ArticlesContent() {
                     min={0}
                     value={maxPriceInput}
                     onChange={(e) => setMaxPriceInput(e.target.value)}
-                    placeholder="Max (DT)"
+                    placeholder={t('catalog.max_dt')}
                     className="w-full px-3 py-2 text-xs bg-[#F8F9FA] border border-neutral-200 rounded-xl focus:outline-none focus:border-neutral-900"
                   />
                 </div>
@@ -818,7 +820,7 @@ function ArticlesContent() {
             {articlesCfg.showBrandFilter !== false && (
               <div className="pt-3 border-t border-neutral-100 space-y-2">
                 <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 block">
-                  Marques Officielles
+                  {t('catalog.brands_official')}
                 </label>
                 <div className="space-y-1">
                   {brands.map((b) => {
@@ -965,7 +967,7 @@ function ArticlesContent() {
                 />
                 <span className="flex items-center gap-1.5">
                   <Percent className="w-3.5 h-3.5 text-rose-600" />
-                  Uniquement en promotion
+                  {t('catalog.promo_only')}
                 </span>
               </label>
 
@@ -976,7 +978,7 @@ function ArticlesContent() {
                   onChange={(e) => updateQuery({ inStock: e.target.checked ? 'true' : null })}
                   className="w-4 h-4 rounded text-neutral-950 border-neutral-300"
                 />
-                <span>Uniquement en stock direct</span>
+                <span>{t('catalog.in_stock_only')}</span>
               </label>
             </div>
           </aside>
@@ -1059,19 +1061,19 @@ function ArticlesContent() {
               ))}
             </div>
           ) : products.length === 0 ? (
-            <div className="py-20 text-center bg-white rounded-3xl border border-neutral-200 p-8">
+            <div className="py-16 sm:py-20 text-center bg-white rounded-3xl border border-neutral-200 p-6 sm:p-8">
               <p className="font-heading font-black text-xl text-neutral-900">
-                Aucun article ne correspond à vos critères.
+                {t('catalog.empty_title')}
               </p>
               <p className="mt-2 text-xs text-neutral-500">
-                Essayez d’élargir vos filtres ou de réinitialiser votre sélection.
+                {t('catalog.empty_desc')}
               </p>
               <button
                 type="button"
                 onClick={clearAllFilters}
                 className="mt-6 px-6 py-3 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs uppercase tracking-wider font-bold shadow-md hover:bg-[var(--royal-primary-hover)] transition cursor-pointer"
               >
-                Tout réinitialiser
+                {t('catalog.reset')}
               </button>
             </div>
           ) : displayMode === 'list' ? (
@@ -1098,7 +1100,7 @@ function ArticlesContent() {
                 className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl border border-neutral-200 bg-white text-xs font-bold text-neutral-800 hover:bg-neutral-50 disabled:opacity-40 cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
-                Précédent
+                {t('table.prev_page')}
               </button>
 
               {Array.from({ length: totalPages }, (_, i) => i + 1)
@@ -1128,7 +1130,7 @@ function ArticlesContent() {
                 onClick={() => goToPage(currentPage + 1)}
                 className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl border border-neutral-200 bg-white text-xs font-bold text-neutral-800 hover:bg-neutral-50 disabled:opacity-40 cursor-pointer"
               >
-                Suivant
+                {t('table.next_page')}
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>

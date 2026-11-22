@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { registerSchema, RegisterDto } from '@royal/shared-validators';
 import { useAuthStore } from '@/stores/auth.store';
+import { useI18nStore } from '@/stores/i18n.store';
 import {
   Lock,
   Mail,
@@ -15,13 +16,19 @@ import {
   ArrowRight,
   AlertCircle,
   CheckCircle2,
+  KeyRound,
+  RefreshCw,
 } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register: registerAuth, isLoading } = useAuthStore();
+  const { register: registerAuth, verifyEmail, resendVerification, isLoading } = useAuthStore();
+  const { t } = useI18nStore();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState('');
+  const [resending, setResending] = useState(false);
 
   const {
     register,
@@ -42,11 +49,18 @@ export default function RegisterPage() {
     setErrorMessage(null);
     setSuccessMessage(null);
     try {
-      const user = await registerAuth(data);
-      setSuccessMessage(`Félicitations ${user.firstName} ! Votre compte est créé.`);
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 700);
+      const res = await registerAuth(data);
+      if (res?.requiresEmailVerification) {
+        setPendingEmail(res.email);
+        setOtpCode('');
+        setSuccessMessage(
+          res.message ||
+            `Un code de vérification à 6 chiffres vient d'être envoyé à ${res.email}.`,
+        );
+      } else {
+        setSuccessMessage('Compte vérifié et connecté.');
+        setTimeout(() => router.push('/account/home'), 700);
+      }
     } catch (err: any) {
       setErrorMessage(
         err.message || 'Une erreur est survenue lors de votre inscription.',
@@ -54,17 +68,45 @@ export default function RegisterPage() {
     }
   };
 
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pendingEmail || otpCode.trim().length !== 6) return;
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    try {
+      const user = await verifyEmail(pendingEmail, otpCode.trim());
+      setSuccessMessage(`Adresse vérifiée ! Bienvenue ${user.firstName}.`);
+      setTimeout(() => router.push('/dashboard'), 700);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Code invalide ou expiré.');
+    }
+  };
+
+  const handleResend = async () => {
+    if (!pendingEmail) return;
+    setResending(true);
+    setErrorMessage(null);
+    try {
+      const res = await resendVerification(pendingEmail);
+      setSuccessMessage(res?.message || `Nouveau code envoyé à ${pendingEmail}.`);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Impossible de renvoyer le code.');
+    } finally {
+      setResending(false);
+    }
+  };
+
   return (
-    <div className="bg-white border border-neutral-200 rounded-[28px] p-8 sm:p-10 shadow-xl">
+    <div className="bg-white border border-neutral-200 rounded-[28px] p-6 sm:p-10 shadow-xl">
       <div className="mb-8 text-center">
         <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 block mb-2">
-          Espace Privilège
+          {t('auth.privilege_space')}
         </span>
         <h1 className="text-2xl sm:text-3xl font-heading font-black text-neutral-900 tracking-tight">
-          Créer un Compte Client
+          {t('auth.register_title')}
         </h1>
         <p className="text-xs sm:text-sm text-neutral-500 mt-2">
-          Rejoignez Royal et profitez de l’ensemble de nos services e-commerce
+          {t('auth.register_subtitle')}
         </p>
       </div>
 
@@ -77,22 +119,83 @@ export default function RegisterPage() {
 
       {successMessage && (
         <div className="mb-5 p-3.5 rounded-xl bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] border border-[var(--royal-primary)]/40 flex items-start gap-3 text-xs animate-in fade-in">
-          <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+          <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
           <div className="flex-1 font-semibold">{successMessage}</div>
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+      {pendingEmail ? (
+        <form onSubmit={handleVerifyOtp} className="space-y-4">
+          <div className="p-4 rounded-2xl bg-[#FBF6E8] border border-[#E6D6A6] text-xs text-[#9A7414] leading-relaxed">
+            {t('auth.otp_intro_1')} <strong>{t('auth.otp_intro_6')}</strong> {t('auth.otp_intro_2')}{' '}
+            <strong className="font-mono break-all">{pendingEmail}</strong> {t('auth.otp_intro_3')}
+          </div>
+
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-700 mb-1.5">
-              Prénom
+              {t('auth.otp_label')}
+            </label>
+            <div className="relative">
+              <KeyRound className="w-4 h-4 text-[#C59B27] absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                required
+                placeholder="Ex: 482915"
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-neutral-200 bg-[#F8F9FA] text-neutral-900 font-mono text-base tracking-[0.35em] text-center focus:outline-none focus:border-[#C59B27] focus:bg-white transition-all"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading || otpCode.length !== 6}
+            className="w-full py-4 px-6 rounded-full font-bold text-xs uppercase tracking-widest text-[var(--royal-primary-text)] bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] disabled:opacity-60 shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            {isLoading ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <>
+                <span>{t('auth.activate_account')}</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs">
+            <button
+              type="button"
+              onClick={() => setPendingEmail(null)}
+              className="text-slate-500 hover:text-neutral-900 underline cursor-pointer"
+            >
+              {t('auth.edit_info')}
+            </button>
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resending}
+              className="inline-flex items-center gap-1.5 font-bold text-[#9A7414] hover:underline cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${resending ? 'animate-spin' : ''}`} />
+              <span>{t('auth.resend_code')}</span>
+            </button>
+          </div>
+        </form>
+      ) : (
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-700 mb-1.5">
+              {t('auth.first_name')}
             </label>
             <div className="relative">
               <User className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Prénom"
+                placeholder={t('auth.first_name')}
                 {...register('firstName')}
                 className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-neutral-200 bg-[#F8F9FA] text-neutral-900 placeholder:text-neutral-400 text-sm focus:outline-none focus:border-neutral-900 focus:bg-white transition-all"
               />
@@ -106,11 +209,11 @@ export default function RegisterPage() {
 
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-700 mb-1.5">
-              Nom
+              {t('auth.last_name')}
             </label>
             <input
               type="text"
-              placeholder="Nom"
+              placeholder={t('auth.last_name')}
               {...register('lastName')}
               className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-[#F8F9FA] text-neutral-900 placeholder:text-neutral-400 text-sm focus:outline-none focus:border-neutral-900 focus:bg-white transition-all"
             />
@@ -124,13 +227,13 @@ export default function RegisterPage() {
 
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-700 mb-1.5">
-            Adresse Email
+            {t('auth.email_label')}
           </label>
           <div className="relative">
             <Mail className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="email"
-              placeholder="votre.email@exemple.com"
+              placeholder={t('auth.email_placeholder')}
               {...register('email')}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-neutral-200 bg-[#F8F9FA] text-neutral-900 placeholder:text-neutral-400 text-sm focus:outline-none focus:border-neutral-900 focus:bg-white transition-all"
             />
@@ -144,7 +247,7 @@ export default function RegisterPage() {
 
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-700 mb-1.5">
-            Numéro de Téléphone (Optionnel)
+            {t('auth.phone_optional')}
           </label>
           <div className="relative">
             <Phone className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -159,13 +262,13 @@ export default function RegisterPage() {
 
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-700 mb-1.5">
-            Mot de passe
+            {t('auth.password_label')}
           </label>
           <div className="relative">
             <Lock className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="password"
-              placeholder="Minimum 8 caractères"
+              placeholder={t('auth.password_min8')}
               {...register('password')}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-neutral-200 bg-[#F8F9FA] text-neutral-900 placeholder:text-neutral-400 text-sm focus:outline-none focus:border-neutral-900 focus:bg-white transition-all"
             />
@@ -186,21 +289,22 @@ export default function RegisterPage() {
             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           ) : (
             <>
-              <span>Finaliser l’inscription</span>
+              <span>{t('auth.register_submit')}</span>
               <ArrowRight className="w-4 h-4" />
             </>
           )}
         </button>
       </form>
+      )}
 
       <div className="mt-6 pt-5 border-t border-neutral-100 text-center">
         <p className="text-xs text-neutral-500">
-          Vous possédez déjà un compte ?{' '}
+          {t('auth.already_account')}{' '}
           <Link
             href="/login"
             className="text-neutral-900 font-bold hover:underline"
           >
-            Se connecter
+            {t('auth.sign_in_link')}
           </Link>
         </p>
       </div>

@@ -191,29 +191,6 @@ function StorefrontLayoutsContent() {
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Réinitialiser par défaut</span>
             </Button>
-            {[
-              { id: 'design', label: 'Mise en page & Couleurs', href: '/dashboard/root/storefront/layouts' },
-              { id: 'header', label: 'En-tête & Menu', href: '/dashboard/root/storefront/layouts?section=header' },
-              { id: 'footer', label: 'Pied de page (4 Colonnes)', href: '/dashboard/root/storefront/layouts?section=footer' },
-            ].map((tab) => {
-              const active =
-                (tab.id === 'design' && sectionParam === 'design') ||
-                sectionParam === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => router.push(tab.href)}
-                  className={`px-4 py-2 rounded-full text-xs font-bold transition cursor-pointer ${
-                    active
-                      ? 'bg-[var(--royal-primary)] text-white shadow-xs'
-                      : 'bg-[#F4F5F7] text-slate-700 hover:bg-[#FBF6E8]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
           </div>
         </div>
         <div className="pt-2 border-t border-slate-100">
@@ -226,7 +203,37 @@ function StorefrontLayoutsContent() {
         </div>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <aside className="lg:col-span-3 bg-white p-3 rounded-3xl border border-[#E6E1D6] shadow-xs lg:sticky lg:top-24 space-y-1.5">
+          <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            Sections Design
+          </div>
+          {[
+            { id: 'design', label: 'Mise en page & Couleurs', href: '/dashboard/root/storefront/layouts', icon: Palette },
+            { id: 'header', label: 'En-tête & Menu', href: '/dashboard/root/storefront/layouts?section=header', icon: Layout },
+            { id: 'footer', label: 'Pied de page (4 Colonnes)', href: '/dashboard/root/storefront/layouts?section=footer', icon: Sliders },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const active = (tab.id === 'design' && sectionParam === 'design') || sectionParam === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => router.replace(tab.href, { scroll: false })}
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-bold text-left transition cursor-pointer ${
+                  active
+                    ? 'bg-[var(--royal-primary)] text-white shadow-xs'
+                    : 'text-[#1D232E] hover:bg-[#FBF6E8]'
+                }`}
+              >
+                <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-white' : 'text-[var(--royal-primary)]'}`} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </aside>
+
+        <form onSubmit={handleSave} className="lg:col-span-9 space-y-6">
         {sectionParam === 'design' && (
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
             <div className="xl:col-span-8 bg-white p-6 sm:p-8 rounded-3xl border border-[#E6E1D6] shadow-sm space-y-6">
@@ -537,6 +544,7 @@ function StorefrontLayoutsContent() {
           </div>
         )}
       </form>
+      </div>
 
       <Toast isOpen={!!toastMsg} message={toastMsg || ''} type="success" onClose={() => setToastMsg(null)} />
     </div>

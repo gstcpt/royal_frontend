@@ -13,9 +13,11 @@ import {
   Facebook,
 } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export default function ContactPage() {
   const { config } = useCmsConfig();
+  const { locale, t } = useI18nStore();
   const cCfg = config.views.contact;
   const order = Array.isArray(cCfg.sectionOrder) && cCfg.sectionOrder.length > 0 ? cCfg.sectionOrder : ['hero', 'mainGrid', 'map'];
 
@@ -78,7 +80,7 @@ export default function ContactPage() {
             <MapPin className="w-5 h-5 text-[var(--royal-primary)]" />
           </div>
           <div>
-            <span className="text-[11px] uppercase tracking-wider text-slate-400 block">Adresse</span>
+            <span className="text-[11px] uppercase tracking-wider text-slate-400 block">{t('contact.address')}</span>
             <span className="font-semibold text-[var(--royal-ink)]">{config.identity.address || 'Mahdia 5100, Tunisia'}</span>
           </div>
         </div>
@@ -88,7 +90,7 @@ export default function ContactPage() {
             <Phone className="w-5 h-5 text-[var(--royal-primary)]" />
           </div>
           <div>
-            <span className="text-[11px] uppercase tracking-wider text-slate-400 block">Téléphone</span>
+            <span className="text-[11px] uppercase tracking-wider text-slate-400 block">{t('contact.phone')}</span>
             <a href={`tel:${config.identity.phone || '+21648091914'}`} className="font-semibold text-[var(--royal-ink)] hover:text-[var(--royal-gold-dark)] transition">
               {config.identity.phone || '48 091 914'}
             </a>
@@ -181,7 +183,7 @@ export default function ContactPage() {
       {success && (
         <div className="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2.5 font-semibold">
           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-          <span>Merci ! Votre message a bien été enregistré et transmis à notre équipe.</span>
+          <span>{t('contact.success_msg')}</span>
         </div>
       )}
       {error && (
@@ -194,7 +196,7 @@ export default function ContactPage() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-neutral-700 mb-1.5">Nom complet *</label>
+            <label className="block text-xs font-bold text-neutral-700 mb-1.5">{t('contact.full_name')}</label>
             <input
               type="text"
               required
@@ -206,7 +208,7 @@ export default function ContactPage() {
           </div>
           <div>
             <label className="block text-xs font-bold text-neutral-700 mb-1.5">
-              Téléphone {cCfg.phoneRequired ? '*' : '(Optionnel)'}
+              {t('contact.phone')} {cCfg.phoneRequired ? '*' : ''}
             </label>
             <input
               type="tel"
@@ -249,13 +251,13 @@ export default function ContactPage() {
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-neutral-700 mb-1.5">Votre message *</label>
+          <label className="block text-xs font-bold text-neutral-700 mb-1.5">{t('contact.message')}</label>
           <textarea
             rows={5}
             required
             value={formData.message}
             onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-            placeholder="Écrivez votre message détaillé ici..."
+            placeholder="..."
             className="w-full px-4 py-3 rounded-xl border border-[var(--royal-border)] bg-white text-sm focus:outline-none focus:border-[var(--royal-primary)]"
           />
         </div>
@@ -270,7 +272,7 @@ export default function ContactPage() {
           className="inline-flex items-center gap-2 px-8 py-4 rounded-full hover:opacity-95 text-xs font-bold uppercase tracking-widest shadow-lg transition disabled:opacity-50 cursor-pointer"
         >
           <Send className="w-4 h-4" />
-          <span>{submitting ? 'Envoi en cours...' : cCfg.submitText || 'Envoyer le message'}</span>
+          <span>{submitting ? t('contact.sending') : (locale === 'ar' ? t('contact.send') : (cCfg.submitText || t('contact.send')))}</span>
         </button>
       </form>
     </div>

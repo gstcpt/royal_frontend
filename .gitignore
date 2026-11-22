@@ -15,7 +15,7 @@ node_modules/
 .env.*.local
 
 # Logs & Cache
-logs/
+/logs/
 *.log
 .turbo/
 

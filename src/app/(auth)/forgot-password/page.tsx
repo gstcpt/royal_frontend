@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { fetchApi } from '@/lib/api';
 import { Mail, ArrowLeft, ArrowRight, AlertCircle, CheckCircle2, KeyRound } from 'lucide-react';
+import { useI18nStore } from '@/stores/i18n.store';
 
 const forgotPasswordSchema = z.object({
   email: z.string().min(1, 'L’adresse email est requise').email('Format d’adresse email invalide'),
@@ -15,6 +16,7 @@ const forgotPasswordSchema = z.object({
 type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
 
 function ForgotPasswordFormContent() {
+  const { t } = useI18nStore();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState('');
@@ -62,15 +64,15 @@ function ForgotPasswordFormContent() {
           <KeyRound className="w-5 h-5 text-[#B45309]" />
         </div>
         <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 block mb-2">
-          Espace Privilège
+          {t('auth.privilege_space')}
         </span>
         <h1 className="text-2xl sm:text-3xl font-heading font-black text-neutral-900 tracking-tight">
-          Récupération
+          {t('auth.recovery_title')}
         </h1>
         <p className="text-xs sm:text-sm text-neutral-500 mt-2 font-normal">
           {isSubmitted
-            ? 'Vérifiez votre boîte de réception'
-            : 'Saisissez votre email pour recevoir les instructions de réinitialisation'}
+            ? t('auth.recovery_sub_sent')
+            : t('auth.recovery_sub_default')}
         </p>
       </div>
 
@@ -84,17 +86,15 @@ function ForgotPasswordFormContent() {
       {isSubmitted ? (
         <div className="space-y-6 animate-in fade-in">
           <div className="p-5 rounded-2xl bg-[var(--royal-gold-light)] text-[#1D232E] border border-[var(--royal-primary)]/40 space-y-3">
-            <div className="flex items-center gap-2.5 text-amber-400 font-semibold text-xs tracking-wide uppercase">
+            <div className="flex items-center gap-2.5 text-[#9A7414] font-semibold text-xs tracking-wide uppercase">
               <CheckCircle2 className="w-4 h-4" />
-              <span>Demande transmise avec succès</span>
+              <span>{t('auth.recovery_sent_badge')}</span>
             </div>
-            <p className="text-xs text-neutral-300 leading-relaxed font-normal">
-              Si un compte est associé à l’adresse{' '}
-              <span className="font-semibold text-white underline">{submittedEmail}</span>,
-              un lien sécurisé de réinitialisation vous a été envoyé.
+            <p className="text-xs text-slate-700 leading-relaxed font-normal">
+              <span className="font-semibold text-[#1D232E] underline">{submittedEmail}</span> — {t('auth.recovery_sent_body')}
             </p>
-            <p className="text-[11px] text-neutral-400">
-              Pensez à vérifier vos courriers indésirables si le message n’apparaît pas d’ici 2 minutes.
+            <p className="text-[11px] text-slate-500">
+              {t('auth.recovery_spam_note')}
             </p>
           </div>
 
@@ -104,7 +104,7 @@ function ForgotPasswordFormContent() {
               className="inline-flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-900 hover:text-black py-3 px-6 rounded-full border border-neutral-300 hover:border-neutral-900 transition"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Retour à la connexion</span>
+              <span>{t('auth.back_login')}</span>
             </Link>
           </div>
         </div>
@@ -112,13 +112,13 @@ function ForgotPasswordFormContent() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           <div>
             <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-700 block mb-2">
-              Adresse Email Professionnelle ou Personnelle
+              {t('auth.work_email_label')}
             </label>
             <div className="relative">
               <Mail className="w-4 h-4 text-neutral-400 absolute left-4 top-1/2 -translate-y-1/2" />
               <input
                 type="email"
-                placeholder="votre.email@domaine.com"
+                placeholder={t('auth.email_placeholder')}
                 {...register('email')}
                 className="w-full pl-11 pr-4 py-3 rounded-xl border border-neutral-200 bg-[#F8F9FA] text-neutral-900 placeholder:text-neutral-400 text-xs sm:text-sm focus:outline-none focus:border-neutral-900 focus:bg-white transition-all"
               />
@@ -139,7 +139,7 @@ function ForgotPasswordFormContent() {
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <>
-                <span>Envoyer le lien de réinitialisation</span>
+                <span>{t('auth.send_reset')}</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
@@ -151,7 +151,7 @@ function ForgotPasswordFormContent() {
               className="inline-flex items-center gap-1.5 text-xs text-neutral-600 hover:text-neutral-900 font-semibold transition"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Retour à l'écran de connexion</span>
+              <span>{t('auth.back_login_screen')}</span>
             </Link>
           </div>
         </form>

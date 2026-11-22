@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   CreditCard,
   CheckCircle2,
@@ -11,6 +12,7 @@ import {
   Check,
   X,
   Printer,
+  Wallet,
 } from 'lucide-react';
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
@@ -19,6 +21,9 @@ import { Toast } from '@/components/ui/toast';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { fetchApi } from '@/lib/api';
 import { cn, formatTndCurrency } from '@/lib/utils';
+import { useAuthStore } from '@/stores/auth.store';
+import { SystemRole } from '@royal/shared-types';
+import { PaymentGatewaysPanel } from '@/components/dashboard/PaymentGatewaysPanel';
 
 export interface PaymentMethodItem {
   id: string;
@@ -108,12 +113,24 @@ const INITIAL_PAYMENT_METHODS: PaymentMethodItem[] = [
   },
 ];
 
-export default function PaymentMethodsPage() {
+function PaymentMethodsContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { hasRole } = useAuthStore();
+  const isRoot = hasRole(SystemRole.ROOT);
+  const tabParam = searchParams.get('tab') === 'gateways' && isRoot ? 'gateways' : 'methods';
+
   const [methods, setMethods] = useState<PaymentMethodItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [feedbackType, setFeedbackType] = useState<'success' | 'error'>('success');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState<PaymentMethodItem | null>(null);
+
+  const handlePanelFeedback = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
+    setFeedbackType(type);
+    setFeedbackMessage(msg);
+  }, []);
 
   const loadMethods = useCallback(async () => {
     setLoading(true);
@@ -303,35 +320,67 @@ export default function PaymentMethodsPage() {
       <Toast
         isOpen={!!feedbackMessage}
         message={feedbackMessage || ''}
-        type="success"
+        type={feedbackType}
         onClose={() => setFeedbackMessage(null)}
       />
 
-      {/* 1. Header Card with Breadcrumbs */}
-      <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-sm p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
-        <div>
+      {/* 1. Header Card with Breadcrumbs + Merged Tabs */}
+      <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-sm p-5 sm:p-6 space-y-4 no-print">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <span className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 border border-amber-500/20 flex items-center justify-center shrink-0 shadow-2xs">
               <CreditCard className="w-5 h-5 text-amber-600" />
             </span>
             <div>
               <h1 className="text-xl sm:text-2xl font-heading font-black text-neutral-900 tracking-tight">
-                Modalités de Paiement & Passerelles
+                Modalités de Paiement &amp; Passerelles (Flouci / ClicToPay)
               </h1>
               <p className="text-xs text-neutral-500 mt-0.5">
-                Configurez les moyens de règlement en magasin, en ligne (ClicToPay SMT) et les échéanciers de paiement en plusieurs fois.
+                Configurez les conditions commerciales en caisse/boutique et les identifiants API Flouci / ClicToPay.
               </p>
             </div>
           </div>
-          <Breadcrumb
-            className="mt-2.5"
-            items={[
-              { label: 'Configuration & Finances', href: '/dashboard/treasury' },
-              { label: 'Modalités de Paiement' },
-            ]}
-          />
+          {isRoot && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => router.replace('/dashboard/payment-methods', { scroll: false })}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  tabParam === 'methods'
+                    ? 'bg-[var(--royal-primary)] text-white shadow-xs'
+                    : 'bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6]'
+                }`}
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>Modalités Commerciales</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => router.replace('/dashboard/payment-methods?tab=gateways', { scroll: false })}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  tabParam === 'gateways'
+                    ? 'bg-[var(--royal-primary)] text-white shadow-xs'
+                    : 'bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6]'
+                }`}
+              >
+                <Wallet className="w-3.5 h-3.5" />
+                <span>Passerelles En Ligne (ROOT)</span>
+              </button>
+            </div>
+          )}
         </div>
+        <Breadcrumb
+          items={[
+            { label: 'Configuration & Finances', href: '/dashboard/treasury' },
+            { label: 'Modalités & Passerelles Paiement' },
+          ]}
+        />
       </div>
+
+      {tabParam === 'gateways' && isRoot ? (
+        <PaymentGatewaysPanel onFeedback={handlePanelFeedback} />
+      ) : (
+        <>
 
       {/* 2. 4 KPIs Master Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 no-print">
@@ -448,6 +497,16 @@ export default function PaymentMethodsPage() {
           </div>
         </Modal>
       )}
+        </>
+      )}
     </div>
+  );
+}
+
+export default function PaymentMethodsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-xs text-slate-400">Chargement Modalités &amp; Passerelles...</div>}>
+      <PaymentMethodsContent />
+    </Suspense>
   );
 }

@@ -3,19 +3,21 @@
 import React from 'react';
 import { Truck, RotateCcw, ShieldCheck, Headphones } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 
 const ICONS = [Truck, RotateCcw, ShieldCheck, Headphones];
-const DEFAULT_PROPOSITIONS = [
-  { title: 'Livraison Express 24h', subtitle: 'Partout en Tunisie avec suivi en direct' },
-  { title: 'Garantie Constructeur 2 Ans', subtitle: 'Pièces de rechange et SAV officiel' },
-  { title: 'Paiement Sécurisé', subtitle: 'Paiement à la livraison ou ClicToPay' },
-  { title: 'Service Client Dédié', subtitle: 'Conseillers experts joignables 7j/7' },
-];
 
 export function ValuePropositionBar() {
   const { config } = useCmsConfig();
-  const custom = config.views.home.valuePropsItems;
-  const propositions = (Array.isArray(custom) && custom.length === 4 ? custom : DEFAULT_PROPOSITIONS).map(
+  const { locale, t } = useI18nStore();
+  const defaultPropositions = [
+    { title: t('storefront.fast_delivery'), subtitle: t('cart.guarantee_delivery') },
+    { title: t('storefront.satisfaction_guarantee'), subtitle: t('cart.guarantee_warranty') },
+    { title: t('storefront.secure_payment'), subtitle: t('cart.guarantee_cod') },
+    { title: t('storefront.customer_service'), subtitle: t('header.contact_support') },
+  ];
+  const custom = locale === 'fr' ? config.views.home.valuePropsItems : null;
+  const propositions = (Array.isArray(custom) && custom.length === 4 ? custom : defaultPropositions).map(
     (item, index) => ({
       ...item,
       icon: ICONS[index % ICONS.length],

@@ -4,6 +4,7 @@ import React from 'react';
 import { Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useDragScroll } from '@/hooks/useDragScroll';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 
 const clientReviews = [
   {
@@ -51,6 +52,7 @@ const clientReviews = [
 export function TestimonialsCarousel() {
   const { scrollRef, isDragging, dragProps } = useDragScroll<HTMLDivElement>();
   const { config } = useCmsConfig();
+  const { locale, t } = useI18nStore();
   const displayReviews =
     config.testimonials && config.testimonials.length > 0
       ? config.testimonials.map((t) => ({
@@ -78,24 +80,24 @@ export function TestimonialsCarousel() {
             <div className="flex items-center gap-2 mb-2">
               <span className="w-2.5 h-2.5 rounded-sm bg-[var(--royal-primary)]" />
               <span className="text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)]">
-                {config.views.home.testimonialsTag || 'Avis Clients Vérifiés'}
+                {locale === 'ar' ? t('storefront.testimonials_tag') : (config.views.home.testimonialsTag || t('storefront.testimonials_tag'))}
               </span>
             </div>
             <h2 className="font-heading font-extrabold text-2xl sm:text-4xl text-[var(--royal-ink)] tracking-tight">
-              {config.views.home.testimonialsTitle || 'Ce que disent nos clients'}
+              {locale === 'ar' ? t('storefront.testimonials_title') : (config.views.home.testimonialsTitle || t('storefront.testimonials_title'))}
             </h2>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-2 text-xs font-bold text-[var(--royal-ink)]">
               <span className="text-[var(--royal-primary)] flex items-center gap-1">★★★★★</span>
-              <span>{config.views.home.testimonialsBadge || '4.9 / 5 sur plus de 1 200 commandes'}</span>
+              <span>{locale === 'ar' ? t('storefront.testimonials_badge') : (config.views.home.testimonialsBadge || t('storefront.testimonials_badge'))}</span>
             </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => scroll('left')}
-                aria-label="Avis précédent"
+                aria-label={t('storefront.testimonials_prev')}
                 className="w-10 h-10 rounded-full border border-[#E6E1D6] bg-white hover:bg-[#C59B27] hover:border-[#C59B27] hover:text-white text-[#1D232E] transition flex items-center justify-center shadow-xs cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -103,7 +105,7 @@ export function TestimonialsCarousel() {
               <button
                 type="button"
                 onClick={() => scroll('right')}
-                aria-label="Avis suivant"
+                aria-label={t('storefront.testimonials_next')}
                 className="w-10 h-10 rounded-full border border-[#E6E1D6] bg-white hover:bg-[#C59B27] hover:border-[#C59B27] hover:text-white text-[#1D232E] transition flex items-center justify-center shadow-xs cursor-pointer"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -123,7 +125,7 @@ export function TestimonialsCarousel() {
           {displayReviews.map((rev) => (
             <div
               key={rev.id}
-              className="flex-shrink-0 w-[310px] sm:w-[380px] lg:w-[410px] snap-start p-6 rounded-2xl bg-[#F8F9FA] border border-slate-200/80 shadow-sm flex flex-col justify-between"
+              className="flex-shrink-0 w-[290px] sm:w-[380px] lg:w-[410px] snap-start p-5 sm:p-6 rounded-2xl bg-[#F8F9FA] border border-slate-200/80 shadow-sm flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between gap-3 mb-4">
@@ -154,7 +156,7 @@ export function TestimonialsCarousel() {
 
               <div className="mt-5 pt-3 border-t border-slate-200/60 flex items-center gap-2 text-[11px] text-emerald-700 font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span>Achat vérifié en Tunisie</span>
+                <span>{t('common.verified')}</span>
               </div>
             </div>
           ))}

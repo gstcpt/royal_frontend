@@ -2070,8 +2070,13 @@ function StorefrontViewsContent() {
             ]}
           />
         </div>
+      </div>
 
-        <div className="flex flex-wrap gap-2 pt-2 border-t border-[var(--royal-border)]">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <aside className="lg:col-span-3 bg-white p-3 rounded-3xl border border-[var(--royal-border)] shadow-xs lg:sticky lg:top-24 space-y-1.5">
+          <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            Vues Vitrine ({VIEW_TABS.length})
+          </div>
           {VIEW_TABS.map((t) => {
             const Icon = t.icon;
             const active = activeView === t.id;
@@ -2079,23 +2084,22 @@ function StorefrontViewsContent() {
               <button
                 key={t.id}
                 type="button"
-                onClick={() => router.push(`/dashboard/root/storefront/views?view=${t.id}`)}
-                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-bold transition cursor-pointer ${
+                onClick={() => router.replace(`/dashboard/root/storefront/views?view=${t.id}`, { scroll: false })}
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-bold text-left transition cursor-pointer ${
                   active
                     ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)] shadow-xs'
-                    : 'bg-[var(--royal-silver-light)] text-[var(--royal-ink)] hover:bg-[var(--royal-gold-light)]'
+                    : 'text-[var(--royal-ink)] hover:bg-[var(--royal-gold-light)]'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{t.label}</span>
+                <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-[var(--royal-primary-text)]' : 'text-[var(--royal-primary)]'}`} />
+                <span className="truncate">{t.label}</span>
               </button>
             );
           })}
-        </div>
-      </div>
+        </aside>
 
-      {/* Unified Ordered Accordion Element Cards for Selected View (All Closed By Default) */}
-      <div className="space-y-3">
+        {/* Unified Ordered Accordion Element Cards for Selected View (All Closed By Default) */}
+        <div className="lg:col-span-9 space-y-3">
         {orderedIds.map((elemId, idx) => {
           const meta = rawCatalog.find((e) => e.id === elemId);
           if (!meta) return null;
@@ -2136,6 +2140,7 @@ function StorefrontViewsContent() {
             </AccordionElementCard>
           );
         })}
+        </div>
       </div>
 
       <Toast isOpen={!!toastMsg} message={toastMsg || ''} type="success" onClose={() => setToastMsg(null)} />

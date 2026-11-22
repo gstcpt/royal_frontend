@@ -14,6 +14,7 @@ import { TestimonialsCarousel } from '@/components/storefront/TestimonialsCarous
 import { BottomPromoFloatingCard } from '@/components/storefront/BottomPromoFloatingCard';
 import { StorefrontProduct } from '@/components/storefront/ProductCard';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 import { Sparkles, Star, Percent } from 'lucide-react';
 
 export function HomePageSections({
@@ -36,6 +37,7 @@ export function HomePageSections({
   galleryProducts: StorefrontProduct[];
 }) {
   const { config } = useCmsConfig();
+  const { locale, t } = useI18nStore();
   const home = config.views.home;
   const [dynamicPool, setDynamicPool] = React.useState<StorefrontProduct[]>([]);
 
@@ -160,9 +162,9 @@ export function HomePageSections({
     newArrivals: home.showNewArrivals ? (
       <IsolatedProductCarousel
         key="newArrivals"
-        title={home.newArrivalsTitle || 'Nouveautés'}
-        tag={home.newArrivalsTag || `Derniers Arrivages ${config.appName || 'Royal'}`}
-        subtitle={home.newArrivalsSubtitle || `Les dernières références sélectionnées par ${config.appName || 'Royal'} pour votre intérieur.`}
+        title={locale === 'ar' ? t('storefront.new_arrivals') : (home.newArrivalsTitle || t('storefront.new_arrivals'))}
+        tag={locale === 'ar' ? t('storefront.new_arrivals_tag') : (home.newArrivalsTag || `${t('storefront.new_arrivals_tag')} ${config.appName || 'Royal'}`)}
+        subtitle={locale === 'ar' ? t('storefront.new_arrivals_subtitle') : (home.newArrivalsSubtitle || t('storefront.new_arrivals_subtitle'))}
         icon={<Sparkles className="w-4 h-4 text-[var(--royal-primary)]" />}
         products={resolvedNewProducts}
         displayMode={home.newArrivalsDisplayMode || 'carousel'}
@@ -175,9 +177,9 @@ export function HomePageSections({
     topRated: home.showTopRated ? (
       <IsolatedProductCarousel
         key="topRated"
-        title={home.topRatedTitle || 'Mieux Notés'}
-        tag={home.topRatedTag || 'Sélection Plébiscitée'}
-        subtitle={home.topRatedSubtitle || 'Les équipements préférés de nos clients partout en Tunisie.'}
+        title={locale === 'ar' ? t('storefront.top_rated') : (home.topRatedTitle || t('storefront.top_rated'))}
+        tag={locale === 'ar' ? t('storefront.top_rated_tag') : (home.topRatedTag || t('storefront.top_rated_tag'))}
+        subtitle={locale === 'ar' ? t('storefront.top_rated_subtitle') : (home.topRatedSubtitle || t('storefront.top_rated_subtitle'))}
         icon={<Star className="w-4 h-4 text-[var(--royal-primary)] fill-current" />}
         products={resolvedTopRatedProducts}
         displayMode={home.topRatedDisplayMode || 'carousel'}
@@ -190,9 +192,9 @@ export function HomePageSections({
     promotions: home.showPromotions ? (
       <IsolatedProductCarousel
         key="promotions"
-        title={home.promotionsTitle || 'Promotions'}
-        tag={home.promotionsTag || 'Meilleures Réductions TND'}
-        subtitle={home.promotionsSubtitle || 'Profitez de remises immédiates et de prix promo sur nos appareils sélectionnés.'}
+        title={locale === 'ar' ? t('storefront.promotions') : (home.promotionsTitle || t('storefront.promotions'))}
+        tag={locale === 'ar' ? t('storefront.promotions_tag') : (home.promotionsTag || t('storefront.promotions_tag'))}
+        subtitle={locale === 'ar' ? t('storefront.promotions_subtitle') : (home.promotionsSubtitle || t('storefront.promotions_subtitle'))}
         icon={<Percent className="w-4 h-4 text-rose-600" />}
         products={resolvedPromoProducts}
         displayMode={home.promotionsDisplayMode || 'carousel'}

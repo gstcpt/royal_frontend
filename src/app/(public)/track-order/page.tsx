@@ -3,8 +3,10 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Search, Package, Truck, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export default function TrackOrderPage() {
+  const { t } = useI18nStore();
   const [reference, setReference] = useState('');
   const [contact, setContact] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,43 +40,43 @@ export default function TrackOrderPage() {
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
       <div className="text-center mb-10">
         <span className="text-xs uppercase font-semibold text-[#D4AF37] tracking-widest block mb-2">
-          Service Client Maison Royal
+          {t('track_order.eyebrow')}
         </span>
         <h1 className="font-sans font-bold tracking-tight text-3xl sm:text-4xl text-[#0C1A14] font-medium tracking-tight mb-3">
-          Suivi de votre Colis
+          {t('track_order.title')}
         </h1>
         <p className="text-sm text-[#0C1A14]/70 max-w-md mx-auto">
-          Renseignez votre référence de commande et votre contact (email ou téléphone) pour visualiser l'état d'expédition en direct.
+          {t('track_order.subtitle')}
         </p>
       </div>
 
       {/* Lookup Card */}
-      <div className="bg-white rounded-3xl border border-[#EFECE6] p-8 shadow-sm mb-10">
+      <div className="bg-white rounded-3xl border border-[#EFECE6] p-6 sm:p-8 shadow-sm mb-10">
         <form onSubmit={handleTrack} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-[#0C1A14]/80 mb-1">
-                Référence de commande *
+                {t('track_order.reference_label')}
               </label>
               <input
                 type="text"
                 required
                 value={reference}
                 onChange={(e) => setReference(e.target.value.toUpperCase())}
-                placeholder="Ex: CMD-20261111-4521"
+                placeholder={t('track_order.reference_placeholder')}
                 className="w-full px-4 py-3 rounded-xl border border-[#EFECE6] bg-[#FBF9F5] text-xs font-mono uppercase tracking-wider focus:outline-none focus:border-[#D4AF37]"
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-[#0C1A14]/80 mb-1">
-                Email ou Téléphone renseigné *
+                {t('track_order.contact_label')}
               </label>
               <input
                 type="text"
                 required
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
-                placeholder="votre.email@domaine.tn ou +216 ..."
+                placeholder={t('track_order.contact_placeholder')}
                 className="w-full px-4 py-3 rounded-xl border border-[#EFECE6] bg-[#FBF9F5] text-xs focus:outline-none focus:border-[#D4AF37]"
               />
             </div>
@@ -93,11 +95,11 @@ export default function TrackOrderPage() {
             className="w-full py-3.5 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs uppercase font-bold tracking-widest transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
           >
             {loading ? (
-              <span>Recherche en cours...</span>
+              <span>{t('track_order.searching')}</span>
             ) : (
               <>
                 <Search className="w-4 h-4" />
-                <span>Consulter l'acheminement</span>
+                <span>{t('track_order.submit')}</span>
               </>
             )}
           </button>
@@ -106,15 +108,15 @@ export default function TrackOrderPage() {
 
       {/* Order Status Display */}
       {order && (
-        <div className="bg-white rounded-3xl border border-[#EFECE6] p-8 shadow-sm space-y-6">
+        <div className="bg-white rounded-3xl border border-[#EFECE6] p-6 sm:p-8 shadow-sm space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#EFECE6] pb-4">
             <div>
-              <span className="text-[11px] text-[#0C1A14]/50 uppercase tracking-widest block">Commande</span>
+              <span className="text-[11px] text-[#0C1A14]/50 uppercase tracking-widest block">{t('track_order.order_label')}</span>
               <span className="font-mono text-lg font-bold text-[#0C1A14]">{order.reference}</span>
             </div>
             <div>
               <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                Statut : {order.status}
+                {t('track_order.status_label')} {order.status}
               </span>
             </div>
           </div>
@@ -122,16 +124,16 @@ export default function TrackOrderPage() {
           {/* Stepper */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">
             <div className={`p-3 rounded-xl border ${order.status ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-semibold' : 'bg-[#FBF9F5] border-[#EFECE6]'}`}>
-              1. Validée
+              {t('track_order.step_1')}
             </div>
             <div className={`p-3 rounded-xl border ${['PROCESSING', 'PREPARING', 'READY_FOR_SHIPMENT', 'SHIPPED', 'DELIVERED'].includes(order.status) ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-semibold' : 'bg-[#FBF9F5] border-[#EFECE6] opacity-60'}`}>
-              2. En Préparation
+              {t('track_order.step_2')}
             </div>
             <div className={`p-3 rounded-xl border ${['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(order.status) ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-semibold' : 'bg-[#FBF9F5] border-[#EFECE6] opacity-60'}`}>
-              3. En Cours d'Acheminement
+              {t('track_order.step_3')}
             </div>
             <div className={`p-3 rounded-xl border ${order.status === 'DELIVERED' ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-semibold' : 'bg-[#FBF9F5] border-[#EFECE6] opacity-60'}`}>
-              4. Livrée
+              {t('track_order.step_4')}
             </div>
           </div>
 
@@ -140,7 +142,7 @@ export default function TrackOrderPage() {
               href={`/order-confirmation/${order.reference}`}
               className="inline-flex items-center gap-1.5 text-xs text-[#0C1A14] hover:text-[#D4AF37] font-semibold tracking-wider uppercase transition"
             >
-              <span>Voir le récapitulatif détaillé</span>
+              <span>{t('track_order.view_summary')}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>

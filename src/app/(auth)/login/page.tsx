@@ -7,17 +7,23 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, LoginDto } from '@royal/shared-validators';
 import { useAuthStore } from '@/stores/auth.store';
-import { Lock, Mail, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useI18nStore } from '@/stores/i18n.store';
+import { Lock, Mail, ArrowRight, AlertCircle, CheckCircle2, KeyRound, RefreshCw } from 'lucide-react';
 
 function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const explicitRedirect = searchParams.get('redirect');
 
-  const { login } = useAuthStore();
+  const { login, verifyEmail, resendVerification } = useAuthStore();
+  const { t } = useI18nStore();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [needsVerifyEmail, setNeedsVerifyEmail] = useState<string | null>(null);
+  const [verifyOtp, setVerifyOtp] = useState('');
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [resendingOtp, setResendingOtp] = useState(false);
 
   const {
     register,
@@ -43,25 +49,60 @@ function LoginFormContent() {
         router.push(targetUrl);
       }, 500);
     } catch (err: any) {
-      setErrorMessage(
-        err.message || 'Identifiants invalides ou problème de connexion.',
-      );
+      const msg = String(err?.message || 'Identifiants invalides ou problème de connexion.');
+      if (msg.includes('EMAIL_NOT_VERIFIED')) {
+        setNeedsVerifyEmail(data.email.trim().toLowerCase());
+        setErrorMessage(msg.replace('EMAIL_NOT_VERIFIED:', '').trim());
+      } else {
+        setNeedsVerifyEmail(null);
+        setErrorMessage(msg);
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleVerifyInlineOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!needsVerifyEmail || verifyOtp.trim().length !== 6) return;
+    setVerifyingOtp(true);
+    setErrorMessage(null);
+    try {
+      const user = await verifyEmail(needsVerifyEmail, verifyOtp.trim());
+      setSuccessMessage(`Email vérifié ! Bienvenue ${user.firstName}.`);
+      setTimeout(() => router.push(explicitRedirect || '/dashboard'), 600);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Code de vérification invalide ou expiré.');
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
+  const handleResendInlineOtp = async () => {
+    if (!needsVerifyEmail) return;
+    setResendingOtp(true);
+    setErrorMessage(null);
+    try {
+      const res = await resendVerification(needsVerifyEmail);
+      setSuccessMessage(res?.message || `Code envoyé à ${needsVerifyEmail}.`);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Impossible de renvoyer le code.');
+    } finally {
+      setResendingOtp(false);
+    }
+  };
+
   return (
-    <div className="bg-white border border-neutral-200 rounded-[28px] p-8 sm:p-10 shadow-xl">
+    <div className="bg-white border border-neutral-200 rounded-[28px] p-6 sm:p-10 shadow-xl">
       <div className="mb-8 text-center">
         <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 block mb-2">
-          Espace Privilège
+          {t('auth.privilege_space')}
         </span>
         <h1 className="text-2xl sm:text-3xl font-heading font-black text-neutral-900 tracking-tight">
-          Connexion
+          {t('auth.login_title')}
         </h1>
         <p className="text-xs sm:text-sm text-neutral-500 mt-2 font-normal">
-          Accédez à vos commandes, vos favoris et vos services exclusifs
+          {t('auth.login_subtitle')}
         </p>
       </div>
 
@@ -82,13 +123,13 @@ function LoginFormContent() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-700 mb-2">
-            Adresse Email
+            {t('auth.email_label')}
           </label>
           <div className="relative">
             <Mail className="w-4 h-4 text-neutral-400 absolute left-4 top-1/2 -translate-y-1/2" />
             <input
               type="email"
-              placeholder="votre.email@exemple.com"
+              placeholder={t('auth.email_placeholder')}
               {...register('email')}
               className="w-full pl-11 pr-4 py-3 rounded-xl border border-neutral-200 bg-[#F8F9FA] text-neutral-900 placeholder:text-neutral-400 text-xs sm:text-sm focus:outline-none focus:border-neutral-900 focus:bg-white transition-all"
             />
@@ -103,13 +144,13 @@ function LoginFormContent() {
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-700">
-              Mot de passe
+              {t('auth.password_label')}
             </label>
             <Link
               href="/forgot-password"
               className="text-xs text-neutral-500 hover:text-neutral-900 font-medium transition"
             >
-              Mot de passe oublié ?
+              {t('auth.forgot_password')}
             </Link>
           </div>
           <div className="relative">
@@ -137,21 +178,63 @@ function LoginFormContent() {
             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           ) : (
             <>
-              <span>Se Connecter</span>
+              <span>{t('auth.login_submit')}</span>
               <ArrowRight className="w-4 h-4" />
             </>
           )}
         </button>
       </form>
 
+      {needsVerifyEmail && (
+        <form
+          onSubmit={handleVerifyInlineOtp}
+          className="mt-5 p-4 rounded-2xl bg-[#FBF6E8] border border-[#E6D6A6] space-y-3"
+        >
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <span className="font-bold text-[#9A7414] flex items-center gap-1.5 min-w-0 truncate">
+              <KeyRound className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">{t('auth.confirm_prefix')} {needsVerifyEmail}</span>
+            </span>
+            <button
+              type="button"
+              onClick={handleResendInlineOtp}
+              disabled={resendingOtp}
+              className="inline-flex items-center gap-1 font-bold text-[#1D232E] hover:underline cursor-pointer shrink-0"
+            >
+              <RefreshCw className={`w-3 h-3 ${resendingOtp ? 'animate-spin' : ''}`} />
+              <span>{t('auth.resend')}</span>
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              required
+              placeholder={t('auth.otp_6_placeholder')}
+              value={verifyOtp}
+              onChange={(e) => setVerifyOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-[#E6D6A6] bg-white font-mono text-center tracking-widest text-xs"
+            />
+            <button
+              type="submit"
+              disabled={verifyingOtp || verifyOtp.length !== 6}
+              className="px-4 py-2 rounded-xl bg-[var(--royal-primary)] text-white text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
+            >
+              {verifyingOtp ? '...' : t('auth.validate')}
+            </button>
+          </div>
+        </form>
+      )}
+
       <div className="mt-8 pt-6 border-t border-neutral-100 text-center">
         <p className="text-xs text-neutral-500">
-          Vous n’avez pas encore de compte ?{' '}
+          {t('auth.no_account')}{' '}
           <Link
             href="/register"
             className="text-neutral-900 font-bold hover:underline ml-1"
           >
-            Créer un compte
+            {t('auth.create_account')}
           </Link>
         </p>
       </div>

@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Printer,
   Save,
@@ -10,6 +12,7 @@ import {
   Eye,
   RefreshCw,
   Code2,
+  FileText,
 } from 'lucide-react';
 import {
   Button,
@@ -26,6 +29,9 @@ import {
   Toast,
 } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
+import { SystemRole } from '@royal/shared-types';
+import { PrintersConfigPanel } from '@/components/dashboard/PrintersConfigPanel';
 
 interface PrintTemplateItem {
   id: string;
@@ -44,7 +50,13 @@ interface PrintTemplateItem {
   createdAt: string;
 }
 
-export default function PrintTemplatesPage() {
+function PrintTemplatesContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { hasRole } = useAuthStore();
+  const isRoot = hasRole(SystemRole.ROOT);
+  const activeTab = searchParams.get('tab') === 'printers' && isRoot ? 'printers' : 'templates';
+
   const [templates, setTemplates] = React.useState<PrintTemplateItem[]>([]);
   const [prefixes, setPrefixes] = React.useState<Array<{ value: string; label: string }>>([]);
   const [loading, setLoading] = React.useState(true);
@@ -239,28 +251,64 @@ export default function PrintTemplatesPage() {
             </div>
             <div>
               <h1 className="text-xl font-heading font-black text-[#1D232E] tracking-tight">
-                Modèles d&apos;Impression HTML / CSS (Factures, BL &amp; Tickets)
+                Documents d&apos;Impression &amp; Imprimantes POS
               </h1>
               <p className="text-xs text-slate-500">
-                Éditeur complet de gabarits imprimables reliés aux préfixes documentaires dans PostgreSQL.
+                Gabarits HTML/CSS (Factures, BL, Tickets) et configuration matérielle des imprimantes POS.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={loadData}>
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            </Button>
-            <Button variant="gold" size="sm" onClick={openCreate}>
-              <Plus className="w-3.5 h-3.5" />
-              <span>Nouveau Modèle</span>
-            </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {isRoot && (
+              <div className="flex items-center gap-1.5 mr-1">
+                <button
+                  type="button"
+                  onClick={() => router.replace('/dashboard/root/print-templates', { scroll: false })}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    activeTab === 'templates'
+                      ? 'bg-[var(--royal-primary)] text-white shadow-xs'
+                      : 'bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6]'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Gabarits HTML/CSS</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.replace('/dashboard/root/print-templates?tab=printers', { scroll: false })}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    activeTab === 'printers'
+                      ? 'bg-[var(--royal-primary)] text-white shadow-xs'
+                      : 'bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6]'
+                  }`}
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Imprimantes &amp; Pont POS</span>
+                </button>
+              </div>
+            )}
+            {activeTab === 'templates' && (
+              <>
+                <Button variant="outline" size="sm" onClick={loadData}>
+                  <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                </Button>
+                <Button variant="gold" size="sm" onClick={openCreate}>
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Nouveau Modèle</span>
+                </Button>
+              </>
+            )}
           </div>
         </div>
         <div className="pt-2 border-t border-slate-100">
-          <Breadcrumb items={[{ label: 'Système & CMS', href: '/dashboard/section/system' }, { label: "Modèles d'impression" }]} />
+          <Breadcrumb items={[{ label: 'Système & CMS', href: '/dashboard/section/system' }, { label: 'Documents & Imprimantes POS' }]} />
         </div>
       </div>
 
+      {activeTab === 'printers' && isRoot ? (
+        <PrintersConfigPanel onFeedback={(msg) => setToastMsg(msg)} />
+      ) : (
+        <>
       <DataTable
         data={templates}
         columns={columns}
@@ -390,8 +438,18 @@ export default function PrintTemplatesPage() {
         title="Suppression Groupée des Modèles"
         description={`Confirmez-vous la suppression des ${bulkDeleteKeys.length} modèle(s) sélectionné(s) ?`}
       />
+        </>
+      )}
 
       <Toast isOpen={!!toastMsg} message={toastMsg || ''} type="success" onClose={() => setToastMsg(null)} />
     </div>
+  );
+}
+
+export default function PrintTemplatesPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-xs text-slate-400">Chargement Documents &amp; Imprimantes...</div>}>
+      <PrintTemplatesContent />
+    </Suspense>
   );
 }

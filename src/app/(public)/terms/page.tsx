@@ -4,9 +4,11 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { FileText, ArrowLeft } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export default function TermsPage() {
   const { config } = useCmsConfig();
+  const { locale, t } = useI18nStore();
   const termsCfg = config.views.terms || {};
   const order = Array.isArray(termsCfg.sectionOrder) && termsCfg.sectionOrder.length > 0 ? termsCfg.sectionOrder : ['header', 'document', 'footerNote'];
 
@@ -28,16 +30,16 @@ export default function TermsPage() {
         {termsCfg.showBackLink !== false && (
           <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-[var(--royal-primary)] mb-6 transition">
             <ArrowLeft className="w-4 h-4" />
-            <span>Retour à l’accueil</span>
+            <span>{t('common.back_home')}</span>
           </Link>
         )}
         <div>
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] mb-4">
             <FileText className="w-4 h-4 text-[var(--royal-primary)]" />
-            <span>{termsCfg.badgeText || `Informations Légales ${config.appName || 'Royal'}`}</span>
+            <span>{locale === 'ar' ? t('legal.terms_badge') : (termsCfg.badgeText || `${t('legal.terms_badge')} ${config.appName || 'Royal'}`)}</span>
           </div>
           <h1 className="font-heading text-3xl sm:text-4xl font-black text-[var(--royal-ink)] tracking-tight">
-            {page?.title || 'Conditions Générales de Vente'}
+            {locale === 'ar' ? t('legal.terms_title') : (page?.title || t('legal.terms_title'))}
           </h1>
           {page?.subtitle && <p className="mt-2 text-sm text-neutral-500">{page.subtitle}</p>}
         </div>

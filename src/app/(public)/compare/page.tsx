@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCompareStore } from '@/stores/compare.store';
+import { useI18nStore } from '@/stores/i18n.store';
 import {
   Layers,
   Trash2,
@@ -45,6 +46,7 @@ interface CompareItemDetail {
 
 export default function ComparePage() {
   const { items, removeFromCompare, clearCompare } = useCompareStore();
+  const { t } = useI18nStore();
   const [loading, setLoading] = useState(false);
   const [details, setDetails] = useState<CompareItemDetail[]>([]);
 
@@ -103,10 +105,10 @@ export default function ComparePage() {
           <Layers className="w-10 h-10" />
         </div>
         <h1 className="font-sans font-bold tracking-tight text-3xl font-medium text-[#0C1A14]">
-          Votre comparateur est vide
+          {t('compare.empty')}
         </h1>
         <p className="mt-3 text-sm text-[#6B635B] max-w-md mx-auto">
-          Sélectionnez jusqu’à 4 pièces d’exception dans notre catalogue pour analyser côte à côte leurs finitions, matériaux et performances thermiques.
+          {t('compare.empty_desc')}
         </p>
         <div className="mt-8">
           <Link
@@ -114,7 +116,7 @@ export default function ComparePage() {
             className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs uppercase tracking-[0.2em] font-semibold hover:bg-[var(--royal-primary-hover)] transition shadow-md"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Explorer les collections</span>
+            <span>{t('compare.explore_collections')}</span>
           </Link>
         </div>
       </div>
@@ -128,29 +130,29 @@ export default function ComparePage() {
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EAE5DA] text-xs uppercase tracking-[0.2em] font-semibold text-[#0C1A14] mb-3">
             <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
-            <span>Analyse Comparative</span>
+            <span>{t('compare.badge')}</span>
           </div>
           <h1 className="font-sans font-bold tracking-tight text-3xl sm:text-4xl text-[#0C1A14] font-medium tracking-tight">
-            Comparateur d’Excellence ({items.length}/4)
+            {t('compare.title')} ({items.length}/4)
           </h1>
           <p className="mt-2 text-xs sm:text-sm text-[#6B635B]">
-            Évaluation technique et ergonomique des pièces sélectionnées.
+            {t('compare.subtitle')}
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={clearCompare}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-rose-200 text-rose-700 bg-rose-50/50 hover:bg-rose-100 text-xs font-semibold tracking-wider transition"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>Vider la comparaison</span>
+            <span>{t('compare.clear_compare')}</span>
           </button>
           <Link
             href="/articles"
             className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs uppercase tracking-[0.15em] font-semibold hover:bg-[var(--royal-primary-hover)] transition shadow-sm"
           >
-            <span>Ajouter d’autres pièces</span>
+            <span>{t('compare.add_more')}</span>
           </Link>
         </div>
       </div>
@@ -160,8 +162,8 @@ export default function ComparePage() {
         <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th className="w-48 p-4 text-left font-sans font-bold tracking-tight text-sm font-semibold text-[#0C1A14] bg-[#F7F5F0] border border-[#ECE7DE] rounded-tl-2xl">
-                Caractéristiques
+              <th className="w-40 sm:w-48 p-4 text-left font-sans font-bold tracking-tight text-sm font-semibold text-[#0C1A14] bg-[#F7F5F0] border border-[#ECE7DE] rounded-tl-2xl">
+                {t('compare.features')}
               </th>
               {details.map((item) => (
                 <th

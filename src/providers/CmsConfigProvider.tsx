@@ -729,6 +729,9 @@ export function CmsConfigProvider({ children }: { children: React.ReactNode }) {
           };
           setConfig(merged);
           applyDynamicCssTokens(merged);
+          if (data.translations && typeof data.translations === 'object') {
+            useI18nStore.getState().mergeTranslations(data.translations);
+          }
         }
       }
     } catch {

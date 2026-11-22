@@ -191,33 +191,37 @@ function EmailTemplatesContent() {
             ]}
           />
         </div>
-
-        <div className="flex flex-wrap gap-2 pt-2 border-t border-[#E6E1D6]">
-          {CAT_TABS.map((t) => {
-            const Icon = t.icon;
-            const active = activeCat === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => router.push(`/dashboard/root/email-templates?cat=${t.id}`)}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition cursor-pointer ${
-                  active
-                    ? 'bg-[var(--royal-primary)] text-white shadow-xs'
-                    : 'bg-[#F4F5F7] text-slate-700 hover:bg-[#FBF6E8]'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{t.label}</span>
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div className="lg:col-span-4 space-y-2.5">
-          {filtered.map((tpl) => (
+        <div className="lg:col-span-4 space-y-4">
+          <aside className="bg-white p-3 rounded-3xl border border-[#E6E1D6] shadow-xs space-y-1.5">
+            <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Familles d&apos;Emails
+            </div>
+            {CAT_TABS.map((t) => {
+              const Icon = t.icon;
+              const active = activeCat === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => router.replace(`/dashboard/root/email-templates?cat=${t.id}`, { scroll: false })}
+                  className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-bold text-left transition cursor-pointer ${
+                    active
+                      ? 'bg-[var(--royal-primary)] text-white shadow-xs'
+                      : 'text-[#1D232E] hover:bg-[#FBF6E8]'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-white' : 'text-[var(--royal-primary)]'}`} />
+                  <span>{t.label}</span>
+                </button>
+              );
+            })}
+          </aside>
+
+          <div className="space-y-2.5">
+            {filtered.map((tpl) => (
             <div
               key={tpl.id}
               onClick={() => selectTemplate(tpl)}
@@ -246,6 +250,7 @@ function EmailTemplatesContent() {
               </button>
             </div>
           ))}
+          </div>
         </div>
 
         <div className="lg:col-span-8 bg-white p-6 sm:p-8 rounded-3xl border border-[#E6E1D6] shadow-sm space-y-4">

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronDown, HelpCircle, MessageCircle, ArrowRight, Search } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 
 interface FaqItem {
   id: string;
@@ -14,6 +15,7 @@ interface FaqItem {
 
 export default function FaqPage() {
   const { config } = useCmsConfig();
+  const { locale, t } = useI18nStore();
   const faqCfg = config.views.faq;
   const order = Array.isArray(faqCfg.sectionOrder) && faqCfg.sectionOrder.length > 0 ? faqCfg.sectionOrder : ['hero', 'categories', 'questions', 'cta'];
 
@@ -55,13 +57,13 @@ export default function FaqPage() {
       <div key="hero" className="text-center mb-10">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] mb-4">
           <HelpCircle className="w-4 h-4 text-[var(--royal-primary)]" />
-          <span>{faqCfg.badgeText || `Centre d’Aide ${config.appName || 'Royal'}`}</span>
+          <span>{locale === 'ar' ? t('faq.badge') : (faqCfg.badgeText || `${t('faq.badge')} ${config.appName || 'Royal'}`)}</span>
         </div>
         <h1 className="font-heading text-3xl sm:text-5xl font-black text-[var(--royal-ink)] tracking-tight">
-          {faqCfg.title || 'Foire Aux Questions (FAQ)'}
+          {locale === 'ar' ? t('faq.title') : (faqCfg.title || t('faq.title'))}
         </h1>
         <p className="mt-3 text-sm text-neutral-500 max-w-xl mx-auto">
-          {faqCfg.subtitle || 'Retrouvez toutes les réponses concernant la livraison en Tunisie, les modes de règlement, la garantie constructeur et vos commandes.'}
+          {locale === 'ar' ? t('faq.subtitle') : (faqCfg.subtitle || t('faq.subtitle'))}
         </p>
         {faqCfg.showSearch !== false && (
           <div className="max-w-md mx-auto mt-6 relative">
@@ -70,7 +72,7 @@ export default function FaqPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Rechercher une question ou un mot-clé..."
+              placeholder={t('faq.search_placeholder')}
               className="w-full pl-11 pr-4 py-3 rounded-full bg-white border border-[var(--royal-border)] text-xs sm:text-sm text-[var(--royal-ink)] focus:outline-none focus:border-[var(--royal-primary)] shadow-2xs"
             />
           </div>
@@ -91,7 +93,7 @@ export default function FaqPage() {
                   : 'bg-[var(--royal-silver-light)] text-[var(--royal-ink)] hover:bg-[var(--royal-gold-light)]'
               }`}
             >
-              {cat === 'ALL' ? 'Toutes les questions' : cat}
+              {cat === 'ALL' ? t('faq.all_categories') : cat}
             </button>
           ))}
         </div>
@@ -141,13 +143,13 @@ export default function FaqPage() {
       </div>
     ),
     cta: faqCfg.showCta !== false ? (
-      <div key="cta" className="mt-14 p-8 rounded-3xl bg-gradient-to-br from-[var(--royal-bg)] via-white to-[var(--royal-silver-light)] text-[var(--royal-ink)] border border-[var(--royal-border)] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div key="cta" className="mt-14 p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-[var(--royal-bg)] via-white to-[var(--royal-silver-light)] text-[var(--royal-ink)] border border-[var(--royal-border)] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6">
         <div>
           <h3 className="font-heading text-xl font-bold text-[var(--royal-ink)]">
-            {faqCfg.ctaTitle || 'Vous ne trouvez pas votre réponse ?'}
+            {locale === 'ar' ? t('faq.cta_title') : (faqCfg.ctaTitle || t('faq.cta_title'))}
           </h3>
           <p className="text-xs text-slate-600 mt-1">
-            {faqCfg.ctaSubtitle || `Notre équipe ${config.appName || 'Royal'} vous répond tous les jours par téléphone, WhatsApp ou formulaire.`}
+            {locale === 'ar' ? t('faq.subtitle') : (faqCfg.ctaSubtitle || `Notre équipe ${config.appName || 'Royal'} vous répond tous les jours par téléphone, WhatsApp ou formulaire.`)}
           </p>
         </div>
         <Link
@@ -155,7 +157,7 @@ export default function FaqPage() {
           className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold uppercase tracking-wider shrink-0 transition shadow-sm"
         >
           <MessageCircle className="w-4 h-4" />
-          <span>{faqCfg.ctaButtonText || 'Contacter le Support'}</span>
+          <span>{locale === 'ar' ? t('faq.cta_btn') : (faqCfg.ctaButtonText || t('faq.cta_btn'))}</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </div>

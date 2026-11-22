@@ -6,8 +6,10 @@ import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth.store';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 import { SystemRole } from '@royal/shared-types';
 import { cn } from '@/lib/utils';
+import { HeaderInboxPopovers } from '@/components/dashboard/HeaderInboxPopovers';
 import {
   LayoutDashboard,
   Store,
@@ -108,6 +110,7 @@ function DashboardLayoutInner({
   queryString: string;
 }) {
   const { config } = useCmsConfig();
+  const { locale, setLocale, t } = useI18nStore();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = new URLSearchParams(queryString);
@@ -163,8 +166,6 @@ function DashboardLayoutInner({
     '/dashboard/logs': 'PRIVATE',
     '/dashboard/root/failures': 'PRIVATE',
     '/dashboard/root/storage': 'PRIVATE',
-    '/dashboard/root/payment-gateways': 'PRIVATE',
-    '/dashboard/root/printers': 'PRIVATE',
     '/dashboard/root/ai': 'PRIVATE',
     '/dashboard/root/visibility': 'PRIVATE',
   });
@@ -268,15 +269,34 @@ function DashboardLayoutInner({
     pos: false,
     seo: false,
     reports: false,
-    client: true,
+    client: false,
     system: false,
     'sys-crm': false,
-    'sys-crm-layout': false,
-    'sys-crm-views': false,
-    'sys-crm-emails': false,
     'sys-settings': false,
-    'sys-ai': false,
   });
+  const roleDefaultGroupUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.id || roleDefaultGroupUserIdRef.current === user.id) return;
+    roleDefaultGroupUserIdRef.current = user.id;
+    const roles = (user.roles as string[]) || [];
+    const rootFlag = roles.includes('ROOT') || roles.includes(SystemRole.ROOT);
+    const catalogAdminFlag =
+      roles.includes('SUPER_ADMIN') ||
+      roles.includes(SystemRole.SUPER_ADMIN) ||
+      roles.includes('ADMIN') ||
+      roles.includes('WEBSITE_MANAGER') ||
+      roles.includes(SystemRole.ADMIN);
+    const clientFlag =
+      roles.includes('CLIENT') || roles.includes(SystemRole.CLIENT);
+
+    setOpenGroups((prev) => ({
+      ...prev,
+      ...(rootFlag ? { system: true } : {}),
+      ...(!rootFlag && catalogAdminFlag ? { catalogue: true } : {}),
+      ...(!rootFlag && !catalogAdminFlag && clientFlag ? { client: true } : {}),
+    }));
+  }, [user]);
 
   const toggleGroup = (id: string) => {
     setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -333,24 +353,15 @@ function DashboardLayoutInner({
         pathname.startsWith('/dashboard/logs')
       ) {
         next.system = true;
-        if (pathname.includes('/storefront/')) {
+        if (pathname.includes('/storefront/') || pathname.includes('/email-templates')) {
           next['sys-crm'] = true;
-          if (pathname.includes('/layouts')) next['sys-crm-layout'] = true;
-          if (pathname.includes('/views')) next['sys-crm-views'] = true;
-        }
-        if (pathname.includes('/email-templates')) {
-          next['sys-crm'] = true;
-          next['sys-crm-emails'] = true;
         }
         if (
-          ['/smtp', '/tva', '/reference-prefixes', '/print-templates', '/payment-methods', '/storage', '/payment-gateways', '/printers'].some((p) =>
+          ['/smtp', '/tva', '/reference-prefixes', '/print-templates', '/payment-methods', '/storage', '/payment-gateways', '/printers', '/visibility'].some((p) =>
             pathname.includes(p)
           )
         ) {
           next['sys-settings'] = true;
-        }
-        if (pathname.includes('/root/ai')) {
-          next['sys-ai'] = true;
         }
       }
       return next;
@@ -806,38 +817,20 @@ function DashboardLayoutInner({
             {
               id: 'sys-crm-layout',
               label: 'Mise en page et design',
+              href: '/dashboard/root/storefront/layouts',
               icon: <Palette className="h-3.5 w-3.5" />,
-              children: [
-                { id: 'sys-lay-main', label: 'Mise en page', href: '/dashboard/root/storefront/layouts' },
-                { id: 'sys-lay-head', label: 'En-tête', href: '/dashboard/root/storefront/layouts?section=header' },
-                { id: 'sys-lay-foot', label: 'Pied de page', href: '/dashboard/root/storefront/layouts?section=footer' },
-              ],
             },
             {
               id: 'sys-crm-views',
               label: 'Vues et modèles',
+              href: '/dashboard/root/storefront/views',
               icon: <Sliders className="h-3.5 w-3.5" />,
-              children: [
-                { id: 'sys-v-home', label: "Page d'accueil", href: '/dashboard/root/storefront/views?view=home' },
-                { id: 'sys-v-art', label: 'Tous les articles', href: '/dashboard/root/storefront/views?view=articles' },
-                { id: 'sys-v-det', label: "Détails de l'article", href: '/dashboard/root/storefront/views?view=product-detail' },
-                { id: 'sys-v-contact', label: 'Contact', href: '/dashboard/root/storefront/views?view=contact' },
-                { id: 'sys-v-faq', label: 'FAQ', href: '/dashboard/root/storefront/views?view=faq' },
-                { id: 'sys-v-terms', label: 'Conditions générales', href: '/dashboard/root/storefront/views?view=terms' },
-                { id: 'sys-v-priv', label: 'Politique de confidentialité', href: '/dashboard/root/storefront/views?view=privacy' },
-                { id: 'sys-v-showroom', label: "Salle d'exposition", href: '/dashboard/root/storefront/views?view=showrooms' },
-              ],
             },
             {
               id: 'sys-crm-emails',
               label: 'Modèles de courriels',
+              href: '/dashboard/root/email-templates',
               icon: <FileCode className="h-3.5 w-3.5" />,
-              children: [
-                { id: 'sys-em-auth', label: 'Authentification', href: '/dashboard/root/email-templates?cat=auth' },
-                { id: 'sys-em-camp', label: 'Campagne', href: '/dashboard/root/email-templates?cat=campaign' },
-                { id: 'sys-em-msg', label: 'Messages', href: '/dashboard/root/email-templates?cat=messages' },
-                { id: 'sys-em-ord', label: 'Commandes', href: '/dashboard/root/email-templates?cat=orders' },
-              ],
             },
           ],
         },
@@ -849,13 +842,11 @@ function DashboardLayoutInner({
             { id: 'sys-smtp', label: 'Paramètres SMTP', href: '/dashboard/root/smtp', icon: <Server className="h-3.5 w-3.5" /> },
             { id: 'sys-tva', label: 'Taxe et timbre fiscal', href: '/dashboard/root/tva', icon: <Percent className="h-3.5 w-3.5" /> },
             { id: 'sys-pref', label: 'Préfixes et numérotations', href: '/dashboard/root/reference-prefixes', icon: <Hash className="h-3.5 w-3.5" /> },
-            { id: 'sys-print', label: 'Documents et impressions', href: '/dashboard/root/print-templates', icon: <Printer className="h-3.5 w-3.5" /> },
-            { id: 'sys-pay', label: 'Modalités de paiement', href: '/dashboard/payment-methods', icon: <CreditCard className="h-3.5 w-3.5" /> },
+            { id: 'sys-print', label: 'Documents & Imprimantes POS', href: '/dashboard/root/print-templates', icon: <Printer className="h-3.5 w-3.5" /> },
+            { id: 'sys-pay', label: 'Modalités & Passerelles Paiement', href: '/dashboard/payment-methods', icon: <CreditCard className="h-3.5 w-3.5" /> },
             ...(isRoot
               ? [
                   { id: 'sys-storage', label: 'Stockage Médias & CDN', href: '/dashboard/root/storage', icon: <HardDrive className="h-3.5 w-3.5" />, rootOnly: true },
-                  { id: 'sys-gateways', label: 'Passerelles Paiement (Flouci)', href: '/dashboard/root/payment-gateways', icon: <Wallet className="h-3.5 w-3.5" />, rootOnly: true },
-                  { id: 'sys-printers', label: 'Imprimantes & Pont POS', href: '/dashboard/root/printers', icon: <Printer className="h-3.5 w-3.5" />, rootOnly: true },
                   { id: 'sys-vis', label: 'Visibilité des vues', href: '/dashboard/root/visibility', icon: <Eye className="h-3.5 w-3.5" />, rootOnly: true },
                 ]
               : []),
@@ -866,17 +857,9 @@ function DashboardLayoutInner({
               {
                 id: 'sys-ai',
                 label: 'Intelligence Artificielle (IA)',
+                href: '/dashboard/root/ai',
                 icon: <Sparkles className="h-4 w-4" />,
                 rootOnly: true,
-                children: [
-                  {
-                    id: 'sys-ai-config',
-                    label: 'Fournisseurs IA (Gemini / Groq)',
-                    href: '/dashboard/root/ai',
-                    icon: <Sparkles className="h-3.5 w-3.5" />,
-                    rootOnly: true,
-                  },
-                ],
               },
             ]
           : []),
@@ -961,14 +944,21 @@ function DashboardLayoutInner({
 
   const renderDevTag = (active = false) => (
     <span
-      className={cn(
-        'shrink-0 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border',
-        active
-          ? 'bg-white/25 text-white border-white/30'
-          : 'bg-[var(--royal-gold-light)] text-[var(--royal-primary)] border-[var(--royal-primary)]/35'
-      )}
+      title="Mode Privé (invisible au public)"
+      className="relative inline-flex h-2 w-2 shrink-0 ml-1"
     >
-      DEV
+      <span
+        className={cn(
+          'animate-ping absolute inline-flex h-full w-full rounded-full opacity-75',
+          active ? 'bg-white' : 'bg-amber-400'
+        )}
+      />
+      <span
+        className={cn(
+          'relative inline-flex rounded-full h-2 w-2',
+          active ? 'bg-white' : 'bg-[#C59B27]'
+        )}
+      />
     </span>
   );
 
@@ -995,8 +985,10 @@ function DashboardLayoutInner({
             >
               <div className="flex items-center gap-2 min-w-0">
                 {node.icon && <span className="shrink-0 text-[var(--royal-primary)]">{node.icon}</span>}
-                {isDev && renderDevTag(false)}
-                <span className="truncate">{node.label}</span>
+                <span className="relative inline-flex items-start pr-2.5 min-w-0">
+                  <span className="truncate">{node.label}</span>
+                  {isDev && <span className="absolute top-0 right-0">{renderDevTag(false)}</span>}
+                </span>
               </div>
               {isGroupOpen ? (
                 <ChevronDown className="w-3.5 h-3.5 shrink-0 text-[var(--royal-primary)]" />
@@ -1044,8 +1036,10 @@ function DashboardLayoutInner({
                 {node.icon}
               </span>
             )}
-            {isDev && renderDevTag(active)}
-            <span className="truncate">{node.label}</span>
+            <span className="relative inline-flex items-start pr-2.5 min-w-0">
+              <span className="truncate">{node.label}</span>
+              {isDev && <span className="absolute top-0 right-0">{renderDevTag(active)}</span>}
+            </span>
           </div>
           {node.badge && (
             <span
@@ -1207,7 +1201,7 @@ function DashboardLayoutInner({
                           openFlyoutForSection(section, e.currentTarget);
                         }
                       }}
-                      title={sectionIsDev ? `[DEV] ${section.title}` : section.title}
+                      title={sectionIsDev ? `${section.title} (Privé)` : section.title}
                       style={
                         isCollapsedActive
                           ? {
@@ -1225,6 +1219,11 @@ function DashboardLayoutInner({
                       )}
                     >
                       {section.icon}
+                      {sectionIsDev && (
+                        <span className="absolute top-1.5 right-1.5">
+                          {renderDevTag(isCollapsedActive)}
+                        </span>
+                      )}
                     </button>
                   </div>
                 );
@@ -1260,8 +1259,10 @@ function DashboardLayoutInner({
                         >
                           {section.icon}
                         </span>
-                        {sectionIsDev && renderDevTag(isHrefActive(section.directHref))}
-                        <span className="truncate">{section.title}</span>
+                        <span className="relative inline-flex items-start pr-2.5 min-w-0">
+                          <span className="truncate">{section.title}</span>
+                          {sectionIsDev && <span className="absolute top-0 right-0">{renderDevTag(isHrefActive(section.directHref))}</span>}
+                        </span>
                       </div>
                     </Link>
                   ) : (
@@ -1280,8 +1281,10 @@ function DashboardLayoutInner({
                           <span className="shrink-0 text-[var(--royal-primary)]">
                             {section.icon}
                           </span>
-                          {sectionIsDev && renderDevTag(false)}
-                          <span className="truncate">{section.title}</span>
+                          <span className="relative inline-flex items-start pr-2.5 min-w-0">
+                            <span className="truncate">{section.title}</span>
+                            {sectionIsDev && <span className="absolute top-0 right-0">{renderDevTag(false)}</span>}
+                          </span>
                         </div>
                         {isOpen ? (
                           <ChevronDown className="h-3.5 w-3.5 text-[var(--royal-primary)] shrink-0" />
@@ -1304,7 +1307,7 @@ function DashboardLayoutInner({
                             >
                               <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
                               {renderDevTag(isHrefActive(`/dashboard/section/${section.id}`))}
-                              <span>Vue d&apos;ensemble</span>
+                              <span>{t('dashboard.overview')}</span>
                             </Link>
                           )}
                           {renderTreeNodes(section.items, 0, Boolean(section.rootOnly))}
@@ -1398,8 +1401,8 @@ function DashboardLayoutInner({
             <button
               type="button"
               onClick={toggleSidebarCollapse}
-              title={isCollapsed ? 'Déplier le menu' : 'Réduire le menu'}
-              aria-label={isCollapsed ? 'Déplier le menu' : 'Réduire le menu'}
+              title={isCollapsed ? t('dashboard.expand_menu') : t('dashboard.collapse_menu')}
+              aria-label={isCollapsed ? t('dashboard.expand_menu') : t('dashboard.collapse_menu')}
               className="p-2 rounded-xl border border-[var(--royal-primary)]/35 bg-[var(--royal-gold-light)] text-[var(--royal-primary)] hover:bg-[var(--royal-primary)] hover:text-white transition cursor-pointer shrink-0 shadow-2xs"
             >
               {isCollapsed ? (
@@ -1410,10 +1413,10 @@ function DashboardLayoutInner({
             </button>
             <h1 className="text-xs sm:text-sm font-bold text-[#1D232E] tracking-tight truncate">
               {isRoot
-                ? 'Console Master ROOT'
+                ? t('dashboard.root_console')
                 : isClient
-                ? 'Espace Client Royal'
-                : 'Tableau de Bord Royal'}
+                ? t('dashboard.client_space')
+                : t('dashboard.board_title')}
             </h1>
             <span
               className={`hidden sm:inline-block px-2.5 py-0.5 text-[10px] font-bold rounded-full border shrink-0 ${getRoleBadgeStyle(
@@ -1424,18 +1427,31 @@ function DashboardLayoutInner({
             </span>
           </div>
 
-          <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-1.5 sm:gap-3 text-xs shrink-0">
+            <button
+              type="button"
+              onClick={() => setLocale(locale === 'fr' ? 'ar' : 'fr')}
+              title="Français / العربية"
+              aria-label="Changer de langue"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-[#E6E1D6] bg-white hover:bg-[#FBF6E8] text-[#1D232E] text-[10px] font-bold uppercase transition cursor-pointer shrink-0"
+            >
+              <Globe className="w-3.5 h-3.5 text-[#C59B27]" />
+              <span className="hidden xs:inline sm:inline">{locale === 'fr' ? 'العربية' : 'FR'}</span>
+            </button>
+
+            <HeaderInboxPopovers isClientOnly={isClient} />
+
             <Link
               href="/"
               className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[var(--royal-primary)]/35 bg-[var(--royal-gold-light)] text-[var(--royal-primary)] hover:bg-[var(--royal-primary)] hover:text-white text-[11px] font-bold transition"
             >
               <Store className="w-3.5 h-3.5" />
-              <span>Boutique Publique</span>
+              <span>{t('dashboard.public_shop')}</span>
             </Link>
 
             <div className="hidden md:flex items-center gap-1.5 text-slate-500">
               <ShieldCheck className="w-4 h-4 text-[var(--royal-primary)]" />
-              <span>Session Chiffrée</span>
+              <span>{t('dashboard.encrypted_session')}</span>
             </div>
 
             <div className="h-4 w-px bg-[#E6E1D6] hidden md:block" />
@@ -1445,11 +1461,11 @@ function DashboardLayoutInner({
             <button
               type="button"
               onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#F4F5F7] hover:bg-red-50 text-slate-700 hover:text-red-700 text-[11px] font-semibold transition border border-[#CBD5E1] hover:border-red-200 cursor-pointer"
-              title="Déconnexion"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-[#F4F5F7] hover:bg-red-50 text-slate-700 hover:text-red-700 text-[11px] font-semibold transition border border-[#CBD5E1] hover:border-red-200 cursor-pointer shrink-0"
+              title={t('dashboard.logout')}
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Déconnexion</span>
+              <span className="hidden sm:inline">{t('dashboard.logout')}</span>
             </button>
           </div>
         </header>
@@ -1460,15 +1476,15 @@ function DashboardLayoutInner({
               <div className="w-12 h-12 rounded-2xl bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6] mx-auto flex items-center justify-center">
                 <Lock className="w-5 h-5" />
               </div>
-              <h2 className="text-lg font-heading font-black text-[#1D232E]">Vue Privée (Réservée ROOT)</h2>
+              <h2 className="text-lg font-heading font-black text-[#1D232E]">{t('dashboard.private_title')}</h2>
               <p className="text-xs text-slate-500">
-                Cette page est actuellement configurée en visibilité privée dans les paramètres système et n&apos;est accessible qu&apos;au compte ROOT.
+                {t('dashboard.private_desc')}
               </p>
               <Link
                 href="/dashboard"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--royal-primary)] text-white text-xs font-bold shadow-xs"
               >
-                Retour au tableau de bord
+                {t('dashboard.back_dashboard')}
               </Link>
             </div>
           ) : (
@@ -1524,7 +1540,7 @@ function DashboardLayoutInner({
                 >
                   <LayoutDashboard className="w-3.5 h-3.5" />
                   {renderDevTag(false)}
-                  <span>Vue d&apos;ensemble</span>
+                  <span>{t('dashboard.overview')}</span>
                 </Link>
               )}
               {renderFlyoutNodes(activeFlyout.section.items, Boolean(activeFlyout.section.rootOnly))}

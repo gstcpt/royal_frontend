@@ -4,9 +4,11 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ShieldCheck, ArrowLeft } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export default function PrivacyPage() {
   const { config } = useCmsConfig();
+  const { locale, t } = useI18nStore();
   const privCfg = config.views.privacy || {};
   const order = Array.isArray(privCfg.sectionOrder) && privCfg.sectionOrder.length > 0 ? privCfg.sectionOrder : ['header', 'document', 'footerNote'];
 
@@ -28,16 +30,16 @@ export default function PrivacyPage() {
         {privCfg.showBackLink !== false && (
           <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-[var(--royal-primary)] mb-6 transition">
             <ArrowLeft className="w-4 h-4" />
-            <span>Retour à l’accueil</span>
+            <span>{t('common.back_home')}</span>
           </Link>
         )}
         <div>
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] mb-4">
             <ShieldCheck className="w-4 h-4 text-[var(--royal-primary)]" />
-            <span>{privCfg.badgeText || 'Protection des Données'}</span>
+            <span>{locale === 'ar' ? t('legal.privacy_badge') : (privCfg.badgeText || t('legal.privacy_badge'))}</span>
           </div>
           <h1 className="font-heading text-3xl sm:text-4xl font-black text-[var(--royal-ink)] tracking-tight">
-            {page?.title || 'Politique de Confidentialité'}
+            {locale === 'ar' ? t('legal.privacy_title') : (page?.title || t('legal.privacy_title'))}
           </h1>
           {page?.subtitle && <p className="mt-2 text-sm text-neutral-500">{page.subtitle}</p>}
         </div>

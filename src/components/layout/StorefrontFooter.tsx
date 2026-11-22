@@ -4,9 +4,11 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Mail, Phone, MapPin, Instagram, Facebook, MessageCircle } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export function StorefrontFooter() {
   const { config } = useCmsConfig();
+  const { t, locale } = useI18nStore();
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   const [topCategories, setTopCategories] = useState<Array<{ id: string; name: string; slug: string }>>([]);
@@ -81,11 +83,11 @@ export function StorefrontFooter() {
               {config.footer.showNewsletter !== false && (
                 <div className="w-full lg:max-w-md">
                   <span className="text-xs font-semibold uppercase tracking-widest text-[var(--royal-gold-dark)] block mb-3">
-                    {config.footer.newsletterTitle || 'Restez Informé de nos Offres & Nouveautés'}
+                    {locale === 'ar' ? t('storefront.newsletter_title') : (config.footer.newsletterTitle || t('storefront.newsletter_title'))}
                   </span>
                   {subscribed ? (
                     <div className="p-4 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-[var(--royal-gold-dark)] text-xs font-medium">
-                      Merci ! Vous êtes inscrit(e) aux actualités {config.appName || 'Royal'}.
+                      {t('footer.newsletter_ok')}
                     </div>
                   ) : (
                     <form onSubmit={handleSubscribe} className="relative flex items-center">
@@ -93,13 +95,13 @@ export function StorefrontFooter() {
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="Votre adresse email"
+                        placeholder={t('footer.newsletter_placeholder')}
                         required
                         className="w-full bg-[var(--royal-card)] text-[var(--royal-ink)] placeholder-slate-400 text-xs sm:text-sm pl-6 pr-14 py-4 rounded-full border border-[var(--royal-border)] focus:outline-none focus:border-[var(--royal-primary)] transition-colors shadow-xs"
                       />
                       <button
                         type="submit"
-                        aria-label="S'inscrire"
+                        aria-label={t('footer.subscribe_aria')}
                         style={{
                           background: 'linear-gradient(to right, var(--royal-primary), var(--royal-primary-hover))',
                           color: 'var(--royal-primary-text)',
@@ -117,22 +119,22 @@ export function StorefrontFooter() {
         )}
 
         {/* 4 Clean Columns */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-10 py-14 border-b border-[var(--royal-border)] text-xs sm:text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10 py-12 sm:py-14 border-b border-[var(--royal-border)] text-xs sm:text-sm">
           {/* Col 1: À Propos */}
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] mb-6">
-              {config.footer.col1Title || 'À Propos'}
+          <div className="min-w-0">
+            <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] mb-5 sm:mb-6">
+              {locale === 'ar' ? t('footer.col1_title') : (config.footer.col1Title || t('footer.col1_title'))}
             </h4>
             <p className="text-xs text-slate-600 leading-relaxed mb-4">
               {config.footer.aboutDescription}
             </p>
             <ul className="space-y-3 text-slate-700">
-              {(config.footer.col1Links && config.footer.col1Links.length > 0
+              {(config.footer.col1Links && config.footer.col1Links.length > 0 && locale === 'fr'
                 ? config.footer.col1Links
                 : [
-                    { label: 'Accueil Royal', href: '/' },
-                    { label: 'Tous nos Articles', href: '/articles' },
-                    { label: 'Promotions & Soldes', href: '/articles?sortBy=promo' },
+                    { label: t('footer.about_home'), href: '/' },
+                    { label: t('footer.about_articles'), href: '/articles' },
+                    { label: t('footer.about_promos'), href: '/articles?sortBy=promo' },
                   ]
               ).map((lnk, idx) => (
                 <li key={idx}>
@@ -145,12 +147,12 @@ export function StorefrontFooter() {
           </div>
 
           {/* Col 2: Rayons & Articles */}
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] mb-6">
-              {config.footer.col2Title || 'Rayons & Articles'}
+          <div className="min-w-0">
+            <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] mb-5 sm:mb-6">
+              {locale === 'ar' ? t('footer.col2_title') : (config.footer.col2Title || t('footer.col2_title'))}
             </h4>
             <ul className="space-y-3 text-slate-700">
-              {config.footer.col2Links && config.footer.col2Links.length > 0 ? (
+              {config.footer.col2Links && config.footer.col2Links.length > 0 && locale === 'fr' ? (
                 config.footer.col2Links.map((lnk, idx) => (
                   <li key={idx}>
                     <Link href={lnk.href || '/articles'} className="hover:text-[#9A7414] transition">
@@ -169,13 +171,13 @@ export function StorefrontFooter() {
               ) : (
                 <>
                   <li>
-                    <Link href="/articles" className="hover:text-[#9A7414] transition">Électroménager</Link>
+                    <Link href="/articles" className="hover:text-[#9A7414] transition">{t('footer.cat_appliances')}</Link>
                   </li>
                   <li>
-                    <Link href="/articles" className="hover:text-[#9A7414] transition">Appareils de Coiffure</Link>
+                    <Link href="/articles" className="hover:text-[#9A7414] transition">{t('footer.cat_hair')}</Link>
                   </li>
                   <li>
-                    <Link href="/articles" className="hover:text-[#9A7414] transition">Arts de Table</Link>
+                    <Link href="/articles" className="hover:text-[#9A7414] transition">{t('footer.cat_tableware')}</Link>
                   </li>
                 </>
               )}
@@ -183,19 +185,19 @@ export function StorefrontFooter() {
           </div>
 
           {/* Col 3: Informations & Assistance */}
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] mb-6">
-              {config.footer.col3Title || 'Informations & Aide'}
+          <div className="min-w-0">
+            <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] mb-5 sm:mb-6">
+              {locale === 'ar' ? t('footer.col3_title') : (config.footer.col3Title || t('footer.col3_title'))}
             </h4>
             <ul className="space-y-3 text-slate-700">
-              {(config.footer.col3Links && config.footer.col3Links.length > 0
+              {(config.footer.col3Links && config.footer.col3Links.length > 0 && locale === 'fr'
                 ? config.footer.col3Links
                 : [
-                    { label: 'Contactez-nous', href: '/contact' },
-                    { label: 'Foire Aux Questions (FAQ)', href: '/faq' },
-                    { label: 'Conditions Générales de Vente', href: '/terms' },
-                    { label: 'Politique de Confidentialité', href: '/privacy' },
-                    { label: 'Suivi de Commande', href: '/track-order' },
+                    { label: t('footer.info_contact'), href: '/contact' },
+                    { label: t('footer.info_faq'), href: '/faq' },
+                    { label: t('footer.info_terms'), href: '/terms' },
+                    { label: t('footer.info_privacy'), href: '/privacy' },
+                    { label: t('footer.info_track'), href: '/track-order' },
                   ]
               ).map((lnk, idx) => (
                 <li key={idx}>
@@ -208,18 +210,18 @@ export function StorefrontFooter() {
           </div>
 
           {/* Col 4: Contact Direct & Réseaux Sociaux */}
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] mb-6">
-              {config.footer.col4Title || 'Contact & Coordonnées'}
+          <div className="min-w-0">
+            <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] mb-5 sm:mb-6">
+              {locale === 'ar' ? t('footer.col4_title') : (config.footer.col4Title || t('footer.col4_title'))}
             </h4>
             <ul className="space-y-3.5 text-slate-700">
               <li className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 text-[var(--royal-primary)] mt-0.5 flex-shrink-0" />
-                <span>{config.identity.address || 'Mahdia 5100, Tunisie'}</span>
+                <span className="break-words">{config.identity.address || 'Mahdia 5100, Tunisie'}</span>
               </li>
               <li className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-[var(--royal-primary)] flex-shrink-0" />
-                <a href={`tel:${config.identity.phone || '+21648091914'}`} className="hover:text-[var(--royal-gold-dark)] transition">
+                <a href={`tel:${config.identity.phone || '+21648091914'}`} className="hover:text-[var(--royal-gold-dark)] transition break-all">
                   {config.identity.phone || '48 091 914'}
                 </a>
               </li>
@@ -229,14 +231,14 @@ export function StorefrontFooter() {
                   href={`https://wa.me/${(config.identity.whatsapp || '21648091914').replace(/\D/g, '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-[var(--royal-gold-dark)] transition"
+                  className="hover:text-[var(--royal-gold-dark)] transition break-all"
                 >
-                  WhatsApp : {config.identity.whatsapp || '48 091 914'}
+                  {t('footer.whatsapp')} : {config.identity.whatsapp || '48 091 914'}
                 </a>
               </li>
               <li className="flex items-center gap-2.5">
                 <Mail className="w-4 h-4 text-[var(--royal-primary)] flex-shrink-0" />
-                <a href={`mailto:${config.identity.email || 'royaltn24@gmail.com'}`} className="hover:text-[var(--royal-gold-dark)] transition">
+                <a href={`mailto:${config.identity.email || 'royaltn24@gmail.com'}`} className="hover:text-[var(--royal-gold-dark)] transition break-all">
                   {config.identity.email || 'royaltn24@gmail.com'}
                 </a>
               </li>
@@ -286,13 +288,13 @@ export function StorefrontFooter() {
         </div>
 
         {/* Bottom row */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
+        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4 text-center sm:text-start">
           <p>© {new Date().getFullYear()} {config.footer.copyrightText}</p>
-          <div className="flex flex-wrap items-center gap-6">
-            <Link href="/contact" className="hover:text-[var(--royal-gold-dark)] transition">Contact</Link>
-            <Link href="/faq" className="hover:text-[var(--royal-gold-dark)] transition">FAQ</Link>
-            <Link href="/privacy" className="hover:text-[var(--royal-gold-dark)] transition">Politique de Confidentialité</Link>
-            <Link href="/terms" className="hover:text-[var(--royal-gold-dark)] transition">Conditions Générales</Link>
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+            <Link href="/contact" className="hover:text-[var(--royal-gold-dark)] transition">{t('footer.contact')}</Link>
+            <Link href="/faq" className="hover:text-[var(--royal-gold-dark)] transition">{t('footer.faq')}</Link>
+            <Link href="/privacy" className="hover:text-[var(--royal-gold-dark)] transition">{t('footer.privacy')}</Link>
+            <Link href="/terms" className="hover:text-[var(--royal-gold-dark)] transition">{t('footer.terms')}</Link>
           </div>
         </div>
       </div>

@@ -3,9 +3,11 @@
 import React, { useState } from 'react';
 import { Mail, ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export function NewsletterSection() {
   const { config } = useCmsConfig();
+  const { locale, t } = useI18nStore();
   const home = config.views.home;
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,16 +28,16 @@ export function NewsletterSection() {
       });
       if (res.ok) {
         setStatus('success');
-        setMessage('Merci ! Vous recevrez nos nouveaux arrivages Royal et codes promos exclusifs.');
+        setMessage(t('storefront.newsletter_success'));
         setEmail('');
       } else {
         const err = await res.json().catch(() => null);
         setStatus('error');
-        setMessage(err?.message || 'Veuillez vérifier votre adresse e-mail.');
+        setMessage(err?.message || t('storefront.newsletter_error'));
       }
     } catch {
       setStatus('error');
-      setMessage('Erreur réseau, veuillez réessayer.');
+      setMessage(t('storefront.newsletter_net_error'));
     } finally {
       setLoading(false);
     }
@@ -44,17 +46,17 @@ export function NewsletterSection() {
   return (
     <section className="py-14 md:py-20 bg-[#FBF9F4] border-b border-[#E6E1D6]">
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
-        <div className="bg-white rounded-3xl border border-[#E6E1D6] p-8 sm:p-12 lg:p-14 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+        <div className="bg-white rounded-3xl border border-[#E6E1D6] p-6 sm:p-12 lg:p-14 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
           <div className="max-w-xl space-y-3">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs font-bold text-[var(--royal-gold-dark)] uppercase tracking-wider">
               <Sparkles className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
-              <span>{home.newsletterTag || 'Club Privilège & Alertes Promo'}</span>
+              <span>{locale === 'ar' ? t('storefront.newsletter_tag') : (home.newsletterTag || t('storefront.newsletter_tag'))}</span>
             </div>
             <h2 className="font-heading font-extrabold text-2xl sm:text-4xl text-[var(--royal-ink)] tracking-tight">
-              {home.newsletterTitle || 'Ne manquez aucune promotion Royal'}
+              {locale === 'ar' ? t('storefront.newsletter_title') : (home.newsletterTitle || t('storefront.newsletter_title'))}
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              {home.newsletterSubtitle || 'Inscrivez-vous à notre newsletter pour recevoir nos nouveaux arrivages Royal, nos ventes flash et nos codes promo exclusifs en avant-première.'}
+              {locale === 'ar' ? t('storefront.newsletter_subtitle') : (home.newsletterSubtitle || t('storefront.newsletter_subtitle'))}
             </p>
           </div>
 
@@ -73,7 +75,7 @@ export function NewsletterSection() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder={home.newsletterPlaceholder || 'votre.email@exemple.com'}
+                    placeholder={locale === 'ar' ? t('storefront.newsletter_placeholder') : (home.newsletterPlaceholder || t('storefront.newsletter_placeholder'))}
                     className="w-full pl-11 pr-4 py-3.5 rounded-full bg-[var(--royal-silver-light)] border border-[var(--royal-border)] text-sm text-[var(--royal-ink)] focus:outline-none focus:border-[var(--royal-primary)] transition"
                   />
                 </div>
@@ -86,7 +88,7 @@ export function NewsletterSection() {
                   }}
                   className="px-7 py-3.5 rounded-full hover:opacity-95 text-xs font-bold uppercase tracking-wider inline-flex items-center justify-center gap-2 transition shadow-md cursor-pointer disabled:opacity-60 shrink-0"
                 >
-                  <span>{loading ? 'Envoi...' : home.newsletterButtonText || "S'inscrire"}</span>
+                  <span>{loading ? t('storefront.newsletter_sending') : (locale === 'ar' ? t('storefront.newsletter_button') : (home.newsletterButtonText || t('storefront.newsletter_button')))}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>

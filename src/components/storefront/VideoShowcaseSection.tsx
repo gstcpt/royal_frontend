@@ -8,9 +8,11 @@ import { formatTndCurrency } from '@/lib/utils';
 import { StorefrontProduct } from './ProductCard';
 import { ProductMediaViewer } from './ProductMediaViewer';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export function VideoShowcaseSection({ product }: { product?: StorefrontProduct | null }) {
   const { config } = useCmsConfig();
+  const { locale, t } = useI18nStore();
   const { addItem } = useCartStore();
   const [selectedVariantIdx, setSelectedVariantIdx] = useState(0);
   const [added, setAdded] = useState(false);
@@ -33,7 +35,7 @@ export function VideoShowcaseSection({ product }: { product?: StorefrontProduct 
   const specBullets = [
     dims.puissance ? `Puissance : ${dims.puissance}` : null,
     dims.capacite ? `Capacité : ${dims.capacite}` : null,
-    dims.garantie ? `Garantie officielle : ${dims.garantie}` : 'Garantie constructeur officielle avec SAV en Tunisie',
+    dims.garantie ? `${t('product.warranty_prefix')} ${dims.garantie}` : t('storefront.video_warranty_default'),
   ].filter(Boolean) as string[];
 
   const handleQuickAdd = async () => {
@@ -53,19 +55,19 @@ export function VideoShowcaseSection({ product }: { product?: StorefrontProduct 
   return (
     <section className="py-16 md:py-24 bg-white border-b border-slate-100 overflow-hidden">
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center bg-[#F8F9FA] rounded-3xl p-8 sm:p-12 lg:p-16 border border-slate-200/80">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center bg-[#F8F9FA] rounded-3xl p-5 sm:p-10 lg:p-16 border border-slate-200/80">
           {/* Left Column */}
           <div className="lg:col-span-6 space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-[var(--royal-border)] text-xs font-bold text-[var(--royal-ink)] shadow-sm">
               <Sparkles className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
-              <span>{config.views.home.featuredVideoTag || 'Coup de Cœur • Dernier Ajout au Catalogue'}</span>
+              <span>{locale === 'ar' ? t('storefront.video_tag') : (config.views.home.featuredVideoTag || t('storefront.video_tag'))}</span>
             </div>
 
             <h2 className="font-heading font-extrabold text-2xl sm:text-4xl lg:text-5xl text-slate-950 tracking-tight leading-tight">
               {product.name}
               {product.brand?.name && (
                 <span className="block text-slate-500 font-bold mt-1 text-xl sm:text-2xl">
-                  Marque {product.brand.name} • Réf. {product.sku}
+                  {t('storefront.video_brand')} {product.brand.name} • {t('storefront.video_ref')} {product.sku}
                 </span>
               )}
             </h2>
@@ -89,7 +91,7 @@ export function VideoShowcaseSection({ product }: { product?: StorefrontProduct 
             {variants.length > 0 && (
               <div className="pt-2">
                 <span className="text-xs font-bold text-slate-700 block mb-2">
-                  Finition / Variante : <strong className="text-slate-950">{activeVariant?.name}</strong>
+                  {t('storefront.video_finish_variant')} <strong className="text-slate-950">{activeVariant?.name}</strong>
                 </span>
                 <div className="flex flex-wrap items-center gap-2.5">
                   {variants.map((v, idx) => {
@@ -148,14 +150,14 @@ export function VideoShowcaseSection({ product }: { product?: StorefrontProduct 
                   className="px-6 py-3 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] font-bold text-xs uppercase tracking-wider transition shadow-md flex items-center gap-2 cursor-pointer"
                 >
                   {added ? <Check className="w-4 h-4 text-emerald-400" /> : <ShoppingBag className="w-4 h-4" />}
-                  <span>{added ? 'Ajouté au panier !' : 'Commander'}</span>
+                  <span>{added ? t('storefront.video_added') : t('actions.buy')}</span>
                 </button>
 
                 <Link
                   href={`/articles/${product.slug}`}
                   className="text-xs font-bold text-slate-900 hover:underline inline-flex items-center gap-1"
                 >
-                  <span>Voir la fiche technique</span>
+                  <span>{t('storefront.video_view_detail')}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>

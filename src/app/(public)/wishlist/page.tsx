@@ -5,11 +5,13 @@ import Link from 'next/link';
 import { useWishlistStore } from '@/stores/wishlist.store';
 import { useCartStore } from '@/stores/cart.store';
 import { useAuthStore } from '@/stores/auth.store';
+import { useI18nStore } from '@/stores/i18n.store';
 import { getCartHeaders, getSafeImageUrl } from '@/lib/cart-session';
 import { ProductCard, StorefrontProduct } from '@/components/storefront/ProductCard';
 import { Heart, ShoppingBag, ArrowRight, Check } from 'lucide-react';
 
 export default function WishlistPage() {
+  const { t } = useI18nStore();
   const { items, removeItem, clearWishlist, setItems } = useWishlistStore();
   const { addItem: addToCart } = useCartStore();
   const { isAuthenticated } = useAuthStore();
@@ -121,21 +123,21 @@ export default function WishlistPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-8 mb-8 border-b border-neutral-200 gap-4">
         <div>
           <span className="text-[10px] uppercase tracking-widest text-amber-600 font-bold block mb-1">
-            Sélection Privée
+            {t('wishlist.badge')}
           </span>
           <h1 className="font-heading font-black text-3xl sm:text-4xl text-neutral-900 tracking-tight">
-            Ma Liste d&apos;Envies ({cardProducts.length})
+            {t('wishlist.title')} ({cardProducts.length})
           </h1>
         </div>
 
         {cardProducts.length > 0 && (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={handleClearAll}
               className="px-4 py-2 text-xs font-semibold text-neutral-500 hover:text-red-600 transition cursor-pointer"
             >
-              Vider la liste
+              {t('wishlist.clear_all')}
             </button>
             <button
               type="button"
@@ -143,7 +145,7 @@ export default function WishlistPage() {
               className="px-6 py-2.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-bold uppercase tracking-wider hover:bg-[var(--royal-primary-hover)] transition shadow-sm flex items-center gap-2 cursor-pointer"
             >
               {addedAll ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <ShoppingBag className="w-3.5 h-3.5" />}
-              <span>{addedAll ? 'Ajoutés au Panier ✓' : 'Tout Ajouter au Panier'}</span>
+              <span>{addedAll ? t('wishlist.added_all') : t('wishlist.add_all_to_cart')}</span>
             </button>
           </div>
         )}
@@ -151,21 +153,21 @@ export default function WishlistPage() {
 
       {/* Empty State or Canonical ProductCard Grid */}
       {cardProducts.length === 0 ? (
-        <div className="text-center py-24 bg-[#F8F9FA] rounded-[32px] border border-neutral-200 p-8">
+        <div className="text-center py-20 sm:py-24 bg-[#F8F9FA] rounded-[32px] border border-neutral-200 p-6 sm:p-8">
           <div className="w-16 h-16 rounded-full bg-white text-neutral-400 flex items-center justify-center mx-auto mb-4 border border-neutral-200 shadow-sm">
             <Heart className="w-8 h-8" />
           </div>
           <h2 className="font-heading font-bold text-2xl text-neutral-900 mb-2">
-            Votre liste d&apos;envies est vide
+            {t('wishlist.empty')}
           </h2>
           <p className="text-sm text-neutral-500 max-w-md mx-auto mb-6">
-            Découvrez nos collections d&apos;exception et cliquez sur l&apos;icône cœur pour enregistrer vos coups de cœur.
+            {t('wishlist.empty_desc')}
           </p>
           <Link
             href="/articles"
             className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-bold uppercase tracking-wider hover:bg-[var(--royal-primary-hover)] transition shadow-lg"
           >
-            <span>Découvrir le Catalogue</span>
+            <span>{t('wishlist.discover_catalog')}</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

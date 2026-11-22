@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { DateRangePicker, DateRange } from './date-range-picker';
 import { Button } from './button';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export type DisplayMode = 'table' | 'list' | 'split' | 'matrix' | 'tree';
 
@@ -69,6 +70,7 @@ export interface DataTableProps<T = any> {
   displayModes?: DisplayMode[];
   defaultMode?: DisplayMode;
   defaultDisplayMode?: DisplayMode;
+  mobilePreferredMode?: DisplayMode;
   renderListItem?: (
     item: T,
     isSelected: boolean,
@@ -276,6 +278,7 @@ export function DataTable<T extends object = any>({
   displayModes,
   defaultMode: explicitDefaultMode,
   defaultDisplayMode,
+  mobilePreferredMode,
   renderListItem,
   renderSplitDetail,
   renderMatrixCard,
@@ -294,10 +297,14 @@ export function DataTable<T extends object = any>({
   defaultPageSize = 12,
   pageSizeOptions = [12, 24, 36, 60, 96],
 }: DataTableProps<T>) {
+  const { t } = useI18nStore();
+  const effectiveSearchPlaceholder = searchPlaceholder === 'Rechercher...' ? t('table.search_default') : searchPlaceholder;
   const supportedModes = explicitSupportedModes || displayModes || ['table', 'list', 'matrix'];
   const supportedModesKey = supportedModes.join(',');
   const defaultMode = explicitDefaultMode || defaultDisplayMode || 'table';
   const searchKeys = explicitSearchKeys.length > 0 ? explicitSearchKeys : (searchKey ? [searchKey] : []);
+
+  const hasMatrixCustomRenderer = Boolean(renderMatrixCard);
 
   const getResponsivePreferredMode = React.useCallback(
     (small: boolean): DisplayMode => {
@@ -305,23 +312,50 @@ export function DataTable<T extends object = any>({
       if (!small) {
         return modes.includes(defaultMode) ? defaultMode : (modes[0] || 'table');
       }
+      if (mobilePreferredMode && modes.includes(mobilePreferredMode)) {
+        return mobilePreferredMode;
+      }
+      // Smart viewport-aware selection:
+      // Image+multi-action cards (with renderMatrixCard) -> 'matrix' Grid; Text tables -> 'list'
+      if (hasMatrixCustomRenderer && modes.includes('matrix')) return 'matrix';
       if (modes.includes('list')) return 'list';
       if (modes.includes('matrix')) return 'matrix';
       return modes.find((m) => m !== 'table') || modes[0] || 'list';
     },
-    [supportedModesKey, defaultMode]
+    [supportedModesKey, defaultMode, mobilePreferredMode, hasMatrixCustomRenderer]
   );
 
-  const [displayMode, setDisplayMode] = React.useState<DisplayMode>(defaultMode);
+  const [displayMode, setDisplayMode] = React.useState<DisplayMode>(() => {
+    if (typeof window !== 'undefined') {
+      return getResponsivePreferredMode(window.innerWidth < 1024);
+    }
+    return defaultMode;
+  });
+  const manualOverrideBreakpointRef = React.useRef<boolean | null>(null);
+
+  const handleManualModeChange = (mode: DisplayMode) => {
+    if (typeof window !== 'undefined') {
+      manualOverrideBreakpointRef.current = window.innerWidth < 1024;
+    }
+    setDisplayMode(mode);
+  };
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(max-width: 1023px)');
     const applyResponsiveMode = (isSmall: boolean) => {
+      // Only preserve manual toggle while remaining within the same breakpoint class
+      if (manualOverrideBreakpointRef.current !== null && manualOverrideBreakpointRef.current === isSmall) {
+        return;
+      }
+      manualOverrideBreakpointRef.current = null;
       setDisplayMode(getResponsivePreferredMode(isSmall));
     };
     applyResponsiveMode(mq.matches);
-    const listener = (ev: MediaQueryListEvent) => applyResponsiveMode(ev.matches);
+    const listener = (ev: MediaQueryListEvent) => {
+      manualOverrideBreakpointRef.current = null;
+      setDisplayMode(getResponsivePreferredMode(ev.matches));
+    };
     if (mq.addEventListener) mq.addEventListener('change', listener);
     else if ((mq as any).addListener) (mq as any).addListener(listener);
     return () => {
@@ -629,7 +663,7 @@ export function DataTable<T extends object = any>({
                 type="button"
                 onClick={onRefresh}
                 className="p-2 rounded-xl border border-neutral-200 hover:bg-neutral-50 text-neutral-600 transition cursor-pointer"
-                title="Actualiser les données"
+                title={t('table.refresh_data')}
               >
                 <RefreshCw className={cn('w-4 h-4', isLoading && 'animate-spin')} />
               </button>
@@ -653,7 +687,7 @@ export function DataTable<T extends object = any>({
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder={searchPlaceholder}
+              placeholder={effectiveSearchPlaceholder}
               className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-neutral-200 bg-white placeholder-neutral-400 focus:outline-none focus:border-[var(--royal-primary)] focus:ring-1 focus:ring-[var(--royal-primary)] transition"
             />
           </div>
@@ -671,42 +705,42 @@ export function DataTable<T extends object = any>({
           {/* Status Filter Dropdown */}
           {statusOptions.length > 0 && (
             <FilterDropdown
-              label="Statut"
+              label={t('table.status')}
               value={statusFilter}
               onChange={(val) => {
                 setStatusFilter(val);
                 setCurrentPage(1);
               }}
               options={statusOptions}
-              allLabel="Tous les statuts"
+              allLabel={t('table.all_statuses')}
             />
           )}
 
           {/* Category Filter Dropdown */}
           {categoryOptions.length > 0 && (
             <FilterDropdown
-              label="Catégorie"
+              label={t('table.category')}
               value={categoryFilter}
               onChange={(val) => {
                 setCategoryFilter(val);
                 setCurrentPage(1);
               }}
               options={categoryOptions}
-              allLabel="Toutes les catégories"
+              allLabel={t('table.all_categories')}
             />
           )}
 
           {/* Type Filter Dropdown */}
           {typeOptions.length > 0 && (
             <FilterDropdown
-              label="Type"
+              label={t('table.type')}
               value={typeFilter}
               onChange={(val) => {
                 setTypeFilter(val);
                 setCurrentPage(1);
               }}
               options={typeOptions}
-              allLabel="Tous les types"
+              allLabel={t('table.all_types')}
             />
           )}
 
@@ -722,29 +756,29 @@ export function DataTable<T extends object = any>({
                 setCurrentPage(1);
               }}
               options={cf.options}
-              allLabel={cf.allLabel || `Tous`}
+              allLabel={cf.allLabel || t('table.all')}
             />
           ))}
         </div>
 
         {/* Right Side: Print, Export, Extra Actions & Display Mode Switcher */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2 w-full sm:w-auto">
           {extraActions}
           <button
             type="button"
             onClick={handlePrint}
-            aria-label="Imprimer"
+            aria-label={t('table.print')}
             className="p-2 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-700 transition shadow-sm"
-            title="Imprimer le tableau des données"
+            title={t('table.print')}
           >
             <Printer className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
             onClick={handleExportCSV}
-            aria-label="Exporter CSV"
+            aria-label={t('table.export_csv')}
             className="p-2 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-700 transition shadow-sm"
-            title="Exporter en fichier CSV"
+            title={t('table.export_csv')}
           >
             <Download className="w-3.5 h-3.5" />
           </button>
@@ -754,15 +788,15 @@ export function DataTable<T extends object = any>({
             {supportedModes.includes('table') && (
               <button
                 type="button"
-                onClick={() => setDisplayMode('table')}
-                aria-label="Mode Tableau"
+                onClick={() => handleManualModeChange('table')}
+                aria-label={t('table.mode_table')}
                 className={cn(
                   'p-1.5 rounded-lg transition-all',
                   displayMode === 'table'
                     ? 'bg-white text-neutral-950 shadow-sm font-semibold'
                     : 'text-neutral-500 hover:text-neutral-900'
                 )}
-                title="Vue Tableau Tabulaire"
+                title={t('table.mode_table')}
               >
                 <Table className="w-3.5 h-3.5" />
               </button>
@@ -771,15 +805,15 @@ export function DataTable<T extends object = any>({
             {supportedModes.includes('list') && (
               <button
                 type="button"
-                onClick={() => setDisplayMode('list')}
-                aria-label="Mode Liste"
+                onClick={() => handleManualModeChange('list')}
+                aria-label={t('table.mode_list')}
                 className={cn(
                   'p-1.5 rounded-lg transition-all',
                   displayMode === 'list'
                     ? 'bg-white text-neutral-950 shadow-sm font-semibold'
                     : 'text-neutral-500 hover:text-neutral-900'
                 )}
-                title="Vue Liste Compacte"
+                title={t('table.mode_list')}
               >
                 <LayoutList className="w-3.5 h-3.5" />
               </button>
@@ -788,15 +822,15 @@ export function DataTable<T extends object = any>({
             {supportedModes.includes('matrix') && (
               <button
                 type="button"
-                onClick={() => setDisplayMode('matrix')}
-                aria-label="Mode Grille Matrice"
+                onClick={() => handleManualModeChange('matrix')}
+                aria-label={t('table.mode_matrix')}
                 className={cn(
                   'p-1.5 rounded-lg transition-all',
                   displayMode === 'matrix'
                     ? 'bg-white text-neutral-950 shadow-sm font-semibold'
                     : 'text-neutral-500 hover:text-neutral-900'
                 )}
-                title="Vue Grille E-commerce"
+                title={t('table.mode_matrix')}
               >
                 <Grid3X3 className="w-3.5 h-3.5" />
               </button>
@@ -805,15 +839,15 @@ export function DataTable<T extends object = any>({
             {supportedModes.includes('tree') && (
               <button
                 type="button"
-                onClick={() => setDisplayMode('tree')}
-                aria-label="Mode Arborescence"
+                onClick={() => handleManualModeChange('tree')}
+                aria-label={t('table.mode_tree')}
                 className={cn(
                   'p-1.5 rounded-lg transition-all',
                   displayMode === 'tree'
                     ? 'bg-white text-neutral-950 shadow-sm font-semibold'
                     : 'text-neutral-500 hover:text-neutral-900'
                 )}
-                title="Vue Arborescence Hiérarchique"
+                title={t('table.mode_tree')}
               >
                 <FolderTree className="w-3.5 h-3.5" />
               </button>
@@ -822,15 +856,15 @@ export function DataTable<T extends object = any>({
             {supportedModes.includes('split') && (
               <button
                 type="button"
-                onClick={() => setDisplayMode('split')}
-                aria-label="Mode Split Panneau"
+                onClick={() => handleManualModeChange('split')}
+                aria-label={t('table.mode_split')}
                 className={cn(
                   'p-1.5 rounded-lg transition-all',
                   displayMode === 'split'
                     ? 'bg-white text-neutral-950 shadow-sm font-semibold'
                     : 'text-neutral-500 hover:text-neutral-900'
                 )}
-                title="Vue Séparée (Détails rapides)"
+                title={t('table.mode_split')}
               >
                 <Columns2 className="w-3.5 h-3.5" />
               </button>
@@ -880,8 +914,8 @@ export function DataTable<T extends object = any>({
         <div className="print:hidden">
         {/* MODE A: TABLE */}
         {displayMode === 'table' && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full min-w-[780px] text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-neutral-100 bg-neutral-50/70 text-neutral-500 font-semibold uppercase tracking-wider text-[10px]">
                   {enableMultiSelect && (
@@ -942,7 +976,7 @@ export function DataTable<T extends object = any>({
                     >
                       <div className="flex flex-col items-center justify-center gap-2">
                         <RefreshCw className="w-5 h-5 animate-spin text-neutral-900" />
-                        <span>Chargement des articles...</span>
+                        <span>{t('table.loading_rows')}</span>
                       </div>
                     </td>
                   </tr>
@@ -952,7 +986,7 @@ export function DataTable<T extends object = any>({
                       colSpan={columns.length + (enableMultiSelect ? 1 : 0)}
                       className="py-12 text-center text-neutral-400"
                     >
-                      Aucun enregistrement ne correspond à votre recherche.
+                      {t('table.empty_rows')}
                     </td>
                   </tr>
                 ) : (
@@ -1005,11 +1039,11 @@ export function DataTable<T extends object = any>({
             {isLoading ? (
               <div className="p-12 text-center text-neutral-400">
                 <RefreshCw className="w-5 h-5 animate-spin mx-auto text-neutral-900 mb-2" />
-                Chargement...
+                {t('table.loading')}
               </div>
             ) : paginatedData.length === 0 ? (
               <div className="p-12 text-center text-neutral-400">
-                Aucun enregistrement disponible.
+                {t('table.empty_list')}
               </div>
             ) : (
               paginatedData.map((item, idx) => {
@@ -1152,7 +1186,7 @@ export function DataTable<T extends object = any>({
                 renderSplitDetail(activeSelectedItem)
               ) : (
                 <div className="p-8 text-center text-neutral-400">
-                  Sélectionnez un élément pour afficher ses détails.
+                  {t('table.select_item_prompt')}
                 </div>
               )}
             </div>
@@ -1163,9 +1197,9 @@ export function DataTable<T extends object = any>({
         {displayMode === 'matrix' && (
           <div className="p-4 sm:p-5">
             {isLoading ? (
-              <div className="p-12 text-center text-neutral-400">Chargement de la grille...</div>
+              <div className="p-12 text-center text-neutral-400">{t('table.loading_grid')}</div>
             ) : paginatedData.length === 0 ? (
-              <div className="p-12 text-center text-neutral-400">Aucun produit trouvé.</div>
+              <div className="p-12 text-center text-neutral-400">{t('table.empty_grid')}</div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {paginatedData.map((item, idx) => {
@@ -1258,14 +1292,14 @@ export function DataTable<T extends object = any>({
         {/* 5. Pagination Bar */}
         <div className="p-4 bg-white border-t border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-500 no-print">
           <div className="flex items-center gap-2">
-            <span>Afficher</span>
+            <span>{t('table.show')}</span>
             <select
               value={rowsPerPage}
               onChange={(e) => {
                 setRowsPerPage(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              aria-label="Lignes par page"
+              aria-label={t('table.rows_per_page')}
               className="py-1 px-2 border border-[#E6E1D6] rounded-lg text-xs font-semibold bg-white text-[#1D232E] focus:outline-none focus:border-[#C59B27] cursor-pointer"
             >
               {pageSizeOptions.map((opt) => (
@@ -1274,18 +1308,18 @@ export function DataTable<T extends object = any>({
                 </option>
               ))}
             </select>
-            <span>sur {sortedData.length} au total</span>
+            <span>{t('table.of')} {sortedData.length} {t('table.of_total')}</span>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center justify-center gap-1.5">
             <span className="text-[11px] text-neutral-400 mr-2">
-              Page {currentPage} sur {totalPages}
+              {t('table.page')} {currentPage} {t('table.of')} {totalPages}
             </span>
             <button
               type="button"
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              aria-label="Page précédente"
+              aria-label={t('table.prev_page')}
               className="p-1.5 rounded-lg border border-neutral-200 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -1294,7 +1328,7 @@ export function DataTable<T extends object = any>({
               type="button"
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              aria-label="Page suivante"
+              aria-label={t('table.next_page')}
               className="p-1.5 rounded-lg border border-neutral-200 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
             >
               <ChevronRight className="w-4 h-4" />
@@ -1309,8 +1343,8 @@ export function DataTable<T extends object = any>({
         <div className="mb-4 pb-2 border-b border-neutral-300 text-black">
           <h2 className="text-xl font-bold">{printTitle}</h2>
           <div className="text-xs text-neutral-600 mt-1 flex items-center justify-between">
-            <span>Date d'impression : {new Date().toLocaleString('fr-TN')}</span>
-            <span>Total : {sortedData.length} élément(s)</span>
+            <span>{t('table.print_date')} {new Date().toLocaleString('fr-TN')}</span>
+            <span>{t('table.print_total')} {sortedData.length} {t('table.items_unit')}</span>
           </div>
         </div>
         <table className="w-full text-left border-collapse text-xs border border-neutral-300">
