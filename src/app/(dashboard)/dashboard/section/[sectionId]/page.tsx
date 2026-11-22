@@ -37,6 +37,7 @@ import {
 import { Breadcrumb, Badge } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
 import { formatTndCurrency } from '@/lib/utils';
+import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 import {
   RoyalStackedBarChart,
   RoyalAreaTrendChart,
@@ -346,6 +347,7 @@ function buildStatCards(sectionId: string, kpis: any) {
 
 export default function SectionDashboardPage() {
   const params = useParams();
+  const { isRouteVisible } = useRouteVisibility();
   const sectionId = String(params?.sectionId || 'catalogue').toLowerCase();
   const meta = SECTION_META[sectionId] || SECTION_META.catalogue;
 
@@ -362,7 +364,8 @@ export default function SectionDashboardPage() {
   const charts = data?.charts || {};
   const statCards = buildStatCards(sectionId, kpis);
   const kpiRows = chunkRowsForFullWidth(statCards);
-  const linkRows = chunkRowsForFullWidth(meta.links);
+  const visibleLinks = meta.links.filter((l) => isRouteVisible(l.href));
+  const linkRows = chunkRowsForFullWidth(visibleLinks);
 
   const fallbackSlices = [{ label: 'Chargement...', value: 1 }];
 
@@ -413,38 +416,40 @@ export default function SectionDashboardPage() {
       </div>
 
       {/* 3. Full-Width Sous-Vues & Accès Directs Card Grid (Replacing Quick Actions) */}
-      <div className="bg-white p-6 rounded-3xl border border-[#E6E1D6] shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-heading font-extrabold text-[#1D232E] uppercase tracking-wider flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-[#C59B27]" />
-            <span>Sous-Vues &amp; Modules de la Section</span>
-          </h2>
-          <span className="text-[11px] font-semibold text-slate-400">
-            {meta.links.length} vues accessibles
-          </span>
-        </div>
-        <div className="space-y-3">
-          {linkRows.map((row, rIdx) => (
-            <div key={rIdx} className={rowGridClass(row.length)}>
-              {row.map((lnk) => (
-                <Link
-                  key={lnk.href + lnk.label}
-                  href={lnk.href}
-                  className="p-4 rounded-2xl bg-[#FBF9F4] border border-[#E6E1D6] hover:border-[#C59B27] hover:bg-[#FBF6E8] transition flex items-center justify-between gap-3 group"
-                >
-                  <div className="min-w-0">
-                    <div className="text-xs font-extrabold text-[#1D232E] group-hover:text-[#9A7414] truncate">
-                      {lnk.label}
+      {visibleLinks.length > 0 && (
+        <div className="bg-white p-6 rounded-3xl border border-[#E6E1D6] shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-heading font-extrabold text-[#1D232E] uppercase tracking-wider flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-[#C59B27]" />
+              <span>Sous-Vues &amp; Modules de la Section</span>
+            </h2>
+            <span className="text-[11px] font-semibold text-slate-400">
+              {visibleLinks.length} vues accessibles
+            </span>
+          </div>
+          <div className="space-y-3">
+            {linkRows.map((row, rIdx) => (
+              <div key={rIdx} className={rowGridClass(row.length)}>
+                {row.map((lnk) => (
+                  <Link
+                    key={lnk.href + lnk.label}
+                    href={lnk.href}
+                    className="p-4 rounded-2xl bg-[#FBF9F4] border border-[#E6E1D6] hover:border-[#C59B27] hover:bg-[#FBF6E8] transition flex items-center justify-between gap-3 group"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-xs font-extrabold text-[#1D232E] group-hover:text-[#9A7414] truncate">
+                        {lnk.label}
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-0.5 truncate">{lnk.desc}</div>
                     </div>
-                    <div className="text-[11px] text-slate-500 mt-0.5 truncate">{lnk.desc}</div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-[#C59B27] shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                </Link>
-              ))}
-            </div>
-          ))}
+                    <ArrowRight className="w-4 h-4 text-[#C59B27] shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 4. Section-Tailored Multi-Type Live Charts Grid (100% Real PostgreSQL & SysConfig Data) */}
       {sectionId === 'community' && (
@@ -830,34 +835,36 @@ export default function SectionDashboardPage() {
               <span>Derniers Messages Contact &amp; Discussions Support</span>
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {(lists.recentContacts || []).map((c: any) => (
-                <Link
-                  key={c.id}
-                  href="/dashboard/community/contacts"
-                  className="p-3.5 rounded-2xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center justify-between text-xs hover:border-[#C59B27] transition"
-                >
-                  <div className="min-w-0 pr-2">
-                    <div className="font-bold text-[#1D232E] truncate">{c.fullName} — {c.subject}</div>
-                    <div className="text-[11px] text-slate-500">Contact Public • {new Date(c.createdAt).toLocaleDateString('fr-FR')}</div>
-                  </div>
-                  <Badge variant={c.isRead ? 'neutral' : 'warning'} size="sm">
-                    {c.isRead ? 'Lu' : 'Nouveau'}
-                  </Badge>
-                </Link>
-              ))}
-              {(lists.recentThreads || []).map((t: any) => (
-                <Link
-                  key={t.id}
-                  href="/dashboard/community/messages"
-                  className="p-3.5 rounded-2xl bg-white border border-slate-200 flex items-center justify-between text-xs hover:border-[#C59B27] transition"
-                >
-                  <div className="min-w-0 pr-2">
-                    <div className="font-semibold text-[#1D232E] truncate">Support Client : {t.subject}</div>
-                    <div className="text-[11px] text-slate-500">Ticket Espace Client</div>
-                  </div>
-                  <Badge variant="info" size="sm">{t.status}</Badge>
-                </Link>
-              ))}
+              {isRouteVisible('/dashboard/community/contacts') &&
+                (lists.recentContacts || []).map((c: any) => (
+                  <Link
+                    key={c.id}
+                    href="/dashboard/community/contacts"
+                    className="p-3.5 rounded-2xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center justify-between text-xs hover:border-[#C59B27] transition"
+                  >
+                    <div className="min-w-0 pr-2">
+                      <div className="font-bold text-[#1D232E] truncate">{c.fullName} — {c.subject}</div>
+                      <div className="text-[11px] text-slate-500">Contact Public • {new Date(c.createdAt).toLocaleDateString('fr-FR')}</div>
+                    </div>
+                    <Badge variant={c.isRead ? 'neutral' : 'warning'} size="sm">
+                      {c.isRead ? 'Lu' : 'Nouveau'}
+                    </Badge>
+                  </Link>
+                ))}
+              {isRouteVisible('/dashboard/community/messages') &&
+                (lists.recentThreads || []).map((t: any) => (
+                  <Link
+                    key={t.id}
+                    href="/dashboard/community/messages"
+                    className="p-3.5 rounded-2xl bg-white border border-slate-200 flex items-center justify-between text-xs hover:border-[#C59B27] transition"
+                  >
+                    <div className="min-w-0 pr-2">
+                      <div className="font-semibold text-[#1D232E] truncate">Support Client : {t.subject}</div>
+                      <div className="text-[11px] text-slate-500">Ticket Espace Client</div>
+                    </div>
+                    <Badge variant="info" size="sm">{t.status}</Badge>
+                  </Link>
+                ))}
               {(lists.recentContacts || []).length === 0 && (lists.recentThreads || []).length === 0 && (
                 <p className="text-xs text-slate-400 py-4 text-center md:col-span-2">Aucun message communauté récent.</p>
               )}
@@ -892,18 +899,30 @@ export default function SectionDashboardPage() {
               <span>Derniers Articles Référencés</span>
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {(lists.recentProducts || []).map((p: any) => (
-                <Link
-                  key={p.id}
-                  href={`/dashboard/articles/${p.id}`}
-                  className="p-3.5 rounded-2xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center justify-between text-xs hover:border-[#C59B27] transition gap-2"
-                >
-                  <span className="font-semibold text-[#1D232E] truncate">{p.name}</span>
-                  <span className="font-mono font-bold text-[#9A7414] shrink-0">
-                    {formatTndCurrency(p.sellingPrice)}
-                  </span>
-                </Link>
-              ))}
+              {(lists.recentProducts || []).map((p: any) =>
+                isRouteVisible('/dashboard/articles') ? (
+                  <Link
+                    key={p.id}
+                    href={`/dashboard/articles/${p.id}`}
+                    className="p-3.5 rounded-2xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center justify-between text-xs hover:border-[#C59B27] transition gap-2"
+                  >
+                    <span className="font-semibold text-[#1D232E] truncate">{p.name}</span>
+                    <span className="font-mono font-bold text-[#9A7414] shrink-0">
+                      {formatTndCurrency(p.sellingPrice)}
+                    </span>
+                  </Link>
+                ) : (
+                  <div
+                    key={p.id}
+                    className="p-3.5 rounded-2xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center justify-between text-xs gap-2"
+                  >
+                    <span className="font-semibold text-[#1D232E] truncate">{p.name}</span>
+                    <span className="font-mono font-bold text-[#9A7414] shrink-0">
+                      {formatTndCurrency(p.sellingPrice)}
+                    </span>
+                  </div>
+                )
+              )}
             </div>
           </>
         )}
@@ -1045,19 +1064,32 @@ export default function SectionDashboardPage() {
               <span>Dernières Commandes &amp; Ventes</span>
             </h2>
             <div className="divide-y divide-slate-100">
-              {(data?.recentOrders || []).map((ord: any) => (
-                <Link
-                  key={ord.id}
-                  href={`/dashboard/orders/${ord.id}`}
-                  className="py-2.5 flex items-center justify-between text-xs hover:bg-[#FBF9F4] px-2 -mx-2 rounded-xl"
-                >
-                  <span className="font-mono font-bold text-[#1D232E]">#{ord.reference}</span>
-                  <Badge variant="neutral" size="sm">{ord.status}</Badge>
-                  <span className="font-mono font-bold text-[#9A7414]">
-                    {formatTndCurrency(ord.totalAmount)}
-                  </span>
-                </Link>
-              ))}
+              {(data?.recentOrders || []).map((ord: any) =>
+                isRouteVisible('/dashboard/orders') ? (
+                  <Link
+                    key={ord.id}
+                    href={`/dashboard/orders/${ord.id}`}
+                    className="py-2.5 flex items-center justify-between text-xs hover:bg-[#FBF9F4] px-2 -mx-2 rounded-xl"
+                  >
+                    <span className="font-mono font-bold text-[#1D232E]">#{ord.reference}</span>
+                    <Badge variant="neutral" size="sm">{ord.status}</Badge>
+                    <span className="font-mono font-bold text-[#9A7414]">
+                      {formatTndCurrency(ord.totalAmount)}
+                    </span>
+                  </Link>
+                ) : (
+                  <div
+                    key={ord.id}
+                    className="py-2.5 flex items-center justify-between text-xs px-2 -mx-2 rounded-xl"
+                  >
+                    <span className="font-mono font-bold text-[#1D232E]">#{ord.reference}</span>
+                    <Badge variant="neutral" size="sm">{ord.status}</Badge>
+                    <span className="font-mono font-bold text-[#9A7414]">
+                      {formatTndCurrency(ord.totalAmount)}
+                    </span>
+                  </div>
+                )
+              )}
             </div>
           </>
         )}

@@ -23,6 +23,7 @@ import {
 import { fetchApi } from '@/lib/api';
 import { useSystemDocumentConfig } from '@/hooks/useSystemDocumentConfig';
 import { DocumentPrintHeader, DocumentPrintFooter } from '@/components/dashboard/DocumentPrintLayout';
+import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 import {
   DataTable,
   ColumnDef,
@@ -64,6 +65,8 @@ function PurchaseReceiptsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const sysDoc = useSystemDocumentConfig();
+  const { isRouteVisible } = useRouteVisibility();
+  const canCreateStockIn = isRouteVisible('/dashboard/stock-in');
   const [receipts, setReceipts] = React.useState<PurchaseReceiptItem[]>([]);
   const [purchaseOrders, setPurchaseOrders] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -310,14 +313,16 @@ function PurchaseReceiptsContent() {
       className: 'text-right no-print',
       render: (item) => (
         <div className="flex items-center justify-end gap-1.5">
-          <Link
-            href={`/dashboard/stock-in?fromBr=${encodeURIComponent(item.receiptNumber)}`}
-            title="Convertir en Bon d’Entrée Stock (BE)"
-            className="h-8 px-2.5 rounded-lg bg-[var(--royal-primary)] hover:opacity-90 text-white text-[11px] font-bold flex items-center gap-1 transition shadow-xs"
-          >
-            <span>Créer BE</span>
-            <ArrowRight className="h-3 w-3" />
-          </Link>
+          {canCreateStockIn && (
+            <Link
+              href={`/dashboard/stock-in?fromBr=${encodeURIComponent(item.receiptNumber)}`}
+              title="Convertir en Bon d’Entrée Stock (BE)"
+              className="h-8 px-2.5 rounded-lg bg-[var(--royal-primary)] hover:opacity-90 text-white text-[11px] font-bold flex items-center gap-1 transition shadow-xs"
+            >
+              <span>Créer BE</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          )}
           <button
             type="button"
             title="Consulter le Bon de Réception"
@@ -425,19 +430,21 @@ function PurchaseReceiptsContent() {
                   <Edit3 className="h-3.5 w-3.5 mr-1" />
                   Modifier Pointage
                 </Button>
-                <Button
-                  variant="gold"
-                  size="sm"
-                  onClick={() => {
-                    const ref = selectedReceipt.receiptNumber;
-                    setSelectedReceipt(null);
-                    router.push(`/dashboard/stock-in?fromBr=${encodeURIComponent(ref)}`);
-                  }}
-                >
-                  <FileCheck className="h-3.5 w-3.5 mr-1" />
-                  Convertir en Bon d&apos;Entrée Stock (BE)
-                  <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                </Button>
+                {canCreateStockIn && (
+                  <Button
+                    variant="gold"
+                    size="sm"
+                    onClick={() => {
+                      const ref = selectedReceipt.receiptNumber;
+                      setSelectedReceipt(null);
+                      router.push(`/dashboard/stock-in?fromBr=${encodeURIComponent(ref)}`);
+                    }}
+                  >
+                    <FileCheck className="h-3.5 w-3.5 mr-1" />
+                    Convertir en Bon d&apos;Entrée Stock (BE)
+                    <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                  </Button>
+                )}
               </div>
               <Button variant="outline" size="sm" onClick={() => setSelectedReceipt(null)}>
                 Fermer

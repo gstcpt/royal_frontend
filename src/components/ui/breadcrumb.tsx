@@ -4,6 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { ChevronRight, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useOptionalRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 
 export interface BreadcrumbItem {
   label: string;
@@ -22,7 +23,10 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
   className,
   showHomeIcon = true,
 }) => {
+  const visibility = useOptionalRouteVisibility();
   if (!items || items.length === 0) return null;
+
+  const canLink = (href?: string) => !visibility || visibility.isRouteVisible(href);
 
   return (
     <nav
@@ -46,12 +50,13 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
 
       {items.map((item, index) => {
         const isLast = index === items.length - 1;
+        const isClickable = Boolean(item.href && !isLast && canLink(item.href));
 
         return (
           <React.Fragment key={index}>
-            {item.href && !isLast ? (
+            {isClickable ? (
               <Link
-                href={item.href}
+                href={item.href!}
                 className="hover:text-neutral-900 transition-colors truncate max-w-[200px]"
               >
                 {item.label}

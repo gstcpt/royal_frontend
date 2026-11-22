@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { fetchApi } from '@/lib/api';
+import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 import {
   Button,
   Badge,
@@ -89,6 +90,8 @@ const STATUS_META: Record<
 };
 
 export default function SupportMessagesPage() {
+  const { isRouteVisible } = useRouteVisibility();
+  const canSeeContacts = isRouteVisible('/dashboard/community/contacts');
   const [threads, setThreads] = React.useState<AdminSupportThreadItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [activeFolder, setActiveFolder] = React.useState<'INBOX' | 'IN_PROGRESS' | 'RESOLVED' | 'ALL'>('INBOX');
@@ -246,24 +249,30 @@ export default function SupportMessagesPage() {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Fils de discussion multi-tours ouverts par vos clients connectés (SAV, suivi commande, litiges), distincts du{' '}
-                <Link href="/dashboard/community/contacts" className="text-[#9A7414] font-semibold hover:underline">
-                  formulaire Contact public
-                </Link>
+                Fils de discussion multi-tours ouverts par vos clients connectés (SAV, suivi commande, litiges){canSeeContacts ? (
+                  <>
+                    , distincts du{' '}
+                    <Link href="/dashboard/community/contacts" className="text-[#9A7414] font-semibold hover:underline">
+                      formulaire Contact public
+                    </Link>
+                  </>
+                ) : null}
                 .
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            <Link
-              href="/dashboard/community/contacts"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#E6E1D6] bg-[#FBF9F4] hover:border-[#C59B27] text-xs font-bold text-[#1D232E] transition"
-            >
-              <Mail className="w-3.5 h-3.5 text-[#C59B27]" />
-              <span>Voir Messages Contact Public</span>
-              <ExternalLink className="w-3 h-3 text-slate-400" />
-            </Link>
+            {canSeeContacts && (
+              <Link
+                href="/dashboard/community/contacts"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#E6E1D6] bg-[#FBF9F4] hover:border-[#C59B27] text-xs font-bold text-[#1D232E] transition"
+              >
+                <Mail className="w-3.5 h-3.5 text-[#C59B27]" />
+                <span>Voir Messages Contact Public</span>
+                <ExternalLink className="w-3 h-3 text-slate-400" />
+              </Link>
+            )}
             <Button
               variant="outline"
               onClick={loadThreads}

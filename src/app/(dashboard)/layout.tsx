@@ -11,6 +11,10 @@ import { SystemRole } from '@royal/shared-types';
 import { cn } from '@/lib/utils';
 import { HeaderInboxPopovers } from '@/components/dashboard/HeaderInboxPopovers';
 import {
+  DashboardVisibilityProvider,
+  resolveRouteVisibility,
+} from '@/providers/DashboardVisibilityProvider';
+import {
   LayoutDashboard,
   Store,
   Users,
@@ -870,11 +874,8 @@ function DashboardLayoutInner({
     },
   ];
 
-  const isHrefVisible = (href?: string): boolean => {
-    if (!href || isRoot) return true;
-    const baseHref = href.split('?')[0];
-    return visibilityMap[baseHref] !== 'PRIVATE';
-  };
+  const isHrefVisible = (href?: string | null): boolean =>
+    resolveRouteVisibility(href, visibilityMap, isRoot);
 
   const filterVisibleNodes = (nodes: NavNode[]): NavNode[] =>
     nodes
@@ -1124,7 +1125,8 @@ function DashboardLayoutInner({
   };
 
   return (
-    <div className="min-h-screen flex bg-[#FDFCF9] text-[#1D232E] font-sans overflow-x-hidden">
+    <DashboardVisibilityProvider value={{ visibilityMap, isRoot, isRouteVisible: isHrefVisible }}>
+      <div className="min-h-screen flex bg-[#FDFCF9] text-[#1D232E] font-sans overflow-x-hidden">
       {/* Mobile / Tablet Drawer Backdrop */}
       {!isCollapsed && isSmallScreen && (
         <div
@@ -1548,7 +1550,8 @@ function DashboardLayoutInner({
           </div>,
           document.body
         )}
-    </div>
+      </div>
+    </DashboardVisibilityProvider>
   );
 }
 

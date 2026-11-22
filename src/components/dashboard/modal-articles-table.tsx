@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Search, Package, Warehouse, ExternalLink, ChevronLeft, ChevronRight, Image as ImageIcon } from 'lucide-react';
 import { Badge, Modal, Button } from '@/components/ui';
 import { formatTndCurrency, cn } from '@/lib/utils';
+import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 
 export interface ModalProductItem {
   id: string;
@@ -296,6 +297,8 @@ export function RelatedArticlesModal({
   articles,
   pageSize = 5,
 }: RelatedArticlesModalProps) {
+  const { isRouteVisible } = useRouteVisibility();
+  const canSeeArticles = isRouteVisible('/dashboard/articles');
   return (
     <Modal
       isOpen={isOpen}
@@ -307,13 +310,17 @@ export function RelatedArticlesModal({
       className="max-w-6xl w-full"
       footer={
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
-          <Link
-            href="/dashboard/articles"
-            className="text-xs text-neutral-600 hover:text-neutral-950 font-semibold flex items-center gap-1.5 transition"
-          >
-            <Package className="w-3.5 h-3.5 text-neutral-500" />
-            <span>Ouvrir la gestion complète des articles</span>
-          </Link>
+          {canSeeArticles ? (
+            <Link
+              href="/dashboard/articles"
+              className="text-xs text-neutral-600 hover:text-neutral-950 font-semibold flex items-center gap-1.5 transition"
+            >
+              <Package className="w-3.5 h-3.5 text-neutral-500" />
+              <span>Ouvrir la gestion complète des articles</span>
+            </Link>
+          ) : (
+            <span />
+          )}
           <Button
             type="button"
             variant="primary"

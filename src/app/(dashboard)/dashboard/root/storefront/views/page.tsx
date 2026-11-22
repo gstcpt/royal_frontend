@@ -46,6 +46,7 @@ import { Button, Input, Textarea, Toggle, Select, Breadcrumb, Toast } from '@/co
 import { ImageDropzoneCropper } from '@/components/ui/image-dropzone-cropper';
 import { fetchApi } from '@/lib/api';
 import { getSafeImageUrl } from '@/lib/cart-session';
+import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 
 const VIEW_TABS = [
   { id: 'home', label: "Page d'accueil", icon: Home, publicHref: '/' },
@@ -548,6 +549,7 @@ function DynamicTargetSelector({
 function StorefrontViewsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { isRouteVisible } = useRouteVisibility();
   const activeView = searchParams.get('view') || 'home';
 
   const [views, setViews] = React.useState<any>({
@@ -1350,9 +1352,11 @@ function StorefrontViewsContent() {
               <Input label="Titre Section" value={h.testimonialsTitle ?? 'Ce que disent nos clients'} onChange={(e) => setViews({ ...views, home: { ...h, testimonialsTitle: e.target.value } })} />
               <Input label="Note Confiance" value={h.testimonialsBadge ?? '4.9 / 5 sur plus de 1 200 commandes'} onChange={(e) => setViews({ ...views, home: { ...h, testimonialsBadge: e.target.value } })} />
             </div>
-            <Link href="/dashboard/seo/testimonials" className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--royal-primary)] hover:underline">
-              <span>Gérer la liste des témoignages publiés →</span>
-            </Link>
+            {isRouteVisible('/dashboard/seo/testimonials') && (
+              <Link href="/dashboard/seo/testimonials" className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--royal-primary)] hover:underline">
+                <span>Gérer la liste des témoignages publiés →</span>
+              </Link>
+            )}
           </div>
         );
       }

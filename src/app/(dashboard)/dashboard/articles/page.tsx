@@ -63,6 +63,7 @@ import {
 } from '@/components/ui';
 import { formatTndCurrency, cn } from '@/lib/utils';
 import { API_BASE_URL, fetchApi } from '@/lib/api';
+import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 
 interface ProductItem {
   id: string;
@@ -493,6 +494,8 @@ const FORM_SECTIONS: FormSectionTab[] = [
 ];
 
 export default function DashboardArticlesPage() {
+  const { isRouteVisible, isRoot } = useRouteVisibility();
+  const canSeeInventory = isRouteVisible('/dashboard/inventory');
   // Main Data States
   const [products, setProducts] = React.useState<ProductItem[]>([]);
   const [categories, setCategories] = React.useState<CategoryOption[]>([]);
@@ -2046,13 +2049,17 @@ export default function DashboardArticlesPage() {
         size="lg"
         footer={
           <div className="flex items-center justify-between w-full">
-            <Link
-              href="/dashboard/inventory"
-              className="text-xs text-neutral-600 hover:text-neutral-950 font-semibold flex items-center gap-1.5"
-            >
-              <Warehouse className="w-3.5 h-3.5 text-neutral-500" />
-              <span>Ouvrir la gestion des stocks & dépôts</span>
-            </Link>
+            {canSeeInventory ? (
+              <Link
+                href="/dashboard/inventory"
+                className="text-xs text-neutral-600 hover:text-neutral-950 font-semibold flex items-center gap-1.5"
+              >
+                <Warehouse className="w-3.5 h-3.5 text-neutral-500" />
+                <span>Ouvrir la gestion des stocks & dépôts</span>
+              </Link>
+            ) : (
+              <span />
+            )}
             <Button
               type="button"
               variant="primary"
@@ -2184,16 +2191,18 @@ export default function DashboardArticlesPage() {
               </table>
             </div>
 
-            <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200 text-xs text-neutral-500 flex items-center justify-between">
-              <span>Pour alimenter le stock dans un dépôt spécifique :</span>
-              <Link
-                href="/dashboard/inventory"
-                className="font-bold text-neutral-900 hover:underline flex items-center gap-1"
-              >
-                <span>Créer un Bon d'Entrée</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
+            {canSeeInventory && (
+              <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200 text-xs text-neutral-500 flex items-center justify-between">
+                <span>Pour alimenter le stock dans un dépôt spécifique :</span>
+                <Link
+                  href="/dashboard/inventory"
+                  className="font-bold text-neutral-900 hover:underline flex items-center gap-1"
+                >
+                  <span>Créer un Bon d'Entrée</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </Modal>
@@ -2397,7 +2406,7 @@ export default function DashboardArticlesPage() {
                         }));
                         showToast('success', 'Rédaction FR/AR et balises SEO générées par IA.');
                       } catch (err: any) {
-                        showToast('error', err?.message || 'IA indisponible. Vérifiez /dashboard/root/ai.');
+                        showToast('error', err?.message || (isRoot ? 'IA indisponible. Vérifiez /dashboard/root/ai.' : 'Assistant IA temporairement indisponible.'));
                       } finally {
                         setIsGeneratingAi(false);
                       }

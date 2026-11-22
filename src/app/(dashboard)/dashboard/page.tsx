@@ -42,6 +42,7 @@ import {
   DashboardAnalyticsPack,
   UserDashboardPayload,
 } from '@/components/dashboard/DashboardAnalyticsPack';
+import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 
 interface DashboardKpis {
   articlesCount: number;
@@ -75,6 +76,13 @@ interface DashboardKpis {
 
 export default function DashboardPage() {
   const { user, hasRole } = useAuthStore();
+  const { isRouteVisible } = useRouteVisibility();
+  const canSeeArticles = isRouteVisible('/dashboard/articles');
+  const canSeeCategories = isRouteVisible('/dashboard/categories');
+  const canSeeCoupons = isRouteVisible('/dashboard/coupons');
+  const canSeeOrders = isRouteVisible('/dashboard/orders');
+  const canSeeTestimonials = isRouteVisible('/dashboard/community/testimonials');
+  const canSeeContacts = isRouteVisible('/dashboard/community/contacts');
   const userRoles = (user?.roles as string[]) || [];
   const isRoot = userRoles.includes('ROOT') || hasRole(SystemRole.ROOT);
   const isSuperAdmin = userRoles.includes('SUPER_ADMIN') || hasRole(SystemRole.SUPER_ADMIN);
@@ -165,41 +173,51 @@ export default function DashboardPage() {
 
         {/* Quick Action Buttons Strip */}
         <div className="flex flex-wrap items-center gap-2.5 pt-4 border-t border-neutral-100">
-          <Link
-            href="/dashboard/articles"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] font-bold text-xs hover:bg-[var(--royal-primary-hover)] transition shadow-xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Ajouter / Gérer Articles</span>
-          </Link>
-          <Link
-            href="/dashboard/coupons"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-amber-50 border border-amber-200 text-amber-900 font-bold text-xs hover:bg-amber-100 transition"
-          >
-            <Ticket className="w-3.5 h-3.5 text-amber-600" />
-            <span>Codes Promo &amp; Livraison</span>
-          </Link>
-          <Link
-            href="/dashboard/orders"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-neutral-200 text-neutral-800 font-bold text-xs hover:border-neutral-900 transition"
-          >
-            <ShoppingCart className="w-3.5 h-3.5 text-blue-600" />
-            <span>Commandes Clients</span>
-          </Link>
-          <Link
-            href="/dashboard/community/testimonials"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-neutral-200 text-neutral-800 font-bold text-xs hover:border-neutral-900 transition"
-          >
-            <Star className="w-3.5 h-3.5 text-amber-500" />
-            <span>Modérer Avis &amp; Commentaires</span>
-          </Link>
-          <Link
-            href="/dashboard/community/contacts"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-neutral-200 text-neutral-800 font-bold text-xs hover:border-neutral-900 transition"
-          >
-            <Mail className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Messages Contacts</span>
-          </Link>
+          {canSeeArticles && (
+            <Link
+              href="/dashboard/articles"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] font-bold text-xs hover:bg-[var(--royal-primary-hover)] transition shadow-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Ajouter / Gérer Articles</span>
+            </Link>
+          )}
+          {canSeeCoupons && (
+            <Link
+              href="/dashboard/coupons"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-amber-50 border border-amber-200 text-amber-900 font-bold text-xs hover:bg-amber-100 transition"
+            >
+              <Ticket className="w-3.5 h-3.5 text-amber-600" />
+              <span>Codes Promo &amp; Livraison</span>
+            </Link>
+          )}
+          {canSeeOrders && (
+            <Link
+              href="/dashboard/orders"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-neutral-200 text-neutral-800 font-bold text-xs hover:border-neutral-900 transition"
+            >
+              <ShoppingCart className="w-3.5 h-3.5 text-blue-600" />
+              <span>Commandes Clients</span>
+            </Link>
+          )}
+          {canSeeTestimonials && (
+            <Link
+              href="/dashboard/community/testimonials"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-neutral-200 text-neutral-800 font-bold text-xs hover:border-neutral-900 transition"
+            >
+              <Star className="w-3.5 h-3.5 text-amber-500" />
+              <span>Modérer Avis &amp; Commentaires</span>
+            </Link>
+          )}
+          {canSeeContacts && (
+            <Link
+              href="/dashboard/community/contacts"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-neutral-200 text-neutral-800 font-bold text-xs hover:border-neutral-900 transition"
+            >
+              <Mail className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Messages Contacts</span>
+            </Link>
+          )}
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#FBF6E8] border border-[#E6D6A6] text-[#9A7414] font-bold text-xs hover:bg-[#F5E9C8] transition ml-auto"
@@ -217,31 +235,61 @@ export default function DashboardPage() {
       {(isRoot || isSuperAdmin || isWebsiteManager) && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <Link href="/dashboard/articles" className="bg-white p-6 rounded-3xl border border-neutral-200 hover:border-neutral-900 transition shadow-sm space-y-2">
-              <div className="flex items-center justify-between text-neutral-500 text-xs font-semibold uppercase tracking-wider">
-                <span>Articles Actifs</span>
-                <span className="p-2 bg-amber-50 text-amber-700 rounded-xl">
-                  <Package className="h-4 w-4" />
-                </span>
+            {canSeeArticles ? (
+              <Link href="/dashboard/articles" className="bg-white p-6 rounded-3xl border border-neutral-200 hover:border-neutral-900 transition shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-neutral-500 text-xs font-semibold uppercase tracking-wider">
+                  <span>Articles Actifs</span>
+                  <span className="p-2 bg-amber-50 text-amber-700 rounded-xl">
+                    <Package className="h-4 w-4" />
+                  </span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-heading font-black text-neutral-900 font-mono">
+                  {kpis.articlesCount}
+                </div>
+                <div className="text-[11px] text-neutral-400">Références en ligne sur le catalogue</div>
+              </Link>
+            ) : (
+              <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-neutral-500 text-xs font-semibold uppercase tracking-wider">
+                  <span>Articles Actifs</span>
+                  <span className="p-2 bg-amber-50 text-amber-700 rounded-xl">
+                    <Package className="h-4 w-4" />
+                  </span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-heading font-black text-neutral-900 font-mono">
+                  {kpis.articlesCount}
+                </div>
+                <div className="text-[11px] text-neutral-400">Références en ligne sur le catalogue</div>
               </div>
-              <div className="text-2xl sm:text-3xl font-heading font-black text-neutral-900 font-mono">
-                {kpis.articlesCount}
-              </div>
-              <div className="text-[11px] text-neutral-400">Références en ligne sur le catalogue</div>
-            </Link>
+            )}
 
-            <Link href="/dashboard/categories" className="bg-white p-6 rounded-3xl border border-neutral-200 hover:border-neutral-900 transition shadow-sm space-y-2">
-              <div className="flex items-center justify-between text-neutral-500 text-xs font-semibold uppercase tracking-wider">
-                <span>Catégories</span>
-                <span className="p-2 bg-indigo-50 text-indigo-700 rounded-xl">
-                  <Layers className="h-4 w-4" />
-                </span>
+            {canSeeCategories ? (
+              <Link href="/dashboard/categories" className="bg-white p-6 rounded-3xl border border-neutral-200 hover:border-neutral-900 transition shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-neutral-500 text-xs font-semibold uppercase tracking-wider">
+                  <span>Catégories</span>
+                  <span className="p-2 bg-indigo-50 text-indigo-700 rounded-xl">
+                    <Layers className="h-4 w-4" />
+                  </span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-heading font-black text-neutral-900 font-mono">
+                  {kpis.categoriesCount}
+                </div>
+                <div className="text-[11px] text-neutral-400">Sur {kpis.totalCategoriesCount} rayons configurés</div>
+              </Link>
+            ) : (
+              <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-neutral-500 text-xs font-semibold uppercase tracking-wider">
+                  <span>Catégories</span>
+                  <span className="p-2 bg-indigo-50 text-indigo-700 rounded-xl">
+                    <Layers className="h-4 w-4" />
+                  </span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-heading font-black text-neutral-900 font-mono">
+                  {kpis.categoriesCount}
+                </div>
+                <div className="text-[11px] text-neutral-400">Sur {kpis.totalCategoriesCount} rayons configurés</div>
               </div>
-              <div className="text-2xl sm:text-3xl font-heading font-black text-neutral-900 font-mono">
-                {kpis.categoriesCount}
-              </div>
-              <div className="text-[11px] text-neutral-400">Sur {kpis.totalCategoriesCount} rayons configurés</div>
-            </Link>
+            )}
 
             <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm space-y-2">
               <div className="flex items-center justify-between text-neutral-500 text-xs font-semibold uppercase tracking-wider">
@@ -256,33 +304,65 @@ export default function DashboardPage() {
               <div className="text-[11px] text-neutral-400">Comptes actifs en base</div>
             </div>
 
-            <Link href="/dashboard/orders" className="bg-white p-6 rounded-3xl border border-neutral-200 hover:border-neutral-900 transition shadow-sm space-y-2">
-              <div className="flex items-center justify-between text-neutral-500 text-xs font-semibold uppercase tracking-wider">
-                <span>Commandes</span>
-                <span className="p-2 bg-blue-50 text-blue-700 rounded-xl">
-                  <ShoppingCart className="h-4 w-4" />
-                </span>
+            {canSeeOrders ? (
+              <Link href="/dashboard/orders" className="bg-white p-6 rounded-3xl border border-neutral-200 hover:border-neutral-900 transition shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-neutral-500 text-xs font-semibold uppercase tracking-wider">
+                  <span>Commandes</span>
+                  <span className="p-2 bg-blue-50 text-blue-700 rounded-xl">
+                    <ShoppingCart className="h-4 w-4" />
+                  </span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-heading font-black text-neutral-900 font-mono">
+                  {kpis.ordersCount}
+                </div>
+                <div className="text-[11px] text-neutral-400">Total commandes enregistrées</div>
+              </Link>
+            ) : (
+              <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-neutral-500 text-xs font-semibold uppercase tracking-wider">
+                  <span>Commandes</span>
+                  <span className="p-2 bg-blue-50 text-blue-700 rounded-xl">
+                    <ShoppingCart className="h-4 w-4" />
+                  </span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-heading font-black text-neutral-900 font-mono">
+                  {kpis.ordersCount}
+                </div>
+                <div className="text-[11px] text-neutral-400">Total commandes enregistrées</div>
               </div>
-              <div className="text-2xl sm:text-3xl font-heading font-black text-neutral-900 font-mono">
-                {kpis.ordersCount}
-              </div>
-              <div className="text-[11px] text-neutral-400">Total commandes enregistrées</div>
-            </Link>
+            )}
 
-            <Link href="/dashboard/orders" className="bg-white p-6 rounded-3xl border border-neutral-200 hover:border-neutral-900 transition shadow-sm space-y-2">
-              <div className="flex items-center justify-between text-neutral-500 text-xs font-semibold uppercase tracking-wider">
-                <span>Ventes Validées</span>
-                <span className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
-                  <TrendingUp className="h-4 w-4" />
-                </span>
+            {canSeeOrders ? (
+              <Link href="/dashboard/orders" className="bg-white p-6 rounded-3xl border border-neutral-200 hover:border-neutral-900 transition shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-neutral-500 text-xs font-semibold uppercase tracking-wider">
+                  <span>Ventes Validées</span>
+                  <span className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
+                    <TrendingUp className="h-4 w-4" />
+                  </span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-heading font-black text-neutral-900 font-mono">
+                  {kpis.salesCount}
+                </div>
+                <div className="text-[11px] text-emerald-700 font-bold font-mono">
+                  CA : {formatTndCurrency(kpis.salesTotal)}
+                </div>
+              </Link>
+            ) : (
+              <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-neutral-500 text-xs font-semibold uppercase tracking-wider">
+                  <span>Ventes Validées</span>
+                  <span className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
+                    <TrendingUp className="h-4 w-4" />
+                  </span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-heading font-black text-neutral-900 font-mono">
+                  {kpis.salesCount}
+                </div>
+                <div className="text-[11px] text-emerald-700 font-bold font-mono">
+                  CA : {formatTndCurrency(kpis.salesTotal)}
+                </div>
               </div>
-              <div className="text-2xl sm:text-3xl font-heading font-black text-neutral-900 font-mono">
-                {kpis.salesCount}
-              </div>
-              <div className="text-[11px] text-emerald-700 font-bold font-mono">
-                CA : {formatTndCurrency(kpis.salesTotal)}
-              </div>
-            </Link>
+            )}
           </div>
 
           {/* Visual Charts Row: Top Categories Bar Chart + Orders By Status Breakdown */}
@@ -293,9 +373,11 @@ export default function DashboardPage() {
                   <BarChart3 className="w-4 h-4 text-amber-600" />
                   <span>Top Catégories par Volume d&apos;Articles</span>
                 </h3>
-                <Link href="/dashboard/categories" className="text-xs font-bold text-neutral-600 hover:text-neutral-950">
-                  Voir tout →
-                </Link>
+                {canSeeCategories && (
+                  <Link href="/dashboard/categories" className="text-xs font-bold text-neutral-600 hover:text-neutral-950">
+                    Voir tout →
+                  </Link>
+                )}
               </div>
 
               <div className="space-y-3">
@@ -329,9 +411,11 @@ export default function DashboardPage() {
                   <PieChart className="w-4 h-4 text-blue-600" />
                   <span>Répartition des Commandes par État</span>
                 </h3>
-                <Link href="/dashboard/orders" className="text-xs font-bold text-neutral-600 hover:text-neutral-950">
-                  Gérer →
-                </Link>
+                {canSeeOrders && (
+                  <Link href="/dashboard/orders" className="text-xs font-bold text-neutral-600 hover:text-neutral-950">
+                    Gérer →
+                  </Link>
+                )}
               </div>
 
               {(kpis.ordersByStatus || []).length === 0 ? (
@@ -379,9 +463,11 @@ export default function DashboardPage() {
                 <h3 className="font-heading font-bold text-sm text-neutral-900">
                   Dernières Commandes Clients
                 </h3>
-                <Link href="/dashboard/orders" className="text-xs font-bold text-amber-700 hover:underline">
-                  Toutes les commandes →
-                </Link>
+                {canSeeOrders && (
+                  <Link href="/dashboard/orders" className="text-xs font-bold text-amber-700 hover:underline">
+                    Toutes les commandes →
+                  </Link>
+                )}
               </div>
               {/* Mobile / Tablet List View */}
               <div className="lg:hidden divide-y divide-neutral-100">
@@ -391,9 +477,15 @@ export default function DashboardPage() {
                   (kpis.recentOrders || []).map((ord) => (
                     <div key={ord.id} className="py-3 flex items-center justify-between gap-3 text-xs">
                       <div className="min-w-0">
-                        <Link href={`/dashboard/orders/${ord.id}`} className="font-mono font-bold text-neutral-900 hover:text-amber-700 hover:underline block truncate">
-                          {ord.reference}
-                        </Link>
+                        {canSeeOrders ? (
+                          <Link href={`/dashboard/orders/${ord.id}`} className="font-mono font-bold text-neutral-900 hover:text-amber-700 hover:underline block truncate">
+                            {ord.reference}
+                          </Link>
+                        ) : (
+                          <span className="font-mono font-bold text-neutral-900 block truncate">
+                            {ord.reference}
+                          </span>
+                        )}
                         <div className="text-[11px] text-neutral-600 truncate mt-0.5">{ord.customerName}</div>
                       </div>
                       <div className="text-right shrink-0 space-y-1">
@@ -429,9 +521,13 @@ export default function DashboardPage() {
                       (kpis.recentOrders || []).map((ord) => (
                         <tr key={ord.id} className="hover:bg-[#F8F9FA]">
                           <td className="py-2.5 pr-3 font-mono font-bold text-neutral-900">
-                            <Link href={`/dashboard/orders/${ord.id}`} className="hover:text-amber-700 hover:underline">
-                              {ord.reference}
-                            </Link>
+                            {canSeeOrders ? (
+                              <Link href={`/dashboard/orders/${ord.id}`} className="hover:text-amber-700 hover:underline">
+                                {ord.reference}
+                              </Link>
+                            ) : (
+                              <span>{ord.reference}</span>
+                            )}
                           </td>
                           <td className="py-2.5 pr-3 text-neutral-700">{ord.customerName}</td>
                           <td className="py-2.5 pr-3">
@@ -455,9 +551,11 @@ export default function DashboardPage() {
                 <h3 className="font-heading font-bold text-sm text-neutral-900">
                   Derniers Avis &amp; Commentaires
                 </h3>
-                <Link href="/dashboard/community/testimonials" className="text-xs font-bold text-amber-700 hover:underline">
-                  Modérer →
-                </Link>
+                {canSeeTestimonials && (
+                  <Link href="/dashboard/community/testimonials" className="text-xs font-bold text-amber-700 hover:underline">
+                    Modérer →
+                  </Link>
+                )}
               </div>
               <div className="space-y-2.5">
                 {(kpis.recentReviews || []).length === 0 ? (

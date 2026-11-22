@@ -27,6 +27,7 @@ import {
 import { fetchApi } from '@/lib/api';
 import { Breadcrumb, Button } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth.store';
+import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 import { useReactionStore } from '@/stores/reaction.store';
 import { useWishlistStore } from '@/stores/wishlist.store';
 import { getCartHeaders, getSafeImageUrl } from '@/lib/cart-session';
@@ -112,6 +113,12 @@ const EVENT_BADGE: Record<
 
 export function ClientUnifiedDashboard() {
   const { user } = useAuthStore();
+  const { isRouteVisible } = useRouteVisibility();
+  const canSeeOrders = isRouteVisible('/account/orders');
+  const canSeeFavorites = isRouteVisible('/account/favorites');
+  const canSeeNotifications = isRouteVisible('/account/notifications');
+  const canSeeMessages = isRouteVisible('/account/messages');
+  const canSeeProfile = isRouteVisible('/account/profile');
   const [posts, setPosts] = useState<FeedPostItem[]>([]);
   const [interactions, setInteractions] = useState<InteractionsPayload>({
     likedProducts: [],
@@ -264,13 +271,15 @@ export function ClientUnifiedDashboard() {
             <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
             Actualiser
           </Button>
-          <Link
-            href="/account/messages"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#F8F9FA] border border-[#E6E1D6] text-neutral-900 text-xs font-bold hover:border-[var(--royal-primary)] transition"
-          >
-            <MessageSquare className="w-3.5 h-3.5 text-amber-600" />
-            <span>Royal Support</span>
-          </Link>
+          {canSeeMessages && (
+            <Link
+              href="/account/messages"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#F8F9FA] border border-[#E6E1D6] text-neutral-900 text-xs font-bold hover:border-[var(--royal-primary)] transition"
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-amber-600" />
+              <span>Royal Support</span>
+            </Link>
+          )}
           <Link
             href="/articles"
             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold transition shadow-sm"
@@ -283,17 +292,28 @@ export function ClientUnifiedDashboard() {
 
       {/* Unified Top Line: Numeric Stats + Synthèse de vos Interactions (Same Organized Row) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3">
-        <Link
-          href="/account/orders"
-          className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs hover:border-[var(--royal-primary)] transition-all group"
-        >
-          <div className="flex items-center justify-between text-neutral-500 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Commandes</span>
-            <ShoppingBag className="h-3.5 w-3.5 text-[#C59B27]" />
+        {canSeeOrders ? (
+          <Link
+            href="/account/orders"
+            className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs hover:border-[var(--royal-primary)] transition-all group"
+          >
+            <div className="flex items-center justify-between text-neutral-500 mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider">Commandes</span>
+              <ShoppingBag className="h-3.5 w-3.5 text-[#C59B27]" />
+            </div>
+            <div className="text-xl font-black text-neutral-900 font-mono">{interactions.orders.length}</div>
+            <div className="text-[10px] text-neutral-500 mt-0.5">{inProgressOrders} en cours</div>
+          </Link>
+        ) : (
+          <div className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs">
+            <div className="flex items-center justify-between text-neutral-500 mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider">Commandes</span>
+              <ShoppingBag className="h-3.5 w-3.5 text-[#C59B27]" />
+            </div>
+            <div className="text-xl font-black text-neutral-900 font-mono">{interactions.orders.length}</div>
+            <div className="text-[10px] text-neutral-500 mt-0.5">{inProgressOrders} en cours</div>
           </div>
-          <div className="text-xl font-black text-neutral-900 font-mono">{interactions.orders.length}</div>
-          <div className="text-[10px] text-neutral-500 mt-0.5">{inProgressOrders} en cours</div>
-        </Link>
+        )}
 
         <div className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs">
           <div className="flex items-center justify-between text-neutral-500 mb-2">
@@ -306,17 +326,28 @@ export function ClientUnifiedDashboard() {
           <div className="text-[10px] text-neutral-500 mt-0.5">Total validé</div>
         </div>
 
-        <Link
-          href="/account/favorites"
-          className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs hover:border-[var(--royal-primary)] transition-all"
-        >
-          <div className="flex items-center justify-between text-neutral-500 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Favoris</span>
-            <Heart className="h-3.5 w-3.5 text-rose-500" />
+        {canSeeFavorites ? (
+          <Link
+            href="/account/favorites"
+            className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs hover:border-[var(--royal-primary)] transition-all"
+          >
+            <div className="flex items-center justify-between text-neutral-500 mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider">Favoris</span>
+              <Heart className="h-3.5 w-3.5 text-rose-500" />
+            </div>
+            <div className="text-xl font-black text-neutral-900 font-mono">{interactions.wishlistProducts.length}</div>
+            <div className="text-[10px] text-neutral-500 mt-0.5">Wishlist</div>
+          </Link>
+        ) : (
+          <div className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs">
+            <div className="flex items-center justify-between text-neutral-500 mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider">Favoris</span>
+              <Heart className="h-3.5 w-3.5 text-rose-500" />
+            </div>
+            <div className="text-xl font-black text-neutral-900 font-mono">{interactions.wishlistProducts.length}</div>
+            <div className="text-[10px] text-neutral-500 mt-0.5">Wishlist</div>
           </div>
-          <div className="text-xl font-black text-neutral-900 font-mono">{interactions.wishlistProducts.length}</div>
-          <div className="text-[10px] text-neutral-500 mt-0.5">Wishlist</div>
-        </Link>
+        )}
 
         <div className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs">
           <div className="flex items-center justify-between text-emerald-700 mb-2">
@@ -345,29 +376,51 @@ export function ClientUnifiedDashboard() {
           <div className="text-[10px] text-neutral-500 mt-0.5">Commentaires</div>
         </div>
 
-        <Link
-          href="/account/notifications"
-          className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs hover:border-[var(--royal-primary)] transition-all"
-        >
-          <div className="flex items-center justify-between text-neutral-500 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Alertes</span>
-            <Bell className="h-3.5 w-3.5 text-[#C59B27]" />
+        {canSeeNotifications ? (
+          <Link
+            href="/account/notifications"
+            className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs hover:border-[var(--royal-primary)] transition-all"
+          >
+            <div className="flex items-center justify-between text-neutral-500 mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider">Alertes</span>
+              <Bell className="h-3.5 w-3.5 text-[#C59B27]" />
+            </div>
+            <div className="text-xl font-black text-neutral-900 font-mono">{unreadNotifCount}</div>
+            <div className="text-[10px] text-neutral-500 mt-0.5">Non lues</div>
+          </Link>
+        ) : (
+          <div className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs">
+            <div className="flex items-center justify-between text-neutral-500 mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider">Alertes</span>
+              <Bell className="h-3.5 w-3.5 text-[#C59B27]" />
+            </div>
+            <div className="text-xl font-black text-neutral-900 font-mono">{unreadNotifCount}</div>
+            <div className="text-[10px] text-neutral-500 mt-0.5">Non lues</div>
           </div>
-          <div className="text-xl font-black text-neutral-900 font-mono">{unreadNotifCount}</div>
-          <div className="text-[10px] text-neutral-500 mt-0.5">Non lues</div>
-        </Link>
+        )}
 
-        <Link
-          href="/account/messages"
-          className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs hover:border-[var(--royal-primary)] transition-all"
-        >
-          <div className="flex items-center justify-between text-neutral-500 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Support</span>
-            <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
+        {canSeeMessages ? (
+          <Link
+            href="/account/messages"
+            className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs hover:border-[var(--royal-primary)] transition-all"
+          >
+            <div className="flex items-center justify-between text-neutral-500 mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider">Support</span>
+              <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
+            </div>
+            <div className="text-xl font-black text-neutral-900 font-mono">{threadsCount}</div>
+            <div className="text-[10px] text-neutral-500 mt-0.5">Discussions</div>
+          </Link>
+        ) : (
+          <div className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs">
+            <div className="flex items-center justify-between text-neutral-500 mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider">Support</span>
+              <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
+            </div>
+            <div className="text-xl font-black text-neutral-900 font-mono">{threadsCount}</div>
+            <div className="text-[10px] text-neutral-500 mt-0.5">Discussions</div>
           </div>
-          <div className="text-xl font-black text-neutral-900 font-mono">{threadsCount}</div>
-          <div className="text-[10px] text-neutral-500 mt-0.5">Discussions</div>
-        </Link>
+        )}
       </div>
 
       {/* Unified Seamless Full-Width Chronologie • Fil d'Actualité (No isolated sidebar split!) */}
@@ -387,15 +440,21 @@ export function ClientUnifiedDashboard() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
-            <Link href="/account/profile" className="px-3.5 py-1.5 rounded-full bg-[#F8F9FA] border border-[#E6E1D6] hover:border-[#C59B27] transition">
-              Mon Profil
-            </Link>
-            <Link href="/account/orders" className="px-3.5 py-1.5 rounded-full bg-[#F8F9FA] border border-[#E6E1D6] hover:border-[#C59B27] transition">
-              Mes Commandes
-            </Link>
-            <Link href="/account/favorites" className="px-3.5 py-1.5 rounded-full bg-[#F8F9FA] border border-[#E6E1D6] hover:border-[#C59B27] transition">
-              Mes Favoris
-            </Link>
+            {canSeeProfile && (
+              <Link href="/account/profile" className="px-3.5 py-1.5 rounded-full bg-[#F8F9FA] border border-[#E6E1D6] hover:border-[#C59B27] transition">
+                Mon Profil
+              </Link>
+            )}
+            {canSeeOrders && (
+              <Link href="/account/orders" className="px-3.5 py-1.5 rounded-full bg-[#F8F9FA] border border-[#E6E1D6] hover:border-[#C59B27] transition">
+                Mes Commandes
+              </Link>
+            )}
+            {canSeeFavorites && (
+              <Link href="/account/favorites" className="px-3.5 py-1.5 rounded-full bg-[#F8F9FA] border border-[#E6E1D6] hover:border-[#C59B27] transition">
+                Mes Favoris
+              </Link>
+            )}
           </div>
         </div>
 
@@ -740,9 +799,11 @@ export function ClientUnifiedDashboard() {
                 Commandes ({interactions.orders.length}) &amp; Articles Commandés ({interactions.orderedProducts.length})
               </h4>
             </div>
-            <Link href="/account/orders" className="text-xs font-bold text-amber-700 hover:underline">
-              Toutes mes commandes →
-            </Link>
+            {canSeeOrders && (
+              <Link href="/account/orders" className="text-xs font-bold text-amber-700 hover:underline">
+                Toutes mes commandes →
+              </Link>
+            )}
           </div>
 
           {interactions.orders.length > 0 && (

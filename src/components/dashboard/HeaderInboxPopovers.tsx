@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Bell, Mail, ArrowRight, CheckCheck, Clock } from 'lucide-react';
 import { fetchApi } from '@/lib/api';
 import { useI18nStore } from '@/stores/i18n.store';
+import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 
 interface ContactItem {
   id: string;
@@ -30,17 +31,22 @@ interface NotificationItem {
 export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean }) {
   const router = useRouter();
   const { t } = useI18nStore();
+  const { isRouteVisible } = useRouteVisibility();
   const containerRef = useRef<HTMLDivElement>(null);
   const [openMenu, setOpenMenu] = useState<'contacts' | 'notifications' | null>(null);
   const [contacts, setContacts] = useState<ContactItem[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
+  const allNotifsHref = isClientOnly ? '/account/notifications' : '/dashboard/community/notifications';
+  const canShowContacts = !isClientOnly && isRouteVisible('/dashboard/community/contacts');
+  const canShowNotifications = isRouteVisible(allNotifsHref);
+
   const loadFeeds = useCallback(async () => {
     try {
       const notifUrl = isClientOnly ? '/storefront-cms/my-notifications' : '/storefront-cms/notifications';
       const [notifRes, contactRes] = await Promise.all([
-        fetchApi(notifUrl).catch(() => null),
-        !isClientOnly ? fetchApi('/storefront-cms/contacts').catch(() => null) : Promise.resolve(null),
+        canShowNotifications ? fetchApi(notifUrl).catch(() => null) : Promise.resolve(null),
+        canShowContacts ? fetchApi('/storefront-cms/contacts').catch(() => null) : Promise.resolve(null),
       ]);
 
       const rawNotifs = Array.isArray(notifRes)
@@ -48,7 +54,7 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
         : notifRes?.data || notifRes?.items || [];
       setNotifications(Array.isArray(rawNotifs) ? rawNotifs.slice(0, 5) : []);
 
-      if (!isClientOnly && contactRes) {
+      if (canShowContacts && contactRes) {
         const rawContacts = Array.isArray(contactRes)
           ? contactRes
           : contactRes?.data || contactRes?.items || [];
@@ -57,13 +63,14 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
     } catch {
       // ignore transient polling failure
     }
-  }, [isClientOnly]);
+  }, [isClientOnly, canShowContacts, canShowNotifications]);
 
   useEffect(() => {
+    if (!canShowContacts && !canShowNotifications) return;
     loadFeeds();
     const timer = setInterval(loadFeeds, 60000);
     return () => clearInterval(timer);
-  }, [loadFeeds]);
+  }, [loadFeeds, canShowContacts, canShowNotifications]);
 
   useEffect(() => {
     const onOutside = (ev: MouseEvent) => {
@@ -79,7 +86,10 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
 
   const unreadContacts = contacts.filter((c) => !c.isRead).length;
   const unreadNotifs = notifications.filter((n) => !n.isRead).length;
-  const allNotifsHref = isClientOnly ? '/account/notifications' : '/dashboard/community/notifications';
+
+  if (!canShowContacts && !canShowNotifications) {
+    return null;
+  }
 
   const markNotifRead = async (n: NotificationItem) => {
     if (!n.isRead) {
@@ -90,13 +100,14 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
       setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, isRead: true } : x)));
     }
     setOpenMenu(null);
-    router.push(n.link || allNotifsHref);
+    const safeTarget = n.link && isRouteVisible(n.link) ? n.link : allNotifsHref;
+    router.push(safeTarget);
   };
 
   return (
     <div ref={containerRef} className="relative flex items-center gap-1.5">
       {/* Contact Messages Popover (Staff) */}
-      {!isClientOnly && (
+      {canShowContacts && (
         <div className="relative">
           <button
             type="button"
@@ -177,6 +188,7 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
       )}
 
       {/* Notifications Popover */}
+      {canShowNotifications && (
       <div className="relative">
         <button
           type="button"
@@ -270,6 +282,7 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

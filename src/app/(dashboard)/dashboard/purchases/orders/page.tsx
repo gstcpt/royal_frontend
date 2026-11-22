@@ -23,6 +23,7 @@ import { formatTndCurrency } from '@/lib/utils';
 import { fetchApi } from '@/lib/api';
 import { useSystemDocumentConfig } from '@/hooks/useSystemDocumentConfig';
 import { DocumentPrintHeader, DocumentPrintFooter } from '@/components/dashboard/DocumentPrintLayout';
+import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 import {
   DataTable,
   ColumnDef,
@@ -71,6 +72,8 @@ function PurchaseOrdersContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const sysDoc = useSystemDocumentConfig();
+  const { isRouteVisible } = useRouteVisibility();
+  const canCreateReceipt = isRouteVisible('/dashboard/purchases/receipts');
   const [orders, setOrders] = React.useState<PurchaseOrderItem[]>([]);
   const [suppliers, setSuppliers] = React.useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = React.useState(true);
@@ -279,14 +282,16 @@ function PurchaseOrdersContent() {
       className: 'text-right no-print',
       render: (item) => (
         <div className="flex items-center justify-end gap-1.5">
-          <Link
-            href={`/dashboard/purchases/receipts?fromBc=${encodeURIComponent(item.orderNumber)}`}
-            title="Convertir en Bon de Réception (BR)"
-            className="h-8 px-2.5 rounded-lg bg-[#FBF6E8] hover:bg-[#C59B27] text-[#9A7414] hover:text-white border border-[#E6D6A6] text-[11px] font-bold flex items-center gap-1 transition"
-          >
-            <span>Réception (BR)</span>
-            <ArrowRight className="h-3 w-3" />
-          </Link>
+          {canCreateReceipt && (
+            <Link
+              href={`/dashboard/purchases/receipts?fromBc=${encodeURIComponent(item.orderNumber)}`}
+              title="Convertir en Bon de Réception (BR)"
+              className="h-8 px-2.5 rounded-lg bg-[#FBF6E8] hover:bg-[#C59B27] text-[#9A7414] hover:text-white border border-[#E6D6A6] text-[11px] font-bold flex items-center gap-1 transition"
+            >
+              <span>Réception (BR)</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          )}
           <button
             type="button"
             title="Prévisualiser le Bon de Commande"
@@ -394,19 +399,21 @@ function PurchaseOrdersContent() {
                   <Edit3 className="h-3.5 w-3.5 mr-1" />
                   Modifier
                 </Button>
-                <Button
-                  variant="gold"
-                  size="sm"
-                  onClick={() => {
-                    const ref = selectedOrder.orderNumber;
-                    setSelectedOrder(null);
-                    router.push(`/dashboard/purchases/receipts?fromBc=${encodeURIComponent(ref)}`);
-                  }}
-                >
-                  <Truck className="h-3.5 w-3.5 mr-1" />
-                  Générer Bon de Réception (BR)
-                  <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                </Button>
+                {canCreateReceipt && (
+                  <Button
+                    variant="gold"
+                    size="sm"
+                    onClick={() => {
+                      const ref = selectedOrder.orderNumber;
+                      setSelectedOrder(null);
+                      router.push(`/dashboard/purchases/receipts?fromBc=${encodeURIComponent(ref)}`);
+                    }}
+                  >
+                    <Truck className="h-3.5 w-3.5 mr-1" />
+                    Générer Bon de Réception (BR)
+                    <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                  </Button>
+                )}
               </div>
               <Button variant="outline" size="sm" onClick={() => setSelectedOrder(null)}>
                 Fermer

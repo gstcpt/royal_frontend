@@ -29,6 +29,7 @@ import {
   DeleteConfirmModal,
 } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
+import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 
 interface ProspectItem {
   id: string;
@@ -51,6 +52,8 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function ProspectsPage() {
+  const { isRouteVisible } = useRouteVisibility();
+  const canCreatePurchaseOrder = isRouteVisible('/dashboard/purchases/orders');
   const [prospects, setProspects] = React.useState<ProspectItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [modalOpen, setModalOpen] = React.useState(false);
@@ -401,13 +404,15 @@ export default function ProspectsPage() {
                   <Edit3 className="w-3.5 h-3.5" />
                   <span>Modifier le Prospect</span>
                 </Button>
-                <Link
-                  href={`/dashboard/purchases/orders?fromProspect=${encodeURIComponent(inspecting.companyName)}`}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--royal-primary)] text-white text-xs font-bold shadow-xs hover:opacity-95 transition"
-                >
-                  <ShoppingBag className="w-3.5 h-3.5" />
-                  <span>Créer Bon de Commande (BC)</span>
-                </Link>
+                {canCreatePurchaseOrder && (
+                  <Link
+                    href={`/dashboard/purchases/orders?fromProspect=${encodeURIComponent(inspecting.companyName)}`}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--royal-primary)] text-white text-xs font-bold shadow-xs hover:opacity-95 transition"
+                  >
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    <span>Créer Bon de Commande (BC)</span>
+                  </Link>
+                )}
               </div>
               <Button variant="outline" size="sm" onClick={() => setInspecting(null)}>
                 Fermer

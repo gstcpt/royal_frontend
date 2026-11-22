@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Layers, Sliders, Boxes, Tag, Package, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 
 export type CatalogTabId =
   | 'categories'
@@ -72,18 +73,21 @@ interface CatalogTabsProps {
 
 export function CatalogTabs({ activeTab, className }: CatalogTabsProps) {
   const pathname = usePathname();
+  const { isRouteVisible } = useRouteVisibility();
+  const visibleTabs = CATALOG_TABS.filter((tab) => isRouteVisible(tab.href));
+  if (visibleTabs.length === 0) return null;
 
   // Determine active tab either by prop or by current pathname
   const currentTab =
     activeTab ||
-    CATALOG_TABS.find((t) => pathname.startsWith(t.href))?.id ||
+    visibleTabs.find((t) => pathname.startsWith(t.href))?.id ||
     (pathname.startsWith('/dashboard/articles') ? 'articles' : 'categories');
 
   return (
     <div className={cn('space-y-2 no-print', className)}>
       {/* Horizontal Tabs Bar */}
       <div className="flex flex-wrap items-center gap-1.5 p-1 bg-neutral-100 rounded-2xl w-fit border border-neutral-200/80 shadow-inner">
-        {CATALOG_TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const isActive = currentTab === tab.id;
           return (
             <Link
