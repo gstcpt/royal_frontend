@@ -83,6 +83,7 @@ const REGISTRY_VIEWS: ViewRouteItem[] = [
   { key: '/dashboard/reports/interactions', label: 'Interactions', section: 'SEO & Réputation', visibility: 'PRIVATE' },
   { key: '/dashboard/community/newsletters', label: 'Abonnements', section: 'SEO & Réputation', visibility: 'PRIVATE' },
   { key: '/dashboard/seo/testimonials', label: 'Témoignages', section: 'SEO & Réputation', visibility: 'PRIVATE' },
+  { key: '/dashboard/seo/pixels', label: 'Pixels & Référencement SEO', section: 'SEO & Réputation', visibility: 'PRIVATE' },
   // Rapports & Statistiques
   { key: '/dashboard/analytics', label: "Conseils d'achat", section: 'Rapports & Statistiques', visibility: 'PRIVATE' },
   { key: '/dashboard/reports/sales', label: 'Ventes et marges', section: 'Rapports & Statistiques', visibility: 'PRIVATE' },

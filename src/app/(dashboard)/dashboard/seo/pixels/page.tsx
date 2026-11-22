@@ -13,6 +13,7 @@ import {
   Send,
   ShieldCheck,
   RefreshCw,
+  ExternalLink,
 } from 'lucide-react';
 import { Button, Input, Textarea, Toggle, Breadcrumb, Toast, Badge } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
@@ -266,12 +267,37 @@ export default function MarketingPixelsSeoPage() {
               value={form.metaPixelId}
               onChange={(e) => setForm((p) => ({ ...p, metaPixelId: e.target.value }))}
             />
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Où le trouver :{' '}
+              <a
+                href="https://business.facebook.com/events_manager2"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#9A7414] font-semibold hover:underline inline-flex items-center gap-0.5"
+              >
+                Meta Events Manager <ExternalLink className="w-3 h-3" />
+              </a>{' '}
+              → Sources de données → choisissez votre Dataset / Pixel → Paramètres → <strong>ID du dataset</strong>.
+            </p>
             <Input
               label="Meta Domain Verification (Optionnel — balise meta)"
               placeholder="ex: abc123xyz456..."
               value={form.facebookDomainVerification}
               onChange={(e) => setForm((p) => ({ ...p, facebookDomainVerification: e.target.value }))}
             />
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Où le trouver :{' '}
+              <a
+                href="https://business.facebook.com/settings/owned-domains"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#9A7414] font-semibold hover:underline inline-flex items-center gap-0.5"
+              >
+                Meta Business Settings → Domaines <ExternalLink className="w-3 h-3" />
+              </a>{' '}
+              → Ajouter un domaine → option balise HTML → copiez uniquement la valeur de{' '}
+              <code className="px-1 py-0.5 bg-white border border-[#E6E1D6] rounded text-[10px]">content=&quot;...&quot;</code>.
+            </p>
           </div>
 
           {/* 2. TikTok Pixel */}
@@ -293,6 +319,18 @@ export default function MarketingPixelsSeoPage() {
               value={form.tiktokPixelId}
               onChange={(e) => setForm((p) => ({ ...p, tiktokPixelId: e.target.value }))}
             />
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Où le trouver :{' '}
+              <a
+                href="https://ads.tiktok.com/i18n/events_manager"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#9A7414] font-semibold hover:underline inline-flex items-center gap-0.5"
+              >
+                TikTok Ads Manager → Tools → Events <ExternalLink className="w-3 h-3" />
+              </a>{' '}
+              → Web Events → Set Up Web Events → copier l&apos;<strong>ID du Pixel</strong> (commence souvent par <code>C...</code>).
+            </p>
           </div>
 
           {/* 3. GA4 & GTM */}
@@ -312,6 +350,17 @@ export default function MarketingPixelsSeoPage() {
                 value={form.ga4MeasurementId}
                 onChange={(e) => setForm((p) => ({ ...p, ga4MeasurementId: e.target.value }))}
               />
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                <a
+                  href="https://analytics.google.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#9A7414] font-semibold hover:underline inline-flex items-center gap-0.5"
+                >
+                  Google Analytics <ExternalLink className="w-3 h-3" />
+                </a>{' '}
+                → Admin → Flux de données → Web → <strong>ID de mesure</strong> (<code>G-...</code>).
+              </p>
             </div>
 
             <div className="p-4 rounded-2xl bg-[#FBF9F4] border border-[#E6E1D6] space-y-3">
@@ -329,6 +378,17 @@ export default function MarketingPixelsSeoPage() {
                 value={form.gtmContainerId}
                 onChange={(e) => setForm((p) => ({ ...p, gtmContainerId: e.target.value }))}
               />
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                <a
+                  href="https://tagmanager.google.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#9A7414] font-semibold hover:underline inline-flex items-center gap-0.5"
+                >
+                  Google Tag Manager <ExternalLink className="w-3 h-3" />
+                </a>{' '}
+                → Créer un conteneur Web → copier l&apos;ID en haut à droite (<code>GTM-...</code>).
+              </p>
             </div>
           </div>
 
@@ -351,6 +411,18 @@ export default function MarketingPixelsSeoPage() {
               value={form.snapPixelId}
               onChange={(e) => setForm((p) => ({ ...p, snapPixelId: e.target.value }))}
             />
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Où le trouver :{' '}
+              <a
+                href="https://ads.snapchat.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#9A7414] font-semibold hover:underline inline-flex items-center gap-0.5"
+              >
+                Snapchat Ads Manager <ExternalLink className="w-3 h-3" />
+              </a>{' '}
+              → Events Manager → Snap Pixel → Set up Pixel → copier l&apos;UUID du Pixel.
+            </p>
           </div>
         </div>
 
@@ -426,18 +498,36 @@ export default function MarketingPixelsSeoPage() {
               onChange={(e) => setForm((p) => ({ ...p, seoKeywords: e.target.value }))}
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input
-                label="Google Site Verification (Search Console)"
-                placeholder="ex: verification-token"
-                value={form.googleSiteVerification}
-                onChange={(e) => setForm((p) => ({ ...p, googleSiteVerification: e.target.value }))}
-              />
-              <Input
-                label="Domaine Canonique (Optionnel)"
-                placeholder="https://royal-electro.tn"
-                value={form.canonicalBaseUrl}
-                onChange={(e) => setForm((p) => ({ ...p, canonicalBaseUrl: e.target.value }))}
-              />
+              <div className="space-y-1.5">
+                <Input
+                  label="Google Site Verification (Search Console)"
+                  placeholder="ex: verification-token"
+                  value={form.googleSiteVerification}
+                  onChange={(e) => setForm((p) => ({ ...p, googleSiteVerification: e.target.value }))}
+                />
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  <a
+                    href="https://search.google.com/search-console"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#9A7414] font-semibold hover:underline inline-flex items-center gap-0.5"
+                  >
+                    Google Search Console <ExternalLink className="w-3 h-3" />
+                  </a>{' '}
+                  → Préfixe de l&apos;URL → Méthode <strong>Balise HTML</strong> → copiez uniquement le texte de <code>content=&quot;...&quot;</code>.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Input
+                  label="Domaine Canonique (Optionnel)"
+                  placeholder="https://royalfrontend.vercel.app"
+                  value={form.canonicalBaseUrl}
+                  onChange={(e) => setForm((p) => ({ ...p, canonicalBaseUrl: e.target.value }))}
+                />
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  L&apos;URL publique officielle de votre boutique (actuellement <code>https://royalfrontend.vercel.app</code> ou votre futur domaine personnalisé ex: <code>https://royal-electro.tn</code>).
+                </p>
+              </div>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center justify-between">
@@ -465,7 +555,7 @@ export default function MarketingPixelsSeoPage() {
                 Aperçu Google Search (SERP)
               </div>
               <div className="text-xs text-emerald-700 font-mono truncate">
-                {form.canonicalBaseUrl || 'https://royal-frontend.vercel.app'}
+                {form.canonicalBaseUrl || 'https://royalfrontend.vercel.app'}
               </div>
               <div className="text-sm font-bold text-blue-700 truncate">
                 {form.seoTitle || 'Royal — Électro de Maison'}

@@ -148,6 +148,7 @@ const SECTION_META: Record<
       { label: 'Interactions', href: '/dashboard/reports/interactions', desc: 'Likes, dislikes & favoris' },
       { label: 'Abonnements', href: '/dashboard/community/newsletters', desc: 'Liste newsletter' },
       { label: 'Témoignages', href: '/dashboard/seo/testimonials', desc: 'Témoignages page d’accueil' },
+      { label: 'Pixels & Référencement SEO', href: '/dashboard/seo/pixels', desc: 'Meta, TikTok, GA4, GTM, Snap & Search Console' },
     ],
   },
   reports: {
