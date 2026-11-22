@@ -18,6 +18,7 @@ import {
   ShoppingBag,
   Sparkles,
   Lock,
+  Wallet,
 } from 'lucide-react';
 
 interface CartItem {
@@ -107,6 +108,14 @@ export default function CheckoutPage() {
   // Submission state
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [selectedGatewayCode, setSelectedGatewayCode] = useState<'CASH_ON_DELIVERY' | 'FLOUCI' | 'CLICTOPAY' | 'BANK_TRANSFER'>('CASH_ON_DELIVERY');
+  const [publicGateways, setPublicGateways] = useState<{
+    codEnabled: boolean;
+    bankTransferEnabled: boolean;
+    bankRib?: string;
+    flouci?: { enabled: boolean; isPubliclyVisible: boolean; label: string; description: string };
+    clictopay?: { enabled: boolean; isPubliclyVisible: boolean; label: string; description: string };
+  }>({ codEnabled: true, bankTransferEnabled: false });
 
   useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('royal_token') && !user) {
@@ -187,9 +196,10 @@ export default function CheckoutPage() {
   useEffect(() => {
     async function loadCart() {
       try {
-        const [res, cfgRes] = await Promise.all([
+        const [res, cfgRes, gwRes] = await Promise.all([
           fetch('/api/v1/cart', { headers: getCartHeaders(), credentials: 'include' }),
           fetch('/api/v1/storefront-cms/config').catch(() => null),
+          fetch('/api/v1/storefront-cms/public-payment-gateways').catch(() => null),
         ]);
         const data = await res.json();
         const apiItems = data?.data?.items || data?.items || [];
@@ -204,6 +214,11 @@ export default function CheckoutPage() {
           const cfg = cfgJson?.data || cfgJson;
           if (cfg?.freeShippingThreshold !== undefined) setShippingThreshold(Number(cfg.freeShippingThreshold));
           if (cfg?.standardShippingFee !== undefined) setStandardShippingFee(Number(cfg.standardShippingFee));
+        }
+        if (gwRes?.ok) {
+          const gwJson = await gwRes.json();
+          const gw = gwJson?.data || gwJson;
+          if (gw) setPublicGateways(gw);
         }
       } catch (e) {
         console.error('Error fetching cart for checkout', e);
@@ -288,10 +303,20 @@ export default function CheckoutPage() {
           ...(formData.postalCode.trim() ? { postalCode: formData.postalCode.trim() } : {}),
           country: formData.country,
         },
-        paymentMethod: formData.paymentMethod,
+        paymentMethod:
+          selectedGatewayCode === 'FLOUCI' || selectedGatewayCode === 'CLICTOPAY'
+            ? 'CARD_ONLINE'
+            : selectedGatewayCode === 'BANK_TRANSFER'
+            ? 'BANK_TRANSFER'
+            : 'CASH_ON_DELIVERY',
         deliveryMethod: formData.deliveryMethod,
         couponCode: appliedCoupon?.code || undefined,
-        notes: formData.notes || undefined,
+        notes: [
+          formData.notes,
+          selectedGatewayCode === 'FLOUCI' ? '[Passerelle Flouci TND]' : selectedGatewayCode === 'CLICTOPAY' ? '[Passerelle ClicToPay SMT]' : '',
+        ]
+          .filter(Boolean)
+          .join(' ') || undefined,
       };
 
       const res = await fetch('/api/v1/orders', {
@@ -309,6 +334,27 @@ export default function CheckoutPage() {
           content_ids: items.map((it) => it.productId || it.variantId),
         });
         await useCartStore.getState().clearCart();
+
+        if (selectedGatewayCode === 'FLOUCI') {
+          try {
+            const initRes = await fetch('/api/v1/storefront-cms/payments/flouci/init', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                orderReference: data.data.reference,
+                amountTnd: finalTotal,
+              }),
+            });
+            const initJson = await initRes.json();
+            const paymentUrl = initJson?.data?.paymentUrl || initJson?.paymentUrl;
+            if (initRes.ok && paymentUrl) {
+              window.location.href = paymentUrl;
+              return;
+            }
+          } catch {
+            // Fallback cleanly to confirmation page if Flouci portal unreachable
+          }
+        }
         router.push(`/order-confirmation/${data.data.reference}`);
       } else {
         setSubmitError(data.message || 'Échec de la validation de commande. Veuillez vérifier vos données.');
@@ -546,13 +592,13 @@ export default function CheckoutPage() {
               </div>
 
               <div className="space-y-4">
-                <label className="p-5 rounded-2xl border border-[#D4AF37] bg-[#FBF9F5] cursor-pointer transition flex items-start gap-4">
+                <label className={`p-5 rounded-2xl border cursor-pointer transition flex items-start gap-4 ${selectedGatewayCode === 'CASH_ON_DELIVERY' ? 'border-[#D4AF37] bg-[#FBF9F5]' : 'border-[#EFECE6] bg-white'}`}>
                   <input
                     type="radio"
                     name="paymentMethod"
                     value="CASH_ON_DELIVERY"
-                    checked
-                    readOnly
+                    checked={selectedGatewayCode === 'CASH_ON_DELIVERY'}
+                    onChange={() => setSelectedGatewayCode('CASH_ON_DELIVERY')}
                     className="accent-[var(--royal-primary)] mt-1"
                   />
                   <div className="flex-1">
@@ -567,6 +613,78 @@ export default function CheckoutPage() {
                     </p>
                   </div>
                 </label>
+
+                {publicGateways.flouci?.isPubliclyVisible && (
+                  <label className={`p-5 rounded-2xl border cursor-pointer transition flex items-start gap-4 ${selectedGatewayCode === 'FLOUCI' ? 'border-[#D4AF37] bg-[#FBF9F5]' : 'border-[#EFECE6] bg-white'}`}>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="FLOUCI"
+                      checked={selectedGatewayCode === 'FLOUCI'}
+                      onChange={() => setSelectedGatewayCode('FLOUCI')}
+                      className="accent-[var(--royal-primary)] mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="w-5 h-5 text-[#C59B27]" />
+                        <span className="font-semibold text-sm text-[#0C1A14]">
+                          {publicGateways.flouci.label}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#0C1A14]/60 mt-1">
+                        {publicGateways.flouci.description}
+                      </p>
+                    </div>
+                  </label>
+                )}
+
+                {publicGateways.clictopay?.isPubliclyVisible && (
+                  <label className={`p-5 rounded-2xl border cursor-pointer transition flex items-start gap-4 ${selectedGatewayCode === 'CLICTOPAY' ? 'border-[#D4AF37] bg-[#FBF9F5]' : 'border-[#EFECE6] bg-white'}`}>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="CLICTOPAY"
+                      checked={selectedGatewayCode === 'CLICTOPAY'}
+                      onChange={() => setSelectedGatewayCode('CLICTOPAY')}
+                      className="accent-[var(--royal-primary)] mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-5 h-5 text-[#C59B27]" />
+                        <span className="font-semibold text-sm text-[#0C1A14]">
+                          {publicGateways.clictopay.label}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#0C1A14]/60 mt-1">
+                        {publicGateways.clictopay.description}
+                      </p>
+                    </div>
+                  </label>
+                )}
+
+                {publicGateways.bankTransferEnabled && (
+                  <label className={`p-5 rounded-2xl border cursor-pointer transition flex items-start gap-4 ${selectedGatewayCode === 'BANK_TRANSFER' ? 'border-[#D4AF37] bg-[#FBF9F5]' : 'border-[#EFECE6] bg-white'}`}>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="BANK_TRANSFER"
+                      checked={selectedGatewayCode === 'BANK_TRANSFER'}
+                      onChange={() => setSelectedGatewayCode('BANK_TRANSFER')}
+                      className="accent-[var(--royal-primary)] mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-5 h-5 text-slate-700" />
+                        <span className="font-semibold text-sm text-[#0C1A14]">
+                          Virement Bancaire (RIB Société)
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#0C1A14]/60 mt-1">
+                        {publicGateways.bankRib ? `RIB : ${publicGateways.bankRib}` : 'Les coordonnées bancaires sont transmises sur votre bon de commande.'}
+                      </p>
+                    </div>
+                  </label>
+                )}
               </div>
             </div>
 

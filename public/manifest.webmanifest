@@ -1,0 +1,19 @@
+{
+  "name": "Royal — Electro de Maison & POS",
+  "short_name": "Royal ERP & POS",
+  "description": "Plateforme E-Commerce & Terminal Point de Vente Hors-Ligne Royal Tunisie",
+  "start_url": "/dashboard/pos",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FDFCF9",
+  "theme_color": "#C59B27",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

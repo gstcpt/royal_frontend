@@ -14,6 +14,7 @@ import {
   XCircle,
   ExternalLink,
   RefreshCw,
+  Mail,
 } from 'lucide-react';
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
@@ -135,6 +136,14 @@ export default function DashboardOrdersPage() {
   const [statusComment, setStatusComment] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
+  // Manual Email FAC/BL Prompt when status transitions to DELIVERED
+  const [emailPromptOrder, setEmailPromptOrder] = useState<OrderMasterItem | null>(null);
+  const [emailRecipient, setEmailRecipient] = useState('');
+  const [sendInvoiceChecked, setSendInvoiceChecked] = useState(true);
+  const [sendBlChecked, setSendBlChecked] = useState(true);
+  const [emailCustomNote, setEmailCustomNote] = useState('');
+  const [isSendingDocs, setIsSendingDocs] = useState(false);
+
   const [statusFilter, setStatusFilter] = useState('');
 
   const showFeedback = (type: 'success' | 'error', msg: string) => {
@@ -177,17 +186,52 @@ export default function DashboardOrdersPage() {
           comment: statusComment.trim() || undefined,
         }),
       });
+      const prevOrder = selectedOrder;
+      const updatedOrder = { ...prevOrder, status: nextStatus };
       showFeedback(
         'success',
-        `Statut de la commande ${selectedOrder.reference} mis à jour vers ${nextStatus}.`
+        `Statut de la commande ${prevOrder.reference} mis à jour vers ${nextStatus}.`
       );
-      setSelectedOrder((prev) => (prev ? { ...prev, status: nextStatus } : null));
+      setSelectedOrder(updatedOrder);
       setStatusComment('');
       await loadOrders();
+
+      if (nextStatus === 'DELIVERED' && prevOrder.status !== 'DELIVERED') {
+        const cleanEmail =
+          prevOrder.customerEmail && prevOrder.customerEmail !== '—' ? prevOrder.customerEmail : '';
+        setEmailPromptOrder(updatedOrder);
+        setEmailRecipient(cleanEmail);
+        setSendInvoiceChecked(true);
+        setSendBlChecked(true);
+        setEmailCustomNote('');
+      }
     } catch (err: any) {
       showFeedback('error', err?.message || 'Impossible de modifier le statut.');
     } finally {
       setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleSendDeliveryDocs = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailPromptOrder) return;
+    setIsSendingDocs(true);
+    try {
+      const res = await fetchApi(`/storefront-cms/orders/${emailPromptOrder.id}/send-delivery-documents`, {
+        method: 'POST',
+        body: JSON.stringify({
+          sendInvoice: sendInvoiceChecked,
+          sendDeliverySlip: sendBlChecked,
+          customEmail: emailRecipient.trim() || undefined,
+          customNote: emailCustomNote.trim() || undefined,
+        }),
+      });
+      setEmailPromptOrder(null);
+      showFeedback('success', res?.message || 'Documents envoyés au client avec succès.');
+    } catch (err: any) {
+      showFeedback('error', err?.message || 'Échec lors de l’envoi des documents.');
+    } finally {
+      setIsSendingDocs(false);
     }
   };
 
@@ -711,6 +755,97 @@ export default function DashboardOrdersPage() {
           </div>
         </Modal>
       )}
+
+      {/* Manual Email Prompt Modal after DELIVERED */}
+      <Modal
+        isOpen={!!emailPromptOrder}
+        onClose={() => setEmailPromptOrder(null)}
+        title="Envoi Manuel — Facture & Bon de Livraison"
+        subtitle={
+          emailPromptOrder
+            ? `Commande ${emailPromptOrder.reference} livrée — Confirmer l'envoi client`
+            : ''
+        }
+        type="details"
+        size="md"
+        footer={
+          <div className="flex justify-end gap-2 w-full">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEmailPromptOrder(null)}
+            >
+              Ignorer (Ne pas envoyer)
+            </Button>
+            <Button
+              type="submit"
+              form="orders-send-docs-form"
+              variant="gold"
+              size="sm"
+              isLoading={isSendingDocs}
+              disabled={(!sendInvoiceChecked && !sendBlChecked) || !emailRecipient.trim()}
+            >
+              <Mail className="w-3.5 h-3.5" />
+              <span>Envoyer par E-mail</span>
+            </Button>
+          </div>
+        }
+      >
+        <form id="orders-send-docs-form" onSubmit={handleSendDeliveryDocs} className="p-6 space-y-4 text-xs">
+          <p className="text-neutral-600 leading-relaxed">
+            La commande est passée au statut <strong className="text-emerald-700">Livrée</strong>. Choisissez manuellement les documents PDF à transmettre au client :
+          </p>
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase text-neutral-500 mb-1">
+              Adresse E-mail du Client *
+            </label>
+            <input
+              type="email"
+              required
+              value={emailRecipient}
+              onChange={(e) => setEmailRecipient(e.target.value)}
+              placeholder="client@exemple.tn"
+              className="w-full h-10 px-3 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="p-3 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={sendInvoiceChecked}
+                onChange={(e) => setSendInvoiceChecked(e.target.checked)}
+                className="accent-[#C59B27] h-4 w-4"
+              />
+              <span className="font-bold text-neutral-900">Facture Client (FAC)</span>
+            </label>
+            <label className="p-3 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={sendBlChecked}
+                onChange={(e) => setSendBlChecked(e.target.checked)}
+                className="accent-[#C59B27] h-4 w-4"
+              />
+              <span className="font-bold text-neutral-900">Bon de Livraison (BL)</span>
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase text-neutral-500 mb-1">
+              Message Personnalisé (Optionnel)
+            </label>
+            <input
+              type="text"
+              value={emailCustomNote}
+              onChange={(e) => setEmailCustomNote(e.target.value)}
+              placeholder="Ex: Merci pour votre achat, garantie 24 mois incluse..."
+              className="w-full h-10 px-3 rounded-xl border border-neutral-200 bg-white text-xs text-neutral-900"
+            />
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

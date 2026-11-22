@@ -25,6 +25,9 @@ import {
   Tag,
   PauseCircle,
   X,
+  Wifi,
+  WifiOff,
+  CloudUpload,
 } from 'lucide-react';
 import {
   Breadcrumb,
@@ -131,15 +134,71 @@ export default function PosTerminalPage() {
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<any>(null);
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
+  const [offlineQueue, setOfflineQueue] = useState<any[]>([]);
+  const [syncingQueue, setSyncingQueue] = useState(false);
+  const [printers, setPrinters] = useState<any[]>([]);
+  const [selectedPrinterId, setSelectedPrinterId] = useState('');
+
+  const OFFLINE_QUEUE_KEY = 'royal_pos_offline_queue_v1';
+  const OFFLINE_SNAPSHOT_KEY = 'royal_pos_catalog_snapshot_v1';
+
+  const activePrinter = useMemo(
+    () => printers.find((p) => p.id === selectedPrinterId) || printers.find((p) => p.isDefaultPos) || printers[0] || null,
+    [printers, selectedPrinterId],
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setIsOnline(navigator.onLine);
+    try {
+      const savedQ = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]');
+      if (Array.isArray(savedQ)) setOfflineQueue(savedQ);
+    } catch {
+      // ignore
+    }
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
 
   const loadPosData = useCallback(async () => {
     setLoading(true);
     try {
-      const [posRes, prodRes, custRes] = await Promise.all([
-        fetchApi('/pos').catch(() => []),
+      const [posRes, prodRes, custRes, prtRes] = await Promise.all([
+        fetchApi('/pos').catch(() => null),
         fetchApi('/products?limit=500&status=ACTIVE').catch(() => null),
         fetchApi('/customers?limit=150').catch(() => null),
+        fetchApi('/storefront-cms/pos-printers').catch(() => []),
       ]);
+
+      if (!posRes && !prodRes && typeof window !== 'undefined') {
+        const snap = JSON.parse(localStorage.getItem(OFFLINE_SNAPSHOT_KEY) || 'null');
+        if (snap) {
+          setShowrooms(snap.showrooms || []);
+          setProducts(snap.products || []);
+          setCustomers(snap.customers || []);
+          setPrinters(snap.printers || []);
+          if (snap.showrooms?.[0] && !selectedPosId) {
+            setSelectedPosId(snap.showrooms[0].id);
+            const regs = snap.showrooms[0].cashRegisters || [];
+            if (regs[0]) setSelectedRegisterId(regs[0].id);
+          }
+          return;
+        }
+      }
+
+      const prtList = Array.isArray(prtRes) ? prtRes : prtRes?.data || [];
+      setPrinters(prtList);
+      if (prtList.length > 0 && !selectedPrinterId) {
+        const defPrt = prtList.find((p: any) => p.isDefaultPos) || prtList[0];
+        if (defPrt?.id) setSelectedPrinterId(defPrt.id);
+      }
 
       const posList: PosShowroom[] = Array.isArray(posRes) ? posRes : posRes?.data || [];
       setShowrooms(posList);
@@ -198,19 +257,35 @@ export default function PosTerminalPage() {
       setProducts(normalized);
 
       const rawCusts = custRes?.data?.items || custRes?.data || custRes?.items || (Array.isArray(custRes) ? custRes : []);
-      setCustomers(
-        (Array.isArray(rawCusts) ? rawCusts : []).map((c: any) => ({
-          id: c.id,
-          label: `${c.firstName} ${c.lastName}${c.phone ? ` (${c.phone})` : ''}`,
-          name: `${c.firstName} ${c.lastName}`,
-          phone: c.phone || '',
-          email: c.email || '',
-        }))
-      );
+      const mappedCusts = (Array.isArray(rawCusts) ? rawCusts : []).map((c: any) => ({
+        id: c.id,
+        label: `${c.firstName} ${c.lastName}${c.phone ? ` (${c.phone})` : ''}`,
+        name: `${c.firstName} ${c.lastName}`,
+        phone: c.phone || '',
+        email: c.email || '',
+      }));
+      setCustomers(mappedCusts);
+
+      if (typeof window !== 'undefined' && normalized.length > 0) {
+        try {
+          localStorage.setItem(
+            OFFLINE_SNAPSHOT_KEY,
+            JSON.stringify({
+              showrooms: posList,
+              products: normalized,
+              customers: mappedCusts,
+              printers: prtList,
+              savedAt: new Date().toISOString(),
+            }),
+          );
+        } catch {
+          // QuotaExceeded safely ignored
+        }
+      }
     } finally {
       setLoading(false);
     }
-  }, [selectedPosId]);
+  }, [selectedPosId, selectedPrinterId]);
 
   useEffect(() => {
     loadPosData();
@@ -401,6 +476,49 @@ export default function PosTerminalPage() {
     }
   };
 
+  const syncOfflineQueue = useCallback(async () => {
+    if (syncingQueue || offlineQueue.length === 0) return;
+    setSyncingQueue(true);
+    const remaining: any[] = [];
+    let syncedCount = 0;
+
+    for (const queued of offlineQueue) {
+      try {
+        await fetchApi('/pos/checkout', {
+          method: 'POST',
+          body: JSON.stringify(queued.requestBody),
+        });
+        syncedCount += 1;
+      } catch {
+        remaining.push(queued);
+      }
+    }
+
+    setOfflineQueue(remaining);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining));
+    }
+    setSyncingQueue(false);
+    if (syncedCount > 0) {
+      setToastMsg({
+        text: `${syncedCount} vente(s) hors-ligne synchronisée(s) vers PostgreSQL !`,
+        type: 'success',
+      });
+      loadPosData();
+    } else if (remaining.length > 0) {
+      setToastMsg({
+        text: `Synchronisation impossible pour le moment (${remaining.length} en file d'attente).`,
+        type: 'error',
+      });
+    }
+  }, [offlineQueue, syncingQueue, loadPosData]);
+
+  useEffect(() => {
+    if (isOnline && offlineQueue.length > 0) {
+      syncOfflineQueue();
+    }
+  }, [isOnline]);
+
   const handleCheckout = async () => {
     if (!selectedRegisterId) {
       setToastMsg({ text: 'Veuillez sélectionner une caisse showroom.', type: 'error' });
@@ -412,46 +530,89 @@ export default function PosTerminalPage() {
     }
 
     setSubmitting(true);
-    try {
-      let remainingCoupon = couponDiscount;
-      const checkoutItems = cart.map((c, idx) => {
-        let extraDiscount = 0;
-        if (remainingCoupon > 0) {
-          const lineMax = Math.max(0, c.unitPrice * c.quantity - c.discount);
-          extraDiscount = idx === cart.length - 1 ? Math.min(lineMax, remainingCoupon) : Math.min(lineMax, Number(((couponDiscount * (lineMax / Math.max(1, subtotalAfterLineDiscounts)))).toFixed(3)));
-          remainingCoupon = Number((remainingCoupon - extraDiscount).toFixed(3));
-        }
-        return {
-          variantId: c.variantId,
-          quantity: c.quantity,
-          unitPrice: c.unitPrice,
-          discount: Number((c.discount + extraDiscount).toFixed(3)),
-        };
-      });
-      const promoNote = appliedCoupon ? `[Promo ${appliedCoupon.code}: -${formatTndCurrency(couponDiscount)}]` : '';
-      const combinedNotes = [notes.trim(), promoNote].filter(Boolean).join(' • ');
+    let remainingCoupon = couponDiscount;
+    const checkoutItems = cart.map((c, idx) => {
+      let extraDiscount = 0;
+      if (remainingCoupon > 0) {
+        const lineMax = Math.max(0, c.unitPrice * c.quantity - c.discount);
+        extraDiscount = idx === cart.length - 1 ? Math.min(lineMax, remainingCoupon) : Math.min(lineMax, Number(((couponDiscount * (lineMax / Math.max(1, subtotalAfterLineDiscounts)))).toFixed(3)));
+        remainingCoupon = Number((remainingCoupon - extraDiscount).toFixed(3));
+      }
+      return {
+        variantId: c.variantId,
+        quantity: c.quantity,
+        unitPrice: c.unitPrice,
+        discount: Number((c.discount + extraDiscount).toFixed(3)),
+      };
+    });
+    const promoNote = appliedCoupon ? `[Promo ${appliedCoupon.code}: -${formatTndCurrency(couponDiscount)}]` : '';
+    const combinedNotes = [notes.trim(), promoNote].filter(Boolean).join(' • ');
 
+    const requestBody = {
+      registerId: selectedRegisterId,
+      customerId: selectedCustomerId || undefined,
+      customerName: customerName.trim() || 'Client Showroom',
+      customerPhone: customerPhone.trim() || undefined,
+      customerEmail: customerEmail.trim() || undefined,
+      deliveryAddress: fulfillmentMode === 'DELIVERY' ? deliveryAddress.trim() : undefined,
+      fulfillmentMode,
+      items: checkoutItems,
+      payments: [
+        {
+          method: paymentMethod,
+          amount: netTotal,
+          reference: paymentReference.trim() || undefined,
+        },
+      ],
+      amountTendered: paymentMethod === 'CASH' && tenderedVal >= netTotal ? tenderedVal : netTotal,
+      notes: combinedNotes || undefined,
+    };
+
+    const enqueueOffline = () => {
+      const localRef = `OFF-${Date.now().toString().slice(-6)}`;
+      const offlineTicket = {
+        id: localRef,
+        requestBody,
+        createdAt: new Date().toISOString(),
+        previewPayload: {
+          receiptNumber: localRef,
+          status: 'HORS-LIGNE (EN FILE)',
+          createdAt: new Date().toISOString(),
+          pos: { name: currentShowroom?.name || 'Showroom Royal' },
+          customer: { name: customerName.trim() || 'Client Showroom' },
+          cashier: { name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Caissier' },
+          items: cart.map((c) => ({
+            name: c.name,
+            quantity: c.quantity,
+            lineTotal: c.unitPrice * c.quantity - c.discount,
+          })),
+          totals: { netPayable: netTotal },
+        },
+      };
+      const nextQ = [...offlineQueue, offlineTicket];
+      setOfflineQueue(nextQ);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(nextQ));
+      }
+      setReceipt(offlineTicket.previewPayload);
+      setCart([]);
+      setAmountTendered('');
+      setPaymentReference('');
+      setNotes('');
+      setToastMsg({
+        text: `Mode Hors-Ligne : Ticket ${localRef} sauvegardé localement et prêt à synchroniser.`,
+        type: 'info',
+      });
+    };
+
+    try {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        enqueueOffline();
+        return;
+      }
       const res = await fetchApi('/pos/checkout', {
         method: 'POST',
-        body: JSON.stringify({
-          registerId: selectedRegisterId,
-          customerId: selectedCustomerId || undefined,
-          customerName: customerName.trim() || 'Client Showroom',
-          customerPhone: customerPhone.trim() || undefined,
-          customerEmail: customerEmail.trim() || undefined,
-          deliveryAddress: fulfillmentMode === 'DELIVERY' ? deliveryAddress.trim() : undefined,
-          fulfillmentMode,
-          items: checkoutItems,
-          payments: [
-            {
-              method: paymentMethod,
-              amount: netTotal,
-              reference: paymentReference.trim() || undefined,
-            },
-          ],
-          amountTendered: paymentMethod === 'CASH' && tenderedVal >= netTotal ? tenderedVal : netTotal,
-          notes: combinedNotes || undefined,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const payload = res?.data ?? res;
@@ -466,7 +627,11 @@ export default function PosTerminalPage() {
       });
       loadPosData();
     } catch (err: any) {
-      setToastMsg({ text: err?.message || 'Erreur lors de la validation POS.', type: 'error' });
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        enqueueOffline();
+      } else {
+        setToastMsg({ text: err?.message || 'Erreur lors de la validation POS.', type: 'error' });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -559,9 +724,43 @@ export default function PosTerminalPage() {
               { label: 'Terminal POS' },
             ]}
           />
-          <span className="text-[11px] font-semibold text-slate-500">
-            Opérateur : <strong className="text-[#1D232E]">{user?.firstName} {user?.lastName}</strong>
-          </span>
+          <div className="flex flex-wrap items-center gap-2.5 text-[11px] font-semibold text-slate-500">
+            <span
+              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border ${
+                isOnline
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-rose-50 text-rose-700 border-rose-200'
+              }`}
+            >
+              {isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+              <span>{isOnline ? 'En Ligne' : 'Mode Hors-Ligne PWA'}</span>
+            </span>
+            {offlineQueue.length > 0 && (
+              <Button
+                variant="gold"
+                size="sm"
+                onClick={syncOfflineQueue}
+                isLoading={syncingQueue}
+                className="h-6 px-2.5 text-[10px]"
+              >
+                <CloudUpload className="w-3 h-3" />
+                <span>Synchroniser ({offlineQueue.length})</span>
+              </Button>
+            )}
+            {activePrinter && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6]">
+                <Printer className="w-3 h-3" />
+                <span>
+                  {activePrinter.name.includes(activePrinter.paperSize)
+                    ? activePrinter.name
+                    : `${activePrinter.name} (${activePrinter.paperSize})`}
+                </span>
+              </span>
+            )}
+            <span>
+              Opérateur : <strong className="text-[#1D232E]">{user?.firstName} {user?.lastName}</strong>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -1052,6 +1251,33 @@ export default function PosTerminalPage() {
       >
         {receipt && (
           <div className="p-6 space-y-4 text-xs">
+            {printers.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 no-print">
+                <span className="font-bold text-[#1D232E]">Aperçu calibré avant impression :</span>
+                <select
+                  value={activePrinter?.id || ''}
+                  onChange={(e) => setSelectedPrinterId(e.target.value)}
+                  className="px-2.5 py-1 rounded-lg border border-[#E6E1D6] bg-white text-xs font-semibold"
+                >
+                  {printers.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.paperSize})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div
+              className="mx-auto transition-all"
+              style={{
+                maxWidth:
+                  activePrinter?.paperSize === '58mm'
+                    ? '240px'
+                    : activePrinter?.paperSize === '80mm'
+                    ? '340px'
+                    : '100%',
+              }}
+            >
             <DocumentPrintHeader
               docCode="TK"
               docTitle="TICKET DE CAISSE SHOWROOM"
@@ -1077,6 +1303,7 @@ export default function PosTerminalPage() {
               <span className="font-mono">{formatTndCurrency(receipt.totals?.netPayable || 0)}</span>
             </div>
             <DocumentPrintFooter docCode="TK" reference={receipt.receiptNumber || 'TK-SHOWROOM'} />
+            </div>
           </div>
         )}
       </Modal>
@@ -1171,6 +1398,33 @@ export default function PosTerminalPage() {
         }
       >
         <div className="p-5 space-y-3 text-xs">
+          {printers.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 no-print">
+              <span className="font-bold text-[#1D232E]">Imprimante &amp; Format :</span>
+              <select
+                value={activePrinter?.id || ''}
+                onChange={(e) => setSelectedPrinterId(e.target.value)}
+                className="px-2.5 py-1 rounded-lg border border-[#E6E1D6] bg-white text-xs font-semibold"
+              >
+                {printers.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.paperSize})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div
+            className="mx-auto space-y-3 transition-all"
+            style={{
+              maxWidth:
+                activePrinter?.paperSize === '58mm'
+                  ? '240px'
+                  : activePrinter?.paperSize === '80mm'
+                  ? '340px'
+                  : '100%',
+            }}
+          >
           <DocumentPrintHeader
             docCode="TK"
             docTitle="TICKET PROFORMA SHOWROOM"
@@ -1213,6 +1467,7 @@ export default function PosTerminalPage() {
             <span className="font-mono">{formatTndCurrency(netTotal)}</span>
           </div>
           <DocumentPrintFooter docCode="TK" reference="APERCU-PROFORMA" />
+          </div>
         </div>
       </Modal>
 

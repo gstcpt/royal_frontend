@@ -13,6 +13,10 @@ import {
   XCircle,
   Plus,
   Trash2,
+  Webhook,
+  Copy,
+  Zap,
+  RefreshCw,
 } from 'lucide-react';
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
@@ -168,19 +172,35 @@ export default function DeliveriesPage() {
   const [formCod, setFormCod] = useState('0');
   const [formWarehouseId, setFormWarehouseId] = useState('');
   const [formLines, setFormLines] = useState<Array<{ variantId: string; name: string; sku: string; quantity: number }>>([]);
+  const [isWebhooksOpen, setIsWebhooksOpen] = useState(false);
+  const [carrierWebhooks, setCarrierWebhooks] = useState<any[]>([]);
+  const [carrierLogs, setCarrierLogs] = useState<any[]>([]);
+  const [simTracking, setSimTracking] = useState('');
+  const [simCarrier, setSimCarrier] = useState('aramex');
+  const [simStatus, setSimStatus] = useState('DELIVERED');
+  const [simulating, setSimulating] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [cfgRes, ordRes, whRes, prodRes] = await Promise.all([
+      const [cfgRes, ordRes, whRes, prodRes, cwRes, clRes] = await Promise.all([
         fetchApi('/storefront-cms/sys-config/deliverySlips').catch(() => null),
         fetchApi('/orders?limit=50').catch(() => null),
         fetchApi('/warehouses').catch(() => []),
         fetchApi('/products?limit=500&status=ACTIVE').catch(() => null),
+        fetchApi('/storefront-cms/sys-config/carrierWebhooks').catch(() => null),
+        fetchApi('/storefront-cms/sys-config/carrierLogs').catch(() => null),
       ]);
 
       const cfgList = cfgRes?.value || cfgRes?.data?.value || [];
       setDeliveries(Array.isArray(cfgList) ? cfgList : []);
+      const cwList = cwRes?.value || cwRes?.data?.value || [];
+      setCarrierWebhooks(Array.isArray(cwList) ? cwList : []);
+      const clList = clRes?.value || clRes?.data?.value || [];
+      setCarrierLogs(Array.isArray(clList) ? clList : []);
+      if (Array.isArray(cfgList) && cfgList.length > 0) {
+        setSimTracking((prev) => prev || cfgList[0].trackingNumber || '');
+      }
 
       const ordList = ordRes?.data?.items || ordRes?.items || ordRes?.data || (Array.isArray(ordRes) ? ordRes : []);
       setOrders(Array.isArray(ordList) ? ordList : []);
@@ -214,6 +234,51 @@ export default function DeliveriesPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const saveCarrierWebhooks = async (nextList: any[]) => {
+    setSaving(true);
+    try {
+      await fetchApi('/storefront-cms/sys-config/carrierWebhooks', {
+        method: 'PUT',
+        body: JSON.stringify({ value: nextList }),
+      });
+      setCarrierWebhooks(nextList);
+      setFeedbackMessage({ text: 'Webhooks transporteurs tunisiens enregistrés.', type: 'success' });
+    } catch (err: any) {
+      setFeedbackMessage({ text: err?.message || 'Erreur sauvegarde webhooks.', type: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSimulateWebhook = async () => {
+    if (!simTracking.trim()) {
+      setFeedbackMessage({ text: 'Sélectionnez ou saisissez un numéro de suivi BL.', type: 'error' });
+      return;
+    }
+    setSimulating(true);
+    try {
+      const res = await fetchApi(`/storefront-cms/webhooks/carrier-test/${simCarrier}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          trackingNumber: simTracking.trim(),
+          status: simStatus,
+          note: `Test manuel depuis Dashboard (${simCarrier})`,
+        }),
+      });
+      await loadData();
+      setFeedbackMessage({
+        text: res?.updatedSlip
+          ? `Webhook exécuté : BL ${res.updatedSlip.trackingNumber} → ${res.updatedSlip.status}.`
+          : 'Webhook journalisé (aucun BL correspondant exact trouvé).',
+        type: 'success',
+      });
+    } catch (err: any) {
+      setFeedbackMessage({ text: err?.message || 'Échec du test webhook.', type: 'error' });
+    } finally {
+      setSimulating(false);
+    }
+  };
 
   const persistDeliveries = async (nextList: DeliveryItem[]) => {
     await fetchApi('/storefront-cms/sys-config/deliverySlips', {
@@ -564,14 +629,24 @@ export default function DeliveriesPage() {
             ]}
           />
         </div>
-        <Button
-          variant="gold"
-          onClick={() => setIsCreateOpen(true)}
-          className="text-xs px-4 py-2.5 flex items-center gap-2 shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Nouveau Bon de Livraison (BL)</span>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            onClick={() => setIsWebhooksOpen(true)}
+            className="text-xs px-3.5 py-2.5 flex items-center gap-2"
+          >
+            <Webhook className="w-4 h-4 text-[#C59B27]" />
+            <span>Webhooks Transporteurs ({carrierWebhooks.filter((c) => c.isActive).length})</span>
+          </Button>
+          <Button
+            variant="gold"
+            onClick={() => setIsCreateOpen(true)}
+            className="text-xs px-4 py-2.5 flex items-center gap-2 shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Nouveau Bon de Livraison (BL)</span>
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 no-print">
@@ -941,6 +1016,171 @@ export default function DeliveriesPage() {
           </form>
         </Modal>
       )}
+
+      {/* Tunisian Carrier Webhooks Modal */}
+      <Modal
+        isOpen={isWebhooksOpen}
+        onClose={() => setIsWebhooksOpen(false)}
+        size="4xl"
+        title="Webhooks Transporteurs Tunisiens (Aramex, First Delivery, Intigo)"
+        subtitle="Synchronisation automatique des statuts de livraison et encaissements COD"
+        type="edit"
+        footer={
+          <div className="flex justify-end gap-2 w-full">
+            <Button variant="outline" size="sm" onClick={() => setIsWebhooksOpen(false)}>
+              Fermer
+            </Button>
+            <Button variant="gold" size="sm" onClick={() => saveCarrierWebhooks(carrierWebhooks)} isLoading={saving}>
+              Sauvegarder Webhooks
+            </Button>
+          </div>
+        }
+      >
+        <div className="p-6 space-y-5 text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {carrierWebhooks.map((cw) => {
+              const endpointUrl =
+                typeof window !== 'undefined'
+                  ? `${window.location.origin}/api/v1/storefront-cms/webhooks/carrier/${cw.code}`
+                  : `/api/v1/storefront-cms/webhooks/carrier/${cw.code}`;
+              return (
+                <div key={cw.id} className="p-3.5 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-[#1D232E]">{cw.name}</span>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(cw.isActive)}
+                      onChange={(e) =>
+                        setCarrierWebhooks((prev) =>
+                          prev.map((x) => (x.id === cw.id ? { ...x, isActive: e.target.checked } : x)),
+                        )
+                      }
+                      className="accent-[#C59B27] h-4 w-4 cursor-pointer"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      readOnly
+                      value={endpointUrl}
+                      className="w-full px-2 py-1.5 rounded-lg border border-[#E6E1D6] bg-white font-mono text-[10px] text-slate-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(endpointUrl);
+                        setFeedbackMessage({ text: `URL webhook ${cw.name} copiée.`, type: 'success' });
+                      }}
+                      className="p-1.5 rounded-lg border border-[#E6E1D6] bg-white hover:bg-slate-50 cursor-pointer"
+                      title="Copier URL Webhook"
+                    >
+                      <Copy className="w-3.5 h-3.5 text-[#9A7414]" />
+                    </button>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">
+                      Header x-webhook-secret
+                    </label>
+                    <input
+                      type="text"
+                      value={cw.webhookSecret || ''}
+                      onChange={(e) =>
+                        setCarrierWebhooks((prev) =>
+                          prev.map((x) => (x.id === cw.id ? { ...x, webhookSecret: e.target.value } : x)),
+                        )
+                      }
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-[#E6E1D6] bg-white font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="p-4 rounded-xl bg-white border border-[#E6E1D6] space-y-3">
+            <div className="font-bold text-[#1D232E] flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-[#C59B27]" />
+              <span>Simulateur Webhook Temps Réel</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 items-end">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Transporteur</label>
+                <select
+                  value={simCarrier}
+                  onChange={(e) => setSimCarrier(e.target.value)}
+                  className="w-full h-9 px-2.5 rounded-lg border border-[#E6E1D6] bg-white"
+                >
+                  {carrierWebhooks.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">N° Suivi BL</label>
+                <select
+                  value={simTracking}
+                  onChange={(e) => setSimTracking(e.target.value)}
+                  className="w-full h-9 px-2.5 rounded-lg border border-[#E6E1D6] bg-white font-mono"
+                >
+                  <option value="">Sélectionner BL...</option>
+                  {deliveries.map((d) => (
+                    <option key={d.id} value={d.trackingNumber}>
+                      {d.trackingNumber} ({d.orderReference})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Statut Reçu</label>
+                <select
+                  value={simStatus}
+                  onChange={(e) => setSimStatus(e.target.value)}
+                  className="w-full h-9 px-2.5 rounded-lg border border-[#E6E1D6] bg-white"
+                >
+                  <option value="IN_TRANSIT">En Transit (PICKED_UP)</option>
+                  <option value="DELIVERED">Livré (DELIVERED)</option>
+                  <option value="FAILED_RETURN">Échec / Retour (FAILED)</option>
+                </select>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleSimulateWebhook} isLoading={simulating} className="h-9">
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Tester Webhook</span>
+              </Button>
+            </div>
+          </div>
+
+          {carrierLogs.length > 0 && (
+            <div className="rounded-xl border border-[#E6E1D6] overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-[#FBF9F4] border-b border-[#E6E1D6] text-[10px] uppercase text-slate-500 font-bold">
+                  <tr>
+                    <th className="py-2 px-3">Date</th>
+                    <th className="py-2 px-3">Transporteur</th>
+                    <th className="py-2 px-3">BL / Cmd</th>
+                    <th className="py-2 px-3">Statut Appliqué</th>
+                    <th className="py-2 px-3">Sync Commande</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {carrierLogs.slice(0, 5).map((log) => (
+                    <tr key={log.id}>
+                      <td className="py-2 px-3 font-mono text-[11px] text-slate-500">
+                        {new Date(log.receivedAt).toLocaleString('fr-TN')}
+                      </td>
+                      <td className="py-2 px-3 font-semibold">{log.carrierName}</td>
+                      <td className="py-2 px-3 font-mono">{log.trackingNumber}</td>
+                      <td className="py-2 px-3 font-bold text-[#9A7414]">{log.mappedStatus}</td>
+                      <td className="py-2 px-3">{log.orderSynced ? 'Synchronisée' : 'BL seul'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

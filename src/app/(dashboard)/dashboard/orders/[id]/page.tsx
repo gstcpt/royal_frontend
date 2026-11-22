@@ -20,7 +20,8 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
-import { Modal } from '@/components/ui';
+import { Modal, Toast } from '@/components/ui';
+import { fetchApi } from '@/lib/api';
 import {
   NINE_ORDER_STATUSES,
   ORDER_STATUS_LABEL_MAP,
@@ -39,6 +40,12 @@ export default function OrderDetailsPage() {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [showEmailPrompt, setShowEmailPrompt] = useState(false);
+  const [emailRecipient, setEmailRecipient] = useState('');
+  const [sendInvoiceChecked, setSendInvoiceChecked] = useState(true);
+  const [sendBlChecked, setSendBlChecked] = useState(true);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const fetchOrder = async () => {
     if (!orderId) return;
@@ -87,9 +94,16 @@ export default function OrderDetailsPage() {
 
       const data = await res.json();
       if (res.ok) {
+        const wasDelivered = order.status === 'DELIVERED';
         setShowStatusModal(false);
         setStatusComment('');
         fetchOrder();
+        if (selectedStatus === 'DELIVERED' && !wasDelivered) {
+          setEmailRecipient(order.customer?.email || order.guestEmail || '');
+          setSendInvoiceChecked(true);
+          setSendBlChecked(true);
+          setShowEmailPrompt(true);
+        }
       } else {
         setErrorMsg(data.message || 'Impossible de mettre à jour le statut.');
       }
@@ -97,6 +111,28 @@ export default function OrderDetailsPage() {
       setErrorMsg('Erreur réseau lors de la mise à jour.');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleSendDeliveryDocs = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order) return;
+    setSendingEmail(true);
+    try {
+      const res = await fetchApi(`/storefront-cms/orders/${order.id}/send-delivery-documents`, {
+        method: 'POST',
+        body: JSON.stringify({
+          sendInvoice: sendInvoiceChecked,
+          sendDeliverySlip: sendBlChecked,
+          customEmail: emailRecipient.trim() || undefined,
+        }),
+      });
+      setShowEmailPrompt(false);
+      setToastMsg({ text: res?.message || 'Documents transmis au client.', type: 'success' });
+    } catch (err: any) {
+      setToastMsg({ text: err?.message || 'Échec envoi documents.', type: 'error' });
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -385,6 +421,79 @@ export default function OrderDetailsPage() {
           )}
         </form>
       </Modal>
+
+      {/* Manual Invoice / BL Email Prompt Modal */}
+      <Modal
+        isOpen={showEmailPrompt}
+        onClose={() => setShowEmailPrompt(false)}
+        title="Envoi Manuel — Facture & Bon de Livraison"
+        subtitle={`Commande ${order.reference} livrée`}
+        type="details"
+        size="md"
+        footer={
+          <div className="flex justify-end gap-2 w-full">
+            <button
+              type="button"
+              onClick={() => setShowEmailPrompt(false)}
+              className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold cursor-pointer"
+            >
+              Ignorer
+            </button>
+            <button
+              type="submit"
+              form="order-detail-docs-form"
+              disabled={sendingEmail || (!sendInvoiceChecked && !sendBlChecked) || !emailRecipient.trim()}
+              className="px-4 py-2 rounded-xl bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-semibold hover:bg-[var(--royal-primary-hover)] transition cursor-pointer inline-flex items-center gap-1.5"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              <span>{sendingEmail ? 'Envoi...' : 'Envoyer par E-mail'}</span>
+            </button>
+          </div>
+        }
+      >
+        <form id="order-detail-docs-form" onSubmit={handleSendDeliveryDocs} className="p-6 space-y-4 text-xs">
+          <p className="text-gray-600">
+            Cochez les documents PDF à joindre à l&apos;e-mail de confirmation de livraison :
+          </p>
+          <div>
+            <label className="block text-gray-700 font-medium mb-1">Email Destinataire *</label>
+            <input
+              type="email"
+              required
+              value={emailRecipient}
+              onChange={(e) => setEmailRecipient(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white"
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="p-3 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={sendInvoiceChecked}
+                onChange={(e) => setSendInvoiceChecked(e.target.checked)}
+                className="accent-[#C59B27] h-4 w-4"
+              />
+              <span className="font-bold text-gray-900">Facture Client (FAC)</span>
+            </label>
+            <label className="p-3 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={sendBlChecked}
+                onChange={(e) => setSendBlChecked(e.target.checked)}
+                className="accent-[#C59B27] h-4 w-4"
+              />
+              <span className="font-bold text-gray-900">Bon de Livraison (BL)</span>
+            </label>
+          </div>
+        </form>
+      </Modal>
+
+      <Toast
+        isOpen={!!toastMsg}
+        message={toastMsg?.text || ''}
+        type={toastMsg?.type || 'success'}
+        onClose={() => setToastMsg(null)}
+      />
       </div>
     </div>
   );

@@ -68,6 +68,7 @@ import {
   Sparkles,
   Eye,
   Globe,
+  HardDrive,
 } from 'lucide-react';
 
 interface NavNode {
@@ -161,6 +162,10 @@ function DashboardLayoutInner({
     '/dashboard/root/roles-permissions': 'PRIVATE',
     '/dashboard/logs': 'PRIVATE',
     '/dashboard/root/failures': 'PRIVATE',
+    '/dashboard/root/storage': 'PRIVATE',
+    '/dashboard/root/payment-gateways': 'PRIVATE',
+    '/dashboard/root/printers': 'PRIVATE',
+    '/dashboard/root/ai': 'PRIVATE',
     '/dashboard/root/visibility': 'PRIVATE',
   });
   const [activeFlyout, setActiveFlyout] = useState<{
@@ -270,6 +275,7 @@ function DashboardLayoutInner({
     'sys-crm-views': false,
     'sys-crm-emails': false,
     'sys-settings': false,
+    'sys-ai': false,
   });
 
   const toggleGroup = (id: string) => {
@@ -337,11 +343,14 @@ function DashboardLayoutInner({
           next['sys-crm-emails'] = true;
         }
         if (
-          ['/smtp', '/tva', '/reference-prefixes', '/print-templates', '/payment-methods'].some((p) =>
+          ['/smtp', '/tva', '/reference-prefixes', '/print-templates', '/payment-methods', '/storage', '/payment-gateways', '/printers'].some((p) =>
             pathname.includes(p)
           )
         ) {
           next['sys-settings'] = true;
+        }
+        if (pathname.includes('/root/ai')) {
+          next['sys-ai'] = true;
         }
       }
       return next;
@@ -843,10 +852,34 @@ function DashboardLayoutInner({
             { id: 'sys-print', label: 'Documents et impressions', href: '/dashboard/root/print-templates', icon: <Printer className="h-3.5 w-3.5" /> },
             { id: 'sys-pay', label: 'Modalités de paiement', href: '/dashboard/payment-methods', icon: <CreditCard className="h-3.5 w-3.5" /> },
             ...(isRoot
-              ? [{ id: 'sys-vis', label: 'Visibilité des vues', href: '/dashboard/root/visibility', icon: <Eye className="h-3.5 w-3.5" />, rootOnly: true }]
+              ? [
+                  { id: 'sys-storage', label: 'Stockage Médias & CDN', href: '/dashboard/root/storage', icon: <HardDrive className="h-3.5 w-3.5" />, rootOnly: true },
+                  { id: 'sys-gateways', label: 'Passerelles Paiement (Flouci)', href: '/dashboard/root/payment-gateways', icon: <Wallet className="h-3.5 w-3.5" />, rootOnly: true },
+                  { id: 'sys-printers', label: 'Imprimantes & Pont POS', href: '/dashboard/root/printers', icon: <Printer className="h-3.5 w-3.5" />, rootOnly: true },
+                  { id: 'sys-vis', label: 'Visibilité des vues', href: '/dashboard/root/visibility', icon: <Eye className="h-3.5 w-3.5" />, rootOnly: true },
+                ]
               : []),
           ],
         },
+        ...(isRoot
+          ? [
+              {
+                id: 'sys-ai',
+                label: 'Intelligence Artificielle (IA)',
+                icon: <Sparkles className="h-4 w-4" />,
+                rootOnly: true,
+                children: [
+                  {
+                    id: 'sys-ai-config',
+                    label: 'Fournisseurs IA (Gemini / Groq)',
+                    href: '/dashboard/root/ai',
+                    icon: <Sparkles className="h-3.5 w-3.5" />,
+                    rootOnly: true,
+                  },
+                ],
+              },
+            ]
+          : []),
         { id: 'sys-rbac', label: 'Rôles et permissions', href: '/dashboard/root/roles-permissions', icon: <Lock className="h-4 w-4" /> },
         { id: 'sys-audit', label: "Journal d'audit", href: '/dashboard/logs', icon: <Activity className="h-4 w-4" /> },
         { id: 'sys-err', label: 'Audit système', href: '/dashboard/root/failures', icon: <AlertTriangle className="h-4 w-4" /> },

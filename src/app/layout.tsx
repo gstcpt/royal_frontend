@@ -3,10 +3,12 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { CmsConfigProvider } from '@/providers/CmsConfigProvider';
 import { MarketingPixelsTracker } from '@/components/storefront/MarketingPixelsTracker';
+import { PwaRegistrar } from '@/components/PwaRegistrar';
 
 export const metadata: Metadata = {
   title: 'Royal — Electro de Maison | E-Commerce & Électroménager Tunisie',
   description: 'Plateforme E-Commerce Royal — Électroménager et équipement de cuisine d’excellence en Tunisie.',
+  manifest: '/manifest.webmanifest',
   verification: {
     google: '-sVFiqQAIiUhoCkCLkoOVY060WD77TF-eev_zSTzshA',
   },
@@ -29,6 +31,7 @@ export default function RootLayout({
     <html lang="fr" suppressHydrationWarning>
       <body className="min-h-screen antialiased bg-[var(--royal-bg)] text-[var(--royal-ink)]">
         <CmsConfigProvider>
+          <PwaRegistrar />
           <Suspense fallback={null}>
             <MarketingPixelsTracker />
           </Suspense>

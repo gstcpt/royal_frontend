@@ -53,8 +53,15 @@ export function ImageDropzoneCropper({
     setUploading(true);
     setErrorMsg(null);
     try {
+      const { compressImageToWebP } = await import('@/lib/webp-compress');
+      const optimized = await compressImageToWebP(fileOrBlob, filename, {
+        enabled: true,
+        quality: 0.85,
+        maxWidthPx: 1920,
+      });
+
       const formData = new FormData();
-      formData.append('file', fileOrBlob, filename);
+      formData.append('file', optimized.blob, optimized.filename);
 
       const headers: Record<string, string> = {};
       if (typeof window !== 'undefined') {

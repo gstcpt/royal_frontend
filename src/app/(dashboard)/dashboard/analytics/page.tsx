@@ -19,6 +19,7 @@ import {
   Globe,
   Share2,
   ExternalLink,
+  Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
@@ -99,6 +100,39 @@ const INITIAL_TRAFFIC: TrafficRow[] = [
 
 export default function AnalyticsPage() {
   const [traffic, setTraffic] = useState<TrafficRow[]>([]);
+  const [aiInsights, setAiInsights] = useState<{
+    headline?: string;
+    summary?: string;
+    recommendations?: Array<{ title: string; impact: string; action: string }>;
+  } | null>(null);
+  const [loadingAi, setLoadingAi] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const handleGenerateInsights = async () => {
+    setLoadingAi(true);
+    setAiError(null);
+    try {
+      const res = await fetchApi('/storefront-cms/ai/generate', {
+        method: 'POST',
+        body: JSON.stringify({
+          mode: 'ANALYTICS_INSIGHT',
+          payload: {
+            ...stats,
+            topPages: traffic.slice(0, 5).map((r) => ({
+              path: r.pagePath,
+              views: r.viewsCount,
+              conv: r.conversionRatePercent,
+            })),
+          },
+        }),
+      });
+      setAiInsights(res?.data || res);
+    } catch (err: any) {
+      setAiError(err?.message || 'Activez un fournisseur IA gratuit (Gemini / Groq) dans Système > IA.');
+    } finally {
+      setLoadingAi(false);
+    }
+  };
 
   React.useEffect(() => {
     fetchApi('/storefront-cms/analytics-report')
@@ -253,7 +287,57 @@ export default function AnalyticsPage() {
             ]}
           />
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleGenerateInsights}
+          isLoading={loadingAi}
+          className="border-[#E6D6A6] bg-[#FBF6E8] text-[#9A7414] hover:bg-[#C59B27] hover:text-white shrink-0"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Conseils IA Conversion &amp; Stock</span>
+        </Button>
       </div>
+
+      {aiError && (
+        <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 font-medium no-print">
+          {aiError}
+        </div>
+      )}
+
+      {aiInsights && (
+        <div className="p-5 rounded-2xl bg-[#FBF9F4] border border-[#E6D6A6] space-y-3 no-print">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 font-heading font-bold text-sm text-[#1D232E]">
+              <Sparkles className="w-4 h-4 text-[#C59B27]" />
+              <span>{aiInsights.headline || 'Recommandations Stratégiques IA'}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAiInsights(null)}
+              className="text-xs text-slate-500 hover:text-slate-900 cursor-pointer"
+            >
+              Masquer
+            </button>
+          </div>
+          {aiInsights.summary && <p className="text-xs text-slate-700 leading-relaxed">{aiInsights.summary}</p>}
+          {Array.isArray(aiInsights.recommendations) && aiInsights.recommendations.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {aiInsights.recommendations.map((rec, idx) => (
+                <div key={idx} className="p-3.5 rounded-xl bg-white border border-[#E6E1D6] space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-xs text-[#1D232E]">{rec.title}</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6]">
+                      Impact {rec.impact}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600">{rec.action}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 4 KPIs Master */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 no-print">

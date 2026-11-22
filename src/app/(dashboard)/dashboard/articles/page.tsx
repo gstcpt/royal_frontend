@@ -527,6 +527,7 @@ export default function DashboardArticlesPage() {
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = React.useState(false);
+  const [isGeneratingAi, setIsGeneratingAi] = React.useState(false);
 
   // Form Data
   const [editingProductId, setEditingProductId] = React.useState<string | null>(null);
@@ -2355,6 +2356,57 @@ export default function DashboardArticlesPage() {
                     onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
                     className="font-mono bg-neutral-50"
                   />
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+                    Descriptions Produit &amp; Fiche Technique
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    isLoading={isGeneratingAi}
+                    disabled={!formData.name.trim()}
+                    onClick={async () => {
+                      setIsGeneratingAi(true);
+                      try {
+                        const catName = categories.find((c) => c.id === formData.categoryId)?.name || '';
+                        const brandName = brands.find((b) => b.id === formData.brandId)?.name || '';
+                        const res = await fetchApi('/storefront-cms/ai/generate', {
+                          method: 'POST',
+                          body: JSON.stringify({
+                            mode: 'PRODUCT_COPY',
+                            payload: {
+                              name: formData.name,
+                              category: catName,
+                              brand: brandName,
+                              price: formData.sellingPrice,
+                            },
+                          }),
+                        });
+                        const ai = res?.data || res;
+                        setFormData((prev) => ({
+                          ...prev,
+                          nameAr: ai?.nameAr || prev.nameAr,
+                          shortDescription: ai?.shortDescription || prev.shortDescription,
+                          description: ai?.description || prev.description,
+                          metaTitle: ai?.metaTitle || prev.metaTitle,
+                          metaDesc: ai?.metaDesc || prev.metaDesc,
+                          focusKeyword: ai?.focusKeyword || prev.focusKeyword,
+                        }));
+                        showToast('success', 'Rédaction FR/AR et balises SEO générées par IA.');
+                      } catch (err: any) {
+                        showToast('error', err?.message || 'IA indisponible. Vérifiez /dashboard/root/ai.');
+                      } finally {
+                        setIsGeneratingAi(false);
+                      }
+                    }}
+                    className="h-8 text-xs border-[#E6D6A6] bg-[#FBF6E8] text-[#9A7414] hover:bg-[#C59B27] hover:text-white"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Générer Fiche &amp; SEO par IA</span>
+                  </Button>
                 </div>
 
                 <Textarea

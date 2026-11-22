@@ -110,6 +110,10 @@ const REGISTRY_VIEWS: ViewRouteItem[] = [
   { key: '/dashboard/root/roles-permissions', label: 'Rôles et permissions', section: 'Système & CMS', visibility: 'PRIVATE' },
   { key: '/dashboard/logs', label: "Journal d'audit", section: 'Système & CMS', visibility: 'PRIVATE' },
   { key: '/dashboard/root/failures', label: 'Audit système', section: 'Système & CMS', visibility: 'PRIVATE' },
+  { key: '/dashboard/root/storage', label: 'Stockage Médias & CDN', section: 'Système & CMS', visibility: 'PRIVATE' },
+  { key: '/dashboard/root/payment-gateways', label: 'Passerelles Paiement (Flouci / ClicToPay)', section: 'Système & CMS', visibility: 'PRIVATE' },
+  { key: '/dashboard/root/printers', label: 'Imprimantes & Pont POS', section: 'Système & CMS', visibility: 'PRIVATE' },
+  { key: '/dashboard/root/ai', label: 'Intelligence Artificielle (Gemini / Groq)', section: 'Système & CMS', visibility: 'PRIVATE' },
   { key: '/dashboard/root/visibility', label: 'Visibilité des vues', section: 'Système & CMS', visibility: 'PRIVATE' },
 ];
 
