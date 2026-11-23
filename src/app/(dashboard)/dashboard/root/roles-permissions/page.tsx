@@ -18,6 +18,7 @@ import {
   UserCog,
   CheckSquare,
   Square,
+  Eye,
 } from 'lucide-react';
 import {
   Button,
@@ -33,6 +34,12 @@ import {
   ViewGuideStep,
 } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
+import { RoleStudioPanel } from '@/components/dashboard/RoleStudioPanel';
+import {
+  applyPresetToRoleState,
+  DASHBOARD_VIEW_SECTIONS,
+  RolePresetId,
+} from '@/lib/rbac-catalog';
 
 interface ApiRole {
   id: string;
@@ -185,8 +192,13 @@ export default function RolesPermissionsPage() {
   const [savedRolePermSets, setSavedRolePermSets] = React.useState<Record<string, Set<string>>>({});
   const [dirtyRoles, setDirtyRoles] = React.useState<Set<string>>(new Set());
 
-  const [viewMode, setViewMode] = React.useState<'matrix' | 'by-role'>('matrix');
-  const [activeRoleName, setActiveRoleName] = React.useState<string>('SUPER_ADMIN');
+  const [roleViewsMap, setRoleViewsMap] = React.useState<Record<string, string[]>>({});
+  const [savedRoleViewsMap, setSavedRoleViewsMap] = React.useState<Record<string, string[]>>({});
+  const [dirtyViewRoles, setDirtyViewRoles] = React.useState<Set<string>>(new Set());
+  const [visibilityMap, setVisibilityMap] = React.useState<Record<string, 'PUBLIC' | 'PRIVATE'>>({});
+
+  const [viewMode, setViewMode] = React.useState<'matrix' | 'by-role'>('by-role');
+  const [activeRoleName, setActiveRoleName] = React.useState<string>('MARKETING');
   const [roleGroupFilter, setRoleGroupFilter] = React.useState<'ALL' | 'BACKOFFICE' | 'OPERATIONS'>('ALL');
 
   const [selectedModule, setSelectedModule] = React.useState<string>('');
@@ -205,7 +217,13 @@ export default function RolesPermissionsPage() {
 
   // Create modals
   const [showRoleModal, setShowRoleModal] = React.useState(false);
-  const [roleForm, setRoleForm] = React.useState({ name: '', displayName: '', description: '' });
+  const [roleForm, setRoleForm] = React.useState({
+    name: '',
+    displayName: '',
+    description: '',
+    preset: 'NONE' as 'NONE' | RolePresetId,
+    views: ['/dashboard'] as string[],
+  });
   const [savingRole, setSavingRole] = React.useState(false);
 
   const [showPermModal, setShowPermModal] = React.useState(false);
@@ -221,9 +239,11 @@ export default function RolesPermissionsPage() {
   const loadMatrix = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [rolesRes, permsRes] = await Promise.all([
+      const [rolesRes, permsRes, roleViewsRes, visibilityRes] = await Promise.all([
         fetchApi('/roles'),
         fetchApi('/permissions'),
+        fetchApi('/storefront-cms/sys-config/roleViews').catch(() => null),
+        fetchApi('/storefront-cms/sys-config/visibility').catch(() => null),
       ]);
       const roleList: ApiRole[] = rolesRes?.data || (Array.isArray(rolesRes) ? rolesRes : []);
       const sortedRoles = [...roleList].sort((a, b) => {
@@ -238,7 +258,10 @@ export default function RolesPermissionsPage() {
       setActiveRoleName((prev) =>
         sortedRoles.some((r) => r.name === prev)
           ? prev
-          : sortedRoles.find((r) => r.name !== 'ROOT')?.name || sortedRoles[0]?.name || 'ROOT',
+          : sortedRoles.find((r) => r.name === 'MARKETING')?.name ||
+            sortedRoles.find((r) => r.name !== 'ROOT')?.name ||
+            sortedRoles[0]?.name ||
+            'ROOT',
       );
 
       const permModules: Record<string, ApiPermission[]> = permsRes?.modules || permsRes?.data?.modules || {};
@@ -261,6 +284,29 @@ export default function RolesPermissionsPage() {
       setRolePermSets(sets);
       setSavedRolePermSets(snapshot);
       setDirtyRoles(new Set());
+
+      const rawViews = roleViewsRes?.data?.value ?? roleViewsRes?.value ?? {};
+      const viewsMap: Record<string, string[]> = {};
+      const viewsSnapshot: Record<string, string[]> = {};
+      if (rawViews && typeof rawViews === 'object' && !Array.isArray(rawViews)) {
+        Object.entries(rawViews).forEach(([k, v]) => {
+          const arr = Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+          viewsMap[k.toUpperCase()] = [...arr];
+          viewsSnapshot[k.toUpperCase()] = [...arr];
+        });
+      }
+      setRoleViewsMap(viewsMap);
+      setSavedRoleViewsMap(viewsSnapshot);
+      setDirtyViewRoles(new Set());
+
+      const rawVis = visibilityRes?.data?.value ?? visibilityRes?.value ?? [];
+      if (Array.isArray(rawVis)) {
+        const visMap: Record<string, 'PUBLIC' | 'PRIVATE'> = {};
+        rawVis.forEach((item: any) => {
+          if (item?.key) visMap[item.key] = item.visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC';
+        });
+        setVisibilityMap(visMap);
+      }
     } catch (err: any) {
       setToastType('error');
       setToastMsg(err?.message || 'Impossible de charger la matrice RBAC.');
@@ -335,20 +381,112 @@ export default function RolesPermissionsPage() {
     });
   };
 
+  const markViewDirtyStatus = React.useCallback(
+    (roleName: string, nextRoutes: string[], savedViews: Record<string, string[]>) => {
+      const orig = new Set(savedViews[roleName] || []);
+      const next = new Set(nextRoutes);
+      const changed =
+        orig.size !== next.size || Array.from(next).some((route) => !orig.has(route));
+      setDirtyViewRoles((prev) => {
+        const updated = new Set(prev);
+        if (changed) updated.add(roleName);
+        else updated.delete(roleName);
+        return updated;
+      });
+    },
+    [],
+  );
+
+  const setModulePermissionsForRole = (roleName: string, permIds: string[], enabled: boolean) => {
+    if (roleName === 'ROOT' || permIds.length === 0) return;
+    setRolePermSets((prev) => {
+      const next = { ...prev };
+      const current = new Set(next[roleName] || []);
+      permIds.forEach((id) => {
+        if (enabled) current.add(id);
+        else current.delete(id);
+      });
+      next[roleName] = current;
+      markDirtyStatus(roleName, current, savedRolePermSets);
+      return next;
+    });
+  };
+
+  const setRolePermissionsAndViews = (
+    roleName: string,
+    permIds: Set<string>,
+    views: string[],
+  ) => {
+    if (roleName === 'ROOT') return;
+    const dedupedViews = Array.from(new Set(views));
+    setRolePermSets((prev) => {
+      const next = { ...prev, [roleName]: new Set(permIds) };
+      markDirtyStatus(roleName, next[roleName], savedRolePermSets);
+      return next;
+    });
+    setRoleViewsMap((prev) => {
+      const next = { ...prev, [roleName]: dedupedViews };
+      markViewDirtyStatus(roleName, dedupedViews, savedRoleViewsMap);
+      return next;
+    });
+  };
+
+  const toggleViewRouteForRole = (roleName: string, routePath: string) => {
+    if (roleName === 'ROOT') return;
+    setRoleViewsMap((prev) => {
+      const current = new Set(prev[roleName] || []);
+      if (current.has(routePath)) current.delete(routePath);
+      else current.add(routePath);
+      const updated = Array.from(current);
+      markViewDirtyStatus(roleName, updated, savedRoleViewsMap);
+      return { ...prev, [roleName]: updated };
+    });
+  };
+
+  const toggleViewSectionForRole = (
+    roleName: string,
+    routePaths: string[],
+    enableAll: boolean,
+  ) => {
+    if (roleName === 'ROOT') return;
+    setRoleViewsMap((prev) => {
+      const current = new Set(prev[roleName] || []);
+      routePaths.forEach((path) => {
+        if (enableAll) current.add(path);
+        else current.delete(path);
+      });
+      const updated = Array.from(current);
+      markViewDirtyStatus(roleName, updated, savedRoleViewsMap);
+      return { ...prev, [roleName]: updated };
+    });
+  };
+
   const handleResetDirty = () => {
     const restored: Record<string, Set<string>> = {};
     Object.keys(savedRolePermSets).forEach((k) => {
       restored[k] = new Set(savedRolePermSets[k]);
     });
+    const restoredViews: Record<string, string[]> = {};
+    Object.keys(savedRoleViewsMap).forEach((k) => {
+      restoredViews[k] = [...savedRoleViewsMap[k]];
+    });
     setRolePermSets(restored);
+    setRoleViewsMap(restoredViews);
     setDirtyRoles(new Set());
+    setDirtyViewRoles(new Set());
     setToastType('info');
     setToastMsg('Modifications locales annulées.');
   };
 
+  const totalPendingRolesCount = React.useMemo(
+    () => new Set([...Array.from(dirtyRoles), ...Array.from(dirtyViewRoles)]).size,
+    [dirtyRoles, dirtyViewRoles],
+  );
+
   const handleSaveAll = async () => {
-    const rolesToSave = roles.filter((r) => r.name !== 'ROOT' && dirtyRoles.has(r.name));
-    if (rolesToSave.length === 0) {
+    const rolesToSavePerms = roles.filter((r) => r.name !== 'ROOT' && dirtyRoles.has(r.name));
+    const hasViewUpdates = dirtyViewRoles.size > 0;
+    if (rolesToSavePerms.length === 0 && !hasViewUpdates) {
       setToastType('info');
       setToastMsg('Aucune modification en attente.');
       return;
@@ -356,16 +494,26 @@ export default function RolesPermissionsPage() {
 
     setSaving(true);
     try {
-      for (const role of rolesToSave) {
+      for (const role of rolesToSavePerms) {
         const permIds = Array.from(rolePermSets[role.name] || []);
         await fetchApi(`/roles/${role.id}/permissions`, {
           method: 'POST',
           body: JSON.stringify({ permissionIds: permIds }),
         });
       }
+      if (hasViewUpdates) {
+        await fetchApi('/storefront-cms/sys-config/roleViews', {
+          method: 'PUT',
+          body: JSON.stringify({ value: roleViewsMap }),
+        });
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('royal:role-views-updated', { detail: roleViewsMap }));
+        }
+      }
       setDirtyRoles(new Set());
+      setDirtyViewRoles(new Set());
       setToastType('success');
-      setToastMsg(`${rolesToSave.length} rôle(s) enregistré(s) dans PostgreSQL.`);
+      setToastMsg('Permissions et vues Dashboard enregistrées dans PostgreSQL.');
       await loadMatrix();
     } catch (err: any) {
       setToastType('error');
@@ -516,7 +664,7 @@ export default function RolesPermissionsPage() {
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
               <span>Actualiser</span>
             </Button>
-            {dirtyRoles.size > 0 && (
+            {totalPendingRolesCount > 0 && (
               <Button variant="outline" size="sm" onClick={handleResetDirty} disabled={saving}>
                 <RotateCcw className="h-3.5 w-3.5 text-slate-500" />
                 <span>Annuler</span>
@@ -527,10 +675,10 @@ export default function RolesPermissionsPage() {
               size="sm"
               onClick={handleSaveAll}
               isLoading={saving}
-              disabled={dirtyRoles.size === 0}
+              disabled={totalPendingRolesCount === 0}
             >
               <Save className="h-3.5 w-3.5" />
-              <span>Enregistrer {dirtyRoles.size > 0 ? `(${dirtyRoles.size})` : ''}</span>
+              <span>Enregistrer {totalPendingRolesCount > 0 ? `(${totalPendingRolesCount})` : ''}</span>
             </Button>
           </div>
         </div>
@@ -547,18 +695,6 @@ export default function RolesPermissionsPage() {
           <div className="inline-flex p-1 rounded-xl bg-[#F4F5F7] border border-[#E6E1D6] self-start sm:self-auto">
             <button
               type="button"
-              onClick={() => setViewMode('matrix')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition cursor-pointer ${
-                viewMode === 'matrix'
-                  ? 'bg-white text-[#1D232E] shadow-2xs border border-[#E6E1D6]'
-                  : 'text-slate-500 hover:text-[#1D232E]'
-              }`}
-            >
-              <Grid3X3 className="w-3.5 h-3.5 text-[#C59B27]" />
-              <span>Matrice par Module</span>
-            </button>
-            <button
-              type="button"
               onClick={() => setViewMode('by-role')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition cursor-pointer ${
                 viewMode === 'by-role'
@@ -567,7 +703,19 @@ export default function RolesPermissionsPage() {
               }`}
             >
               <UserCog className="w-3.5 h-3.5 text-[#C59B27]" />
-              <span>Vue Par Rôle</span>
+              <span>Assistant Simple &amp; Vues</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('matrix')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition cursor-pointer ${
+                viewMode === 'matrix'
+                  ? 'bg-white text-[#1D232E] shadow-2xs border border-[#E6E1D6]'
+                  : 'text-slate-500 hover:text-[#1D232E]'
+              }`}
+            >
+              <Grid3X3 className="w-3.5 h-3.5 text-[#C59B27]" />
+              <span>Matrice Comparatif</span>
             </button>
           </div>
         </div>
@@ -579,7 +727,8 @@ export default function RolesPermissionsPage() {
           const permCount =
             r.name === 'ROOT' ? totalPermissionsCount : rolePermSets[r.name]?.size || 0;
           const pct = totalPermissionsCount > 0 ? Math.round((permCount / totalPermissionsCount) * 100) : 0;
-          const isDirty = dirtyRoles.has(r.name);
+          const viewsCount = r.name === 'ROOT' ? undefined : (roleViewsMap[r.name]?.length ?? 0);
+          const isDirty = dirtyRoles.has(r.name) || dirtyViewRoles.has(r.name);
           const isActiveRole = viewMode === 'by-role' && activeRoleName === r.name;
           const canDeleteRole = !r.isSystem && !EXCEL_ROLE_ORDER.includes(r.name);
 
@@ -644,9 +793,17 @@ export default function RolesPermissionsPage() {
                     /{totalPermissionsCount}
                   </span>
                 </span>
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500">
-                  <Users className="w-3 h-3 text-slate-400" />
-                  {r.userCount ?? 0}
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
+                  {viewsCount !== undefined && (
+                    <span className="inline-flex items-center gap-0.5 text-[#9A7414]">
+                      <Eye className="w-3 h-3" />
+                      {viewsCount}v
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-0.5">
+                    <Users className="w-3 h-3 text-slate-400" />
+                    {r.userCount ?? 0}
+                  </span>
                 </span>
               </div>
 
@@ -992,141 +1149,40 @@ export default function RolesPermissionsPage() {
         </div>
       )}
 
-      {/* 3B. VIEW MODE: PAR RÔLE (Sans Tableau Large — Idéal Mobile & Édition Rapide) */}
+      {/* 3B. VIEW MODE: STUDIO FACILE PAR RÔLE & VUES DYNAMIQUES */}
       {viewMode === 'by-role' && selectedRoleObj && (
-        <div className="bg-white rounded-3xl border border-[#E6E1D6] shadow-xs overflow-hidden">
-          <div className="p-5 bg-[#FBF9F4] border-b border-[#E6E1D6] flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#9A7414]">
-                  Configuration du Profil
-                </span>
-                {selectedRoleObj.name === 'ROOT' && (
-                  <Badge variant="warning" size="sm">
-                    Verrouillé ROOT (100%)
-                  </Badge>
-                )}
-              </div>
-              <h2 className="text-lg font-heading font-black text-[#1D232E]">
-                {getRoleFullLabel(selectedRoleObj)}
-              </h2>
-              {selectedRoleObj.description && (
-                <p className="text-xs text-slate-500">
-                  {cleanUtf8Label(selectedRoleObj.description)}
-                </p>
-              )}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2.5">
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-[#C59B27] absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={moduleSearch}
-                  onChange={(e) => setModuleSearch(e.target.value)}
-                  placeholder="Filtrer un module..."
-                  className="pl-9 pr-3 py-2 rounded-xl bg-white border border-[#E6E1D6] text-xs w-48 focus:outline-none focus:border-[#C59B27]"
-                />
-              </div>
-              {selectedRoleObj.name !== 'ROOT' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const visiblePerms = filteredModules.flatMap((m) => groupedPerms[m] || []);
-                    toggleModulePermsForRole(selectedRoleObj.name, visiblePerms);
-                  }}
-                >
-                  <CheckSquare className="w-3.5 h-3.5 text-[#C59B27]" />
-                  <span>Tout cocher / décocher ({filteredModules.length} modules)</span>
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <div className="p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredModules.map((mod) => {
-              const modPerms = groupedPerms[mod] || [];
-              const isRootRole = selectedRoleObj.name === 'ROOT';
-              const roleSet = rolePermSets[selectedRoleObj.name] || new Set<string>();
-              const enabledCount = isRootRole
-                ? modPerms.length
-                : modPerms.filter((p) => roleSet.has(p.id)).length;
-              const allModChecked = modPerms.length > 0 && enabledCount === modPerms.length;
-
-              return (
-                <div
-                  key={mod}
-                  className="rounded-2xl border border-[#E6E1D6] bg-white overflow-hidden flex flex-col"
-                >
-                  <div className="px-4 py-3 bg-[#FBF9F4] border-b border-[#E6E1D6] flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Layers className="w-3.5 h-3.5 text-[#C59B27] shrink-0" />
-                      <span className="font-bold text-xs text-[#1D232E] truncate">{mod}</span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white border border-[#E6E1D6] text-[#9A7414]">
-                        {enabledCount}/{modPerms.length}
-                      </span>
-                    </div>
-                    {!isRootRole && (
-                      <Toggle
-                        compact
-                        size="sm"
-                        checked={allModChecked}
-                        onChange={() => toggleModulePermsForRole(selectedRoleObj.name, modPerms)}
-                        ariaLabel={`Tout basculer sur ${mod}`}
-                      />
-                    )}
-                  </div>
-
-                  <div className="divide-y divide-slate-100 p-2 space-y-1 flex-1">
-                    {modPerms.map((perm) => {
-                      const checked = isRootRole || roleSet.has(perm.id);
-                      return (
-                        <div
-                          key={perm.id}
-                          className="px-2.5 py-2 rounded-xl hover:bg-[#F8F9FA] flex items-center justify-between gap-2"
-                        >
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-[11px] font-bold text-[#1D232E]">
-                                {ACTION_LABELS[perm.action] || perm.action}
-                              </span>
-                              <span className="text-[10px] font-mono text-slate-400 truncate">
-                                {perm.code}
-                              </span>
-                            </div>
-                            {perm.description && (
-                              <div className="text-[10px] text-slate-500 line-clamp-1">
-                                {cleanUtf8Label(perm.description)}
-                              </div>
-                            )}
-                          </div>
-                          <Toggle
-                            compact
-                            size="sm"
-                            disabled={isRootRole}
-                            checked={checked}
-                            onChange={() => togglePermission(selectedRoleObj.name, perm.id)}
-                            ariaLabel={`${perm.code} pour ${getRoleFullLabel(selectedRoleObj)}`}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <RoleStudioPanel
+          role={selectedRoleObj}
+          roleDisplayName={getRoleFullLabel(selectedRoleObj)}
+          roleDescription={cleanUtf8Label(selectedRoleObj.description)}
+          groupedPerms={groupedPerms}
+          rolePermSet={rolePermSets[selectedRoleObj.name] || new Set<string>()}
+          roleViews={roleViewsMap[selectedRoleObj.name] || ['/dashboard']}
+          visibilityMap={visibilityMap}
+          actionLabels={ACTION_LABELS}
+          onTogglePermission={(permId) => togglePermission(selectedRoleObj.name, permId)}
+          onSetModulePerms={(permIds, enabled) =>
+            setModulePermissionsForRole(selectedRoleObj.name, permIds, enabled)
+          }
+          onSetRoleState={(permIds, views) =>
+            setRolePermissionsAndViews(selectedRoleObj.name, permIds, views)
+          }
+          onToggleViewRoute={(routePath) =>
+            toggleViewRouteForRole(selectedRoleObj.name, routePath)
+          }
+          onToggleViewSection={(paths, enableAll) =>
+            toggleViewSectionForRole(selectedRoleObj.name, paths, enableAll)
+          }
+        />
       )}
 
       {/* Modals */}
       <Modal
         isOpen={showRoleModal}
         onClose={() => setShowRoleModal(false)}
-        title="Créer un Nouveau Rôle RBAC"
+        title="Créer un Nouveau Rôle & Assigner ses Vues"
         type="create"
-        size="lg"
+        size="xl"
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => setShowRoleModal(false)}>
@@ -1144,18 +1200,56 @@ export default function RolesPermissionsPage() {
                 }
                 setSavingRole(true);
                 try {
-                  await fetchApi('/roles', {
+                  const normalizedCode = roleForm.name.trim().toUpperCase().replace(/\s+/g, '_');
+                  const createdRes = await fetchApi('/roles', {
                     method: 'POST',
                     body: JSON.stringify({
-                      name: roleForm.name.trim().toUpperCase().replace(/\s+/g, '_'),
+                      name: normalizedCode,
                       displayName: roleForm.displayName.trim(),
                       description: roleForm.description.trim() || undefined,
                     }),
                   });
+                  const createdRoleId = createdRes?.id || createdRes?.data?.id;
+                  if (createdRoleId && roleForm.preset !== 'NONE') {
+                    const presetState = applyPresetToRoleState(
+                      roleForm.preset,
+                      groupedPerms,
+                      new Set<string>(),
+                      roleForm.views,
+                    );
+                    const permIds = Array.from(presetState.permIds);
+                    if (permIds.length > 0) {
+                      await fetchApi(`/roles/${createdRoleId}/permissions`, {
+                        method: 'POST',
+                        body: JSON.stringify({ permissionIds: permIds }),
+                      });
+                    }
+                  }
+                  const nextViewsMap = {
+                    ...roleViewsMap,
+                    [normalizedCode]: Array.from(new Set(['/dashboard', ...roleForm.views])),
+                  };
+                  await fetchApi('/storefront-cms/sys-config/roleViews', {
+                    method: 'PUT',
+                    body: JSON.stringify({ value: nextViewsMap }),
+                  });
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(
+                      new CustomEvent('royal:role-views-updated', { detail: nextViewsMap }),
+                    );
+                  }
                   setShowRoleModal(false);
-                  setRoleForm({ name: '', displayName: '', description: '' });
+                  setRoleForm({
+                    name: '',
+                    displayName: '',
+                    description: '',
+                    preset: 'NONE',
+                    views: ['/dashboard'],
+                  });
+                  setActiveRoleName(normalizedCode);
+                  setViewMode('by-role');
                   setToastType('success');
-                  setToastMsg('Nouveau rôle enregistré dans PostgreSQL.');
+                  setToastMsg(`Rôle "${normalizedCode}" créé avec ses vues Dashboard.`);
                   await loadMatrix();
                 } catch (e: any) {
                   setToastType('error');
@@ -1165,47 +1259,152 @@ export default function RolesPermissionsPage() {
                 }
               }}
             >
-              Enregistrer le Rôle
+              Enregistrer le Rôle &amp; Vues
             </Button>
           </div>
         }
       >
-        <div className="p-6 space-y-4">
-          <div>
-            <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-              Code technique (ex: LIVREUR_PRO)
-            </label>
-            <input
-              type="text"
-              value={roleForm.name}
-              onChange={(e) => setRoleForm({ ...roleForm, name: e.target.value.toUpperCase() })}
-              placeholder="SUPERVISEUR_SHOWROOM"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#F8F9FA] border border-[#E6E1D6] text-xs font-mono"
-            />
+        <div className="p-6 space-y-5 overflow-x-hidden">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                Code technique (ex: LIVREUR_PRO)
+              </label>
+              <input
+                type="text"
+                value={roleForm.name}
+                onChange={(e) => setRoleForm({ ...roleForm, name: e.target.value.toUpperCase() })}
+                placeholder="ASSISTANTE_MARKETING"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#F8F9FA] border border-[#E6E1D6] text-xs font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                Libellé affiché
+              </label>
+              <input
+                type="text"
+                value={roleForm.displayName}
+                onChange={(e) => setRoleForm({ ...roleForm, displayName: e.target.value })}
+                placeholder="Assistante Marketing"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#F8F9FA] border border-[#E6E1D6] text-xs"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-              Libellé affiché
-            </label>
-            <input
-              type="text"
-              value={roleForm.displayName}
-              onChange={(e) => setRoleForm({ ...roleForm, displayName: e.target.value })}
-              placeholder="Superviseur Showroom"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#F8F9FA] border border-[#E6E1D6] text-xs"
-            />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                Modèle de permissions initial
+              </label>
+              <Select
+                value={roleForm.preset}
+                onChange={(e) => {
+                  const preset = e.target.value as 'NONE' | RolePresetId;
+                  if (preset === 'NONE') {
+                    setRoleForm({ ...roleForm, preset: 'NONE' });
+                  } else {
+                    const next = applyPresetToRoleState(
+                      preset,
+                      groupedPerms,
+                      new Set<string>(),
+                      roleForm.views,
+                    );
+                    setRoleForm({ ...roleForm, preset, views: next.views });
+                  }
+                }}
+                options={[
+                  { value: 'NONE', label: 'Rôle vierge (configuration manuelle ensuite)' },
+                  { value: 'MARKETING_FULL', label: 'Pack Marketing (Catalogue sans Supprimer + Communauté sans Support + Client)' },
+                  { value: 'CATALOG_NO_DELETE', label: 'Catalogue uniquement (sans Suppression)' },
+                  { value: 'COMMUNITY_NO_SUPPORT', label: 'Communauté (Notifications & Contact sans Support)' },
+                  { value: 'CLIENT_SPACE', label: 'Espace Client Standard' },
+                ]}
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
+                Description
+              </label>
+              <input
+                type="text"
+                value={roleForm.description}
+                onChange={(e) => setRoleForm({ ...roleForm, description: e.target.value })}
+                placeholder="Périmètre d'action du rôle..."
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#F8F9FA] border border-[#E6E1D6] text-xs"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-[11px] font-bold uppercase text-slate-600 mb-1">
-              Description
-            </label>
-            <textarea
-              rows={2}
-              value={roleForm.description}
-              onChange={(e) => setRoleForm({ ...roleForm, description: e.target.value })}
-              placeholder="Périmètre d'action du rôle..."
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#F8F9FA] border border-[#E6E1D6] text-xs"
-            />
+
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-[11px] font-bold uppercase text-slate-600">
+                Vues Dashboard accessibles à ce rôle ({roleForm.views.length} sélectionnées)
+              </label>
+              <button
+                type="button"
+                onClick={() => setRoleForm({ ...roleForm, views: ['/dashboard'] })}
+                className="text-[11px] font-bold text-[#9A7414] hover:underline cursor-pointer"
+              >
+                Tout décocher
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-60 overflow-y-auto p-2 rounded-2xl bg-[#FBF9F4] border border-[#E6E1D6]">
+              {DASHBOARD_VIEW_SECTIONS.map((sec) => {
+                const paths = sec.routes.map((r) => r.path);
+                const selectedCount = paths.filter((p) => roleForm.views.includes(p)).length;
+                const allSelected = paths.length > 0 && selectedCount === paths.length;
+                return (
+                  <div
+                    key={sec.id}
+                    className="p-2.5 rounded-xl bg-white border border-[#E6E1D6] space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2 pb-1 border-b border-slate-100">
+                      <span className="text-[11px] font-black text-[#1D232E] truncate">
+                        {sec.label}
+                      </span>
+                      <Toggle
+                        compact
+                        size="sm"
+                        checked={allSelected}
+                        onChange={() => {
+                          const current = new Set(roleForm.views);
+                          paths.forEach((p) => {
+                            if (allSelected) current.delete(p);
+                            else current.add(p);
+                          });
+                          setRoleForm({ ...roleForm, views: Array.from(current) });
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      {sec.routes.map((r) => {
+                        const checked = roleForm.views.includes(r.path);
+                        return (
+                          <label
+                            key={r.path}
+                            className="flex items-center justify-between gap-2 text-[11px] text-slate-600 cursor-pointer"
+                          >
+                            <span className="truncate">{r.label}</span>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                const current = new Set(roleForm.views);
+                                if (current.has(r.path)) current.delete(r.path);
+                                else current.add(r.path);
+                                setRoleForm({ ...roleForm, views: Array.from(current) });
+                              }}
+                              className="rounded border-slate-300 text-[#C59B27] focus:ring-[#C59B27]"
+                            />
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </Modal>

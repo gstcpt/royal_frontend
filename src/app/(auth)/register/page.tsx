@@ -18,6 +18,8 @@ import {
   CheckCircle2,
   KeyRound,
   RefreshCw,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 export default function RegisterPage() {
@@ -29,6 +31,7 @@ export default function RegisterPage() {
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState('');
   const [resending, setResending] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -274,11 +277,19 @@ export default function RegisterPage() {
           <div className="relative">
             <Lock className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               placeholder={t('auth.password_min8')}
               {...register('password')}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-neutral-200 bg-[#F8F9FA] text-neutral-900 placeholder:text-neutral-400 text-sm focus:outline-none focus:border-neutral-900 focus:bg-white transition-all"
+              className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-neutral-200 bg-[#F8F9FA] text-neutral-900 placeholder:text-neutral-400 text-sm focus:outline-none focus:border-neutral-900 focus:bg-white transition-all"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-800 transition-colors cursor-pointer"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </div>
           {errors.password && (
             <p className="text-xs text-red-600 mt-1 font-medium">

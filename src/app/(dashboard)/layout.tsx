@@ -181,6 +181,7 @@ function DashboardLayoutInner({
     '/dashboard/root/ai': 'PRIVATE',
     '/dashboard/root/visibility': 'PRIVATE',
   });
+  const [roleViewsMap, setRoleViewsMap] = useState<Record<string, string[]> | null>(null);
   const [activeFlyout, setActiveFlyout] = useState<{
     section: NavSection;
     top?: number;
@@ -256,6 +257,43 @@ function DashboardLayoutInner({
       }
     };
   }, []);
+
+  useEffect(() => {
+    const loadRoleViews = async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('royal_token') : null;
+        if (!token) {
+          setRoleViewsMap(null);
+          return;
+        }
+        const res = await fetch('/api/v1/storefront-cms/role-views-config', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const raw = json?.data?.value ?? json?.value ?? json?.data ?? json;
+          if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+            setRoleViewsMap(raw as Record<string, string[]>);
+          }
+        }
+      } catch {
+        // Ignore network transient
+      }
+    };
+
+    loadRoleViews();
+    const handleRoleViewsUpdate = (e: any) => {
+      if (e?.detail && typeof e.detail === 'object' && !Array.isArray(e.detail)) {
+        setRoleViewsMap(e.detail);
+      } else {
+        loadRoleViews();
+      }
+    };
+    window.addEventListener('royal:role-views-updated', handleRoleViewsUpdate);
+    return () => {
+      window.removeEventListener('royal:role-views-updated', handleRoleViewsUpdate);
+    };
+  }, [isAuthenticated]);
 
   const toggleSidebarCollapse = () => {
     setIsCollapsed((prev) => {
@@ -490,8 +528,34 @@ function DashboardLayoutInner({
     isVendeur ||
     isFinancier ||
     isCommercial ||
-    isMarketing;
+    isMarketing ||
+    userRoles.some((r) => r !== 'CLIENT');
   const isClient = !isStaff;
+
+  const allowedRoleRoutes: Set<string> | null = (() => {
+    if (isRoot) return null;
+    if (!roleViewsMap || userRoles.length === 0) return null;
+    const matchedRoles = userRoles.filter((r) => Array.isArray(roleViewsMap[r.toUpperCase()]));
+    if (matchedRoles.length === 0) return null;
+    const allowedSet = new Set<string>();
+    matchedRoles.forEach((r) => {
+      (roleViewsMap[r.toUpperCase()] || []).forEach((route) => allowedSet.add(route));
+    });
+    return allowedSet;
+  })();
+
+  const matchesRoleRoute = (href?: string | null): boolean => {
+    if (isRoot || !allowedRoleRoutes || !href) return true;
+    const clean = href.split('?')[0];
+    if (clean === '/dashboard') return allowedRoleRoutes.has('/dashboard');
+    if (clean.startsWith('/dashboard/section/')) return false;
+    for (const allowed of allowedRoleRoutes) {
+      if (clean === allowed || (allowed !== '/dashboard' && clean.startsWith(`${allowed}/`))) {
+        return true;
+      }
+    }
+    return false;
+  };
 
   const primaryRole = userRoles[0] || 'CLIENT';
 
@@ -579,7 +643,7 @@ function DashboardLayoutInner({
           href: isStaff ? '/dashboard/community/messages' : '/account/messages',
           icon: <MessageSquare className="h-4 w-4" />,
         },
-        ...(isRoot || isSuperAdmin || isWebsiteManager
+        ...(isRoot || isSuperAdmin || isWebsiteManager || Boolean(allowedRoleRoutes)
           ? [
               {
                 id: 'comm-contact',
@@ -597,7 +661,7 @@ function DashboardLayoutInner({
       id: 'users',
       title: 'Gestion des utilisateurs',
       icon: <Users className="h-4 w-4" />,
-      visible: isRoot || isSuperAdmin || isWebsiteManager,
+      visible: allowedRoleRoutes ? true : isRoot || isSuperAdmin || isWebsiteManager,
       items: [
         {
           id: 'users-all',
@@ -685,7 +749,7 @@ function DashboardLayoutInner({
       id: 'catalogue',
       title: 'Catalogue',
       icon: <Package className="h-4 w-4" />,
-      visible: isRoot || isSuperAdmin || isWebsiteManager || isCommercial,
+      visible: allowedRoleRoutes ? true : isRoot || isSuperAdmin || isWebsiteManager || isCommercial,
       items: [
         { id: 'cat-brands', label: 'Marques', href: '/dashboard/brands', icon: <Tag className="h-4 w-4" /> },
         { id: 'cat-categories', label: 'Catégories', href: '/dashboard/categories', icon: <Layers className="h-4 w-4" /> },
@@ -701,7 +765,7 @@ function DashboardLayoutInner({
       id: 'treasury',
       title: 'Trésorerie',
       icon: <Wallet className="h-4 w-4" />,
-      visible: isRoot || isSuperAdmin || isFinancier || isCaissier,
+      visible: allowedRoleRoutes ? true : isRoot || isSuperAdmin || isFinancier || isCaissier,
       items: [
         { id: 'tr-caisses', label: 'Caisses', href: '/dashboard/treasury', icon: <Banknote className="h-4 w-4" /> },
         { id: 'tr-journal', label: 'Journal', href: '/dashboard/treasury/transactions', icon: <CreditCard className="h-4 w-4" /> },
@@ -715,7 +779,7 @@ function DashboardLayoutInner({
       id: 'purchases',
       title: 'Achats et approvisionnement',
       icon: <ShoppingBag className="h-4 w-4" />,
-      visible: isRoot || isSuperAdmin || isMagasinier || isCommercial || isFinancier,
+      visible: allowedRoleRoutes ? true : isRoot || isSuperAdmin || isMagasinier || isCommercial || isFinancier,
       items: [
         { id: 'pur-prospects', label: 'Portefeuille de prospects', href: '/dashboard/purchases/prospects', icon: <Compass className="h-4 w-4" /> },
         { id: 'pur-suppliers', label: 'Fiches fournisseurs', href: '/dashboard/suppliers', icon: <Building2 className="h-4 w-4" /> },
@@ -729,7 +793,7 @@ function DashboardLayoutInner({
       id: 'stock',
       title: 'Stock et entrepôts',
       icon: <Warehouse className="h-4 w-4" />,
-      visible: isRoot || isSuperAdmin || isMagasinier,
+      visible: allowedRoleRoutes ? true : isRoot || isSuperAdmin || isMagasinier,
       items: [
         { id: 'st-depots', label: 'Dépôts', href: '/dashboard/warehouses', icon: <Warehouse className="h-4 w-4" /> },
         { id: 'st-in', label: "Bon d'entrée", href: '/dashboard/stock-in', icon: <FileInput className="h-4 w-4" /> },
@@ -744,16 +808,17 @@ function DashboardLayoutInner({
       id: 'sales',
       title: 'Ventes et distribution',
       icon: <ShoppingCart className="h-4 w-4" />,
-      visible:
-        isRoot ||
-        isSuperAdmin ||
-        isWebsiteManager ||
-        isMagasinier ||
-        isCaissier ||
-        isFinancier ||
-        isCommercial,
+      visible: allowedRoleRoutes
+        ? true
+        : isRoot ||
+          isSuperAdmin ||
+          isWebsiteManager ||
+          isMagasinier ||
+          isCaissier ||
+          isFinancier ||
+          isCommercial,
       items: [
-        ...(isRoot || isSuperAdmin || isWebsiteManager || isCaissier || isCommercial
+        ...(isRoot || isSuperAdmin || isWebsiteManager || isCaissier || isCommercial || Boolean(allowedRoleRoutes)
           ? [
               {
                 id: 'sales-customers',
@@ -795,7 +860,7 @@ function DashboardLayoutInner({
       id: 'pos',
       title: 'Point de vente',
       icon: <Store className="h-4 w-4" />,
-      visible: isRoot || isSuperAdmin || isCaissier || isVendeur,
+      visible: allowedRoleRoutes ? true : isRoot || isSuperAdmin || isCaissier || isVendeur,
       items: [
         { id: 'pos-showrooms', label: "Salles d'exposition", href: '/dashboard/pos/showrooms', icon: <Building2 className="h-4 w-4" /> },
         { id: 'pos-terminal', label: 'Terminal', href: '/dashboard/pos', icon: <Store className="h-4 w-4" /> },
@@ -807,7 +872,7 @@ function DashboardLayoutInner({
       id: 'seo',
       title: 'Seo',
       icon: <Search className="h-4 w-4" />,
-      visible: isRoot || isSuperAdmin || isWebsiteManager,
+      visible: allowedRoleRoutes ? true : isRoot || isSuperAdmin || isWebsiteManager,
       items: [
         { id: 'seo-reviews', label: 'Commentaires et avis', href: '/dashboard/community/testimonials', icon: <MessageSquareQuote className="h-4 w-4" /> },
         { id: 'seo-interactions', label: 'Interactions', href: '/dashboard/reports/interactions', icon: <ThumbsUp className="h-4 w-4" /> },
@@ -822,7 +887,7 @@ function DashboardLayoutInner({
       id: 'reports',
       title: 'Rapports et statistiques',
       icon: <BarChart3 className="h-4 w-4" />,
-      visible: isRoot || isSuperAdmin || isWebsiteManager || isFinancier,
+      visible: allowedRoleRoutes ? true : isRoot || isSuperAdmin || isWebsiteManager || isFinancier,
       items: [
         { id: 'rep-buying', label: "Conseils d'achat", href: '/dashboard/analytics', icon: <BarChart3 className="h-4 w-4" /> },
         { id: 'rep-sales', label: 'Ventes et marges', href: '/dashboard/reports/sales', icon: <TrendingUp className="h-4 w-4" /> },
@@ -851,7 +916,7 @@ function DashboardLayoutInner({
       id: 'system',
       title: 'Système',
       icon: <Settings className="h-4 w-4" />,
-      visible: isRoot || isSuperAdmin,
+      visible: allowedRoleRoutes ? true : isRoot || isSuperAdmin,
       items: [
         {
           id: 'sys-crm',
@@ -894,6 +959,7 @@ function DashboardLayoutInner({
             { id: 'sys-pref', label: 'Préfixes et numérotations', href: '/dashboard/root/reference-prefixes', icon: <Hash className="h-3.5 w-3.5" /> },
             { id: 'sys-print', label: 'Documents & Imprimantes POS', href: '/dashboard/root/print-templates', icon: <Printer className="h-3.5 w-3.5" /> },
             { id: 'sys-pay', label: 'Modalités & Passerelles Paiement', href: '/dashboard/payment-methods', icon: <CreditCard className="h-3.5 w-3.5" /> },
+            { id: 'sys-general', label: 'Paramètres généraux', href: '/dashboard/settings', icon: <Settings className="h-3.5 w-3.5" /> },
             ...(isRoot
               ? [
                   { id: 'sys-storage', label: 'Stockage Médias & CDN', href: '/dashboard/root/storage', icon: <HardDrive className="h-3.5 w-3.5" />, rootOnly: true },
@@ -913,6 +979,7 @@ function DashboardLayoutInner({
               },
             ]
           : []),
+        { id: 'sys-translations', label: 'Langues (FR / AR)', href: '/dashboard/translations', icon: <Globe className="h-4 w-4" /> },
         { id: 'sys-rbac', label: 'Rôles et permissions', href: '/dashboard/root/roles-permissions', icon: <Lock className="h-4 w-4" /> },
         { id: 'sys-audit', label: "Journal d'audit", href: '/dashboard/logs', icon: <Activity className="h-4 w-4" /> },
         { id: 'sys-err', label: 'Audit système', href: '/dashboard/root/failures', icon: <AlertTriangle className="h-4 w-4" /> },
@@ -921,7 +988,7 @@ function DashboardLayoutInner({
   ];
 
   const isHrefVisible = (href?: string | null): boolean =>
-    resolveRouteVisibility(href, visibilityMap, isRoot);
+    resolveRouteVisibility(href, visibilityMap, isRoot) && matchesRoleRoute(href);
 
   const filterVisibleNodes = (nodes: NavNode[]): NavNode[] =>
     nodes
@@ -940,11 +1007,14 @@ function DashboardLayoutInner({
     if (cleanPath.startsWith('/dashboard/root/visibility')) {
       return true;
     }
-    if (cleanPath in visibilityMap) {
-      return visibilityMap[cleanPath] === 'PRIVATE';
-    }
     if (cleanPath.startsWith('/dashboard/section')) {
       return true;
+    }
+    if (allowedRoleRoutes && !matchesRoleRoute(cleanPath)) {
+      return true;
+    }
+    if (cleanPath in visibilityMap) {
+      return visibilityMap[cleanPath] === 'PRIVATE';
     }
     const matchedParent = Object.keys(visibilityMap)
       .filter((k) => cleanPath.startsWith(`${k}/`))

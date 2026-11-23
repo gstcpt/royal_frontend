@@ -222,14 +222,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { user } = get();
     if (!user) return false;
     if (user.roles && user.roles.includes(SystemRole.ROOT)) return true;
-    return (user.permissions || []).includes(permission);
+    const perms = user.permissions || [];
+    const normalizedDot = permission.replace(/:/g, '.');
+    const normalizedColon = permission.replace(/\./g, ':');
+    const [domain, action] = normalizedDot.split('.');
+    const isReadLike = action === 'read' || action === 'view';
+    return (
+      perms.includes(permission) ||
+      perms.includes(normalizedDot) ||
+      perms.includes(normalizedColon) ||
+      (isReadLike &&
+        (perms.includes(`${domain}.read_list`) ||
+          perms.includes(`${domain}:read_list`) ||
+          perms.includes(`${domain}.read_detail`) ||
+          perms.includes(`${domain}:read_detail`) ||
+          perms.includes(`${domain}.read`) ||
+          perms.includes(`${domain}:read`))) ||
+      perms.includes(`${domain}.manage`) ||
+      perms.includes(`${domain}:manage`) ||
+      perms.includes('*')
+    );
   },
 
   hasAllPermissions: (permissions: string[]) => {
-    const { user } = get();
-    if (!user) return false;
-    if (user.roles && user.roles.includes(SystemRole.ROOT)) return true;
-    const userPerms = user.permissions || [];
-    return permissions.every((p) => userPerms.includes(p));
+    return permissions.every((p) => get().hasPermission(p));
   },
 }));

@@ -45,6 +45,7 @@ import {
 } from '@/components/ui';
 import { ModalArticlesTable, RelatedArticlesModal } from '@/components/dashboard';
 import { fetchApi, fetchAllPaginated } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 import { Check as _BrandCheckIcon, Eye as _BrandEyeIcon, EyeOff as _BrandEyeOffIcon } from 'lucide-react';
 
 export interface BrandItem {
@@ -80,6 +81,7 @@ interface ProductItem {
 }
 
 export default function DashboardBrandsPage() {
+  const canDeleteBrand = useAuthStore((s) => s.hasPermission('brands.delete'));
   const [brands, setBrands] = React.useState<BrandItem[]>([]);
   const [products, setProducts] = React.useState<ProductItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -633,14 +635,16 @@ export default function DashboardBrandsPage() {
       </button>
 
       {/* 4. Delete (Rose Danger) */}
-      <button
-        type="button"
-        onClick={() => setBrandToDelete(item)}
-        className="p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition shadow-2xs cursor-pointer"
-        title="Supprimer la marque"
-      >
-        <Trash2 className="w-3.5 h-3.5" />
-      </button>
+      {canDeleteBrand && (
+        <button
+          type="button"
+          onClick={() => setBrandToDelete(item)}
+          className="p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition shadow-2xs cursor-pointer"
+          title="Supprimer la marque"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
     </div>
   );
 
@@ -871,7 +875,7 @@ export default function DashboardBrandsPage() {
         enableMultiSelect={true}
         selectedKeys={selectedBrandIds}
         onSelectionChange={setSelectedBrandIds}
-        onBulkDelete={() => setIsBulkDeleteModalOpen(true)}
+        onBulkDelete={canDeleteBrand ? () => setIsBulkDeleteModalOpen(true) : undefined}
         renderBulkActions={() => (
           <>
             <button

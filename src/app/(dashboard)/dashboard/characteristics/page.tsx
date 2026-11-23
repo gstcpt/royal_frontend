@@ -54,6 +54,7 @@ import {
 } from '@/components/ui';
 import { ModalArticlesTable, RelatedArticlesModal } from '@/components/dashboard';
 import { fetchApi, fetchAllPaginated } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 
 export type CharacteristicType =
   | 'NUMBER'
@@ -140,6 +141,7 @@ const UNIT_PRESETS = [
 ];
 
 export default function DashboardCharacteristicsPage() {
+  const canDeleteChar = useAuthStore((s) => s.hasPermission('characteristics.delete'));
   const [characteristics, setCharacteristics] = React.useState<CharacteristicItem[]>([]);
   const [categories, setCategories] = React.useState<CategoryOption[]>([]);
   const [products, setProducts] = React.useState<ProductItem[]>([]);
@@ -667,14 +669,16 @@ export default function DashboardCharacteristicsPage() {
       </button>
 
       {/* 4. Delete (Rose) */}
-      <button
-        type="button"
-        onClick={() => setItemToDelete(item)}
-        className="p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition shadow-2xs cursor-pointer"
-        title="Supprimer la caractéristique"
-      >
-        <Trash2 className="w-3.5 h-3.5" />
-      </button>
+      {canDeleteChar && (
+        <button
+          type="button"
+          onClick={() => setItemToDelete(item)}
+          className="p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition shadow-2xs cursor-pointer"
+          title="Supprimer la caractéristique"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
     </div>
   );
 
@@ -994,7 +998,7 @@ export default function DashboardCharacteristicsPage() {
         enableMultiSelect={true}
         selectedKeys={selectedCharIds}
         onSelectionChange={setSelectedCharIds}
-        onBulkDelete={() => setIsBulkDeleteModalOpen(true)}
+        onBulkDelete={canDeleteChar ? () => setIsBulkDeleteModalOpen(true) : undefined}
         renderBulkActions={(keys, clearSel) => (
           <>
             <button

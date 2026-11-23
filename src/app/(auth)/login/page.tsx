@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, LoginDto } from '@royal/shared-validators';
 import { useAuthStore } from '@/stores/auth.store';
 import { useI18nStore } from '@/stores/i18n.store';
-import { Lock, Mail, ArrowRight, AlertCircle, CheckCircle2, KeyRound, RefreshCw } from 'lucide-react';
+import { Lock, Mail, ArrowRight, AlertCircle, CheckCircle2, KeyRound, RefreshCw, Eye, EyeOff } from 'lucide-react';
 
 function LoginFormContent() {
   const router = useRouter();
@@ -20,6 +20,7 @@ function LoginFormContent() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [needsVerifyEmail, setNeedsVerifyEmail] = useState<string | null>(null);
   const [verifyOtp, setVerifyOtp] = useState('');
   const [verifyingOtp, setVerifyingOtp] = useState(false);
@@ -159,11 +160,19 @@ function LoginFormContent() {
           <div className="relative">
             <Lock className="w-4 h-4 text-neutral-400 absolute left-4 top-1/2 -translate-y-1/2" />
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
               {...register('password')}
-              className="w-full pl-11 pr-4 py-3 rounded-xl border border-neutral-200 bg-[#F8F9FA] text-neutral-900 placeholder:text-neutral-400 text-xs sm:text-sm focus:outline-none focus:border-neutral-900 focus:bg-white transition-all"
+              className="w-full pl-11 pr-11 py-3 rounded-xl border border-neutral-200 bg-[#F8F9FA] text-neutral-900 placeholder:text-neutral-400 text-xs sm:text-sm focus:outline-none focus:border-neutral-900 focus:bg-white transition-all"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-800 transition-colors cursor-pointer"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </div>
           {errors.password && (
             <p className="text-xs text-red-600 mt-1.5 font-medium">

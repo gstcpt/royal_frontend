@@ -53,6 +53,7 @@ import {
 } from '@/components/ui';
 import { ModalArticlesTable, RelatedArticlesModal } from '@/components/dashboard';
 import { fetchApi, fetchAllPaginated } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 
 export interface CategoryItem {
   id: string;
@@ -91,6 +92,7 @@ interface ProductItem {
 }
 
 export default function DashboardCategoriesPage() {
+  const canDeleteCategory = useAuthStore((s) => s.hasPermission('categories.delete'));
   const [categories, setCategories] = React.useState<CategoryItem[]>([]);
   const [products, setProducts] = React.useState<ProductItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -563,14 +565,16 @@ export default function DashboardCategoriesPage() {
       </button>
 
       {/* 4. Delete (Rose) */}
-      <button
-        type="button"
-        onClick={() => setCategoryToDelete(item)}
-        className="p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition shadow-2xs cursor-pointer"
-        title="Supprimer le rayon"
-      >
-        <Trash2 className="w-3.5 h-3.5" />
-      </button>
+      {canDeleteCategory && (
+        <button
+          type="button"
+          onClick={() => setCategoryToDelete(item)}
+          className="p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition shadow-2xs cursor-pointer"
+          title="Supprimer le rayon"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
     </div>
   );
 
@@ -855,7 +859,7 @@ export default function DashboardCategoriesPage() {
         enableMultiSelect={true}
         selectedKeys={selectedCategoryIds}
         onSelectionChange={setSelectedCategoryIds}
-        onBulkDelete={() => setIsBulkDeleteModalOpen(true)}
+        onBulkDelete={canDeleteCategory ? () => setIsBulkDeleteModalOpen(true) : undefined}
         renderBulkActions={(keys, clearSel) => (
           <>
             <button

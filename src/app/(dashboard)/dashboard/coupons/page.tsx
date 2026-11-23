@@ -26,6 +26,7 @@ import { Toggle } from '@/components/ui/toggle';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DeleteConfirmModal } from '@/components/ui/modal';
 import { fetchApi, fetchAllPaginated } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 import { cn, formatTndCurrency } from '@/lib/utils';
 
 export interface CouponItem {
@@ -61,6 +62,7 @@ interface RealSimpleOption {
 }
 
 export default function DashboardCouponsPage() {
+  const canDeleteCoupon = useAuthStore((s) => s.hasPermission('coupons.delete'));
   const [coupons, setCoupons] = useState<CouponItem[]>([]);
   const [realArticles, setRealArticles] = useState<RealArticleOption[]>([]);
   const [realCategories, setRealCategories] = useState<RealSimpleOption[]>([]);
@@ -498,14 +500,16 @@ export default function DashboardCouponsPage() {
           >
             <Edit className="w-3.5 h-3.5" />
           </button>
-          <button
-            type="button"
-            onClick={() => handleDeleteCoupon(row.id, row.code)}
-            className="p-1.5 rounded-lg border border-neutral-200 bg-white hover:bg-rose-50 text-neutral-500 hover:text-rose-600 hover:border-rose-200 transition shadow-2xs cursor-pointer"
-            title="Supprimer ce code promo"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          {canDeleteCoupon && (
+            <button
+              type="button"
+              onClick={() => handleDeleteCoupon(row.id, row.code)}
+              className="p-1.5 rounded-lg border border-neutral-200 bg-white hover:bg-rose-50 text-neutral-500 hover:text-rose-600 hover:border-rose-200 transition shadow-2xs cursor-pointer"
+              title="Supprimer ce code promo"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       ),
     },
@@ -665,7 +669,7 @@ export default function DashboardCouponsPage() {
         enableMultiSelect={true}
         selectedKeys={selectedCouponIds}
         onSelectionChange={setSelectedCouponIds}
-        onBulkDelete={(keys) => setBulkDeleteCouponIds(keys)}
+        onBulkDelete={canDeleteCoupon ? (keys) => setBulkDeleteCouponIds(keys) : undefined}
         renderBulkActions={() => (
           <>
             <button

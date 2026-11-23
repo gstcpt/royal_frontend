@@ -65,6 +65,7 @@ import { formatTndCurrency, cn } from '@/lib/utils';
 import { API_BASE_URL, fetchApi, fetchAllPaginated } from '@/lib/api';
 import { Eye as _ArtEye, EyeOff as _ArtEyeOff, FileEdit as _ArtDraft, Sparkles as _ArtStar, FolderTree as _ArtCat } from 'lucide-react';
 import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface ProductItem {
   id: string;
@@ -496,6 +497,7 @@ const FORM_SECTIONS: FormSectionTab[] = [
 
 export default function DashboardArticlesPage() {
   const { isRouteVisible, isRoot } = useRouteVisibility();
+  const canDeleteProduct = useAuthStore((s) => s.hasPermission('products.delete'));
   const canSeeInventory = isRouteVisible('/dashboard/inventory');
   // Main Data States
   const [products, setProducts] = React.useState<ProductItem[]>([]);
@@ -1233,20 +1235,22 @@ export default function DashboardArticlesPage() {
         </button>
 
         {/* 4. Supprimer (Danger - Rose) */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setProductToDelete(item);
-          }}
-          className="p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition relative group/btn shadow-2xs"
-          aria-label="Supprimer l'article"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-          <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/btn:block z-50 bg-rose-900 text-white text-[10px] py-1 px-2 rounded-md whitespace-nowrap shadow-md">
-            Supprimer définitivement
-          </span>
-        </button>
+        {canDeleteProduct && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setProductToDelete(item);
+            }}
+            className="p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition relative group/btn shadow-2xs"
+            aria-label="Supprimer l'article"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/btn:block z-50 bg-rose-900 text-white text-[10px] py-1 px-2 rounded-md whitespace-nowrap shadow-md">
+              Supprimer définitivement
+            </span>
+          </button>
+        )}
       </div>
     );
   };
@@ -1630,7 +1634,7 @@ export default function DashboardArticlesPage() {
         enableMultiSelect={true}
         selectedKeys={selectedProductIds}
         onSelectionChange={setSelectedProductIds}
-        onBulkDelete={() => setIsBulkDeleteModalOpen(true)}
+        onBulkDelete={canDeleteProduct ? () => setIsBulkDeleteModalOpen(true) : undefined}
         renderBulkActions={() => (
           <>
             <button

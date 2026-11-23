@@ -45,6 +45,7 @@ import {
 } from '@/components/ui';
 import { ModalArticlesTable, RelatedArticlesModal } from '@/components/dashboard';
 import { fetchApi, fetchAllPaginated } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth.store';
 
 export type VariantVisualType = 'COLOR_SWATCH' | 'TEXT_PILL';
 
@@ -88,6 +89,7 @@ interface ProductItem {
 }
 
 export default function DashboardVariantsPage() {
+  const canDeleteVariant = useAuthStore((s) => s.hasPermission('variants.delete'));
   const [families, setFamilies] = React.useState<VariantFamily[]>([]);
   const [products, setProducts] = React.useState<ProductItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -432,14 +434,16 @@ export default function DashboardVariantsPage() {
       </button>
 
       {/* 3. Delete (Rose) */}
-      <button
-        type="button"
-        onClick={() => setFamilyToDelete(item)}
-        className="p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition shadow-2xs cursor-pointer"
-        title="Supprimer la variante"
-      >
-        <Trash2 className="w-3.5 h-3.5" />
-      </button>
+      {canDeleteVariant && (
+        <button
+          type="button"
+          onClick={() => setFamilyToDelete(item)}
+          className="p-1.5 rounded-lg text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition shadow-2xs cursor-pointer"
+          title="Supprimer la variante"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
     </div>
   );
 
@@ -700,7 +704,7 @@ export default function DashboardVariantsPage() {
         enableMultiSelect={true}
         selectedKeys={selectedFamilyIds}
         onSelectionChange={setSelectedFamilyIds}
-        onBulkDelete={() => setIsBulkDeleteModalOpen(true)}
+        onBulkDelete={canDeleteVariant ? () => setIsBulkDeleteModalOpen(true) : undefined}
         renderBulkActions={(keys, clearSel) => (
           <>
             <button
