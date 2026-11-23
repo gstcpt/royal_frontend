@@ -8,6 +8,8 @@ import {
   EyeOff,
   Compass,
   CheckCircle2,
+  AlertCircle,
+  RefreshCw,
   Zap,
   Bot,
 } from 'lucide-react';
@@ -24,6 +26,15 @@ import {
 } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
 
+const DEFAULT_GROQ_MODELS = [
+  { id: 'openai/gpt-oss-120b', label: 'openai/gpt-oss-120b (Flagship — Qualité & FR/AR)' },
+  { id: 'openai/gpt-oss-20b', label: 'openai/gpt-oss-20b (Ultra Rapide)' },
+  { id: 'qwen/qwen3.8-27b', label: 'qwen/qwen3.8-27b (Alibaba Qwen 3.8)' },
+  { id: 'llama-3.3-70b-versatile', label: 'llama-3.3-70b-versatile (Si activé sur votre projet Groq)' },
+  { id: 'llama-3.1-8b-instant', label: 'llama-3.1-8b-instant (Instant léger)' },
+  { id: 'allam-2-7b', label: 'allam-2-7b (Spécialisé Arabe / FR)' },
+];
+
 const AI_GUIDE_STEPS: ViewGuideStep[] = [
   {
     id: 'gemini-free',
@@ -39,7 +50,7 @@ const AI_GUIDE_STEPS: ViewGuideStep[] = [
         steps: [
           'Connectez-vous sur Google AI Studio avec un compte Google.',
           'Cliquez sur « Get API Key → Create API key in new project ».',
-          'Copiez la clé ci-contre puis cliquez sur « Tester la Connexion IA ».',
+          'Copiez la clé ci-contre puis cliquez sur « Tester Connexion IA ».',
         ],
       },
     ],
@@ -47,17 +58,18 @@ const AI_GUIDE_STEPS: ViewGuideStep[] = [
   {
     id: 'groq-free',
     number: '02',
-    title: 'Groq Cloud LPU — Llama 3.3 / Qwen (Gratuit Ultra-Rapide)',
-    description: 'Alternative open-source ultra rapide idéale en secours ou pour l’analyse de stock.',
+    title: 'Groq Cloud LPU — Modèles Open-Weight Gratuits',
+    description: 'Alternative open-source ultra rapide avec détection automatique des modèles autorisés sur votre clé.',
     platformLabel: 'Obtenir une Clé Gratuite Groq',
     platformUrl: 'https://console.groq.com/keys',
     fields: [
       {
         label: 'Clé API Groq (gsk_...)',
-        example: 'Modèle conseillé : llama-3.3-70b-versatile',
+        example: 'Modèle conseillé : openai/gpt-oss-120b ou qwen/qwen3.8-27b',
         steps: [
           'Ouvrez console.groq.com → API Keys → Create API Key.',
-          'Collez la clé commençant par gsk_... sans jamais l’exposer côté frontend.',
+          'Vérifiez dans Settings → Limits les modèles autorisés ou cliquez sur « Actualiser Modèles ».',
+          'En cas d’indisponibilité d’un modèle, Royal bascule automatiquement sur un modèle actif de votre compte.',
         ],
       },
     ],
@@ -71,11 +83,13 @@ export default function AiProviderRootPage() {
     geminiApiKey: '',
     geminiModel: 'gemini-2.5-flash',
     groqApiKey: '',
-    groqModel: 'llama-3.3-70b-versatile',
+    groqModel: 'openai/gpt-oss-120b',
     enableCatalogCopy: true,
     enableAnalyticsInsights: true,
     defaultTone: 'Luxe éditorial sobre, précis et orienté conversion (Tunisie, TND)',
   });
+  const [groqModels, setGroqModels] = useState<{ id: string; label: string }[]>(DEFAULT_GROQ_MODELS);
+  const [loadingModels, setLoadingModels] = useState(false);
   const [showKeys, setShowKeys] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -90,7 +104,11 @@ export default function AiProviderRootPage() {
     try {
       const res = await fetchApi('/storefront-cms/sys-config/aiProvider');
       const v = res?.value || res?.data?.value || {};
-      setConfig((prev) => ({ ...prev, ...v }));
+      setConfig((prev) => ({
+        ...prev,
+        ...v,
+        groqModel: v?.groqModel || 'openai/gpt-oss-120b',
+      }));
     } catch (err: any) {
       setToastMsg({ text: err?.message || 'Accès réservé au compte ROOT.', type: 'error' });
     } finally {
@@ -101,6 +119,42 @@ export default function AiProviderRootPage() {
   useEffect(() => {
     loadConfig();
   }, [loadConfig]);
+
+  const handleFetchGroqModels = async (silent = false) => {
+    if (!config.groqApiKey.trim()) {
+      if (!silent) {
+        setToastMsg({ text: 'Saisissez votre clé Groq (gsk_...) pour détecter vos modèles.', type: 'error' });
+      }
+      return;
+    }
+    setLoadingModels(true);
+    try {
+      const res = await fetchApi('/storefront-cms/ai/models', {
+        method: 'POST',
+        body: JSON.stringify({ provider: 'GROQ', apiKey: config.groqApiKey.trim() }),
+      });
+      const list: string[] = res?.models || res?.data?.models || [];
+      if (Array.isArray(list) && list.length > 0) {
+        const mapped = list.map((id) => {
+          const known = DEFAULT_GROQ_MODELS.find((d) => d.id === id);
+          return { id, label: known ? known.label : id };
+        });
+        setGroqModels(mapped);
+        if (!list.includes(config.groqModel)) {
+          setConfig((prev) => ({ ...prev, groqModel: list[0] }));
+        }
+        if (!silent) {
+          setToastMsg({ text: `${list.length} modèle(s) Groq disponibles détectés.`, type: 'success' });
+        }
+      }
+    } catch (err: any) {
+      if (!silent) {
+        setToastMsg({ text: err?.message || 'Impossible de charger les modèles Groq.', type: 'error' });
+      }
+    } finally {
+      setLoadingModels(false);
+    }
+  };
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -129,9 +183,21 @@ export default function AiProviderRootPage() {
           overrideConfig: config,
         }),
       });
+      const payload = res?.data && !res?.reply ? res.data : res;
+      if (payload?.provider === 'GROQ' && payload?.model && payload.model !== config.groqModel) {
+        setConfig((prev) => ({ ...prev, groqModel: payload.model }));
+        setGroqModels((prev) =>
+          prev.some((m) => m.id === payload.model)
+            ? prev
+            : [{ id: payload.model, label: `${payload.model} (Actif détecté)` }, ...prev],
+        );
+      }
+      const fallbackNote = payload?.fallbackFrom
+        ? ` (Bascule auto depuis ${payload.fallbackFrom} → ${payload.model} — pensez à cliquer sur Sauvegarder)`
+        : '';
       setTestReply({
         ok: true,
-        text: `[${res?.provider} • ${res?.model}] ${res?.reply || 'Connexion opérationnelle.'}`,
+        text: `[${payload?.provider} • ${payload?.model}] ${payload?.reply || 'Connexion opérationnelle.'}${fallbackNote}`,
       });
     } catch (err: any) {
       setTestReply({
@@ -143,6 +209,14 @@ export default function AiProviderRootPage() {
     }
   };
 
+  const groqSelectOptions = React.useMemo(() => {
+    const base = groqModels.map((m) => ({ label: m.label, value: m.id }));
+    if (config.groqModel && !base.some((o) => o.value === config.groqModel)) {
+      base.unshift({ label: config.groqModel, value: config.groqModel });
+    }
+    return base;
+  }, [groqModels, config.groqModel]);
+
   return (
     <div className="space-y-6 max-w-[1720px] mx-auto">
       <Toast
@@ -152,8 +226,8 @@ export default function AiProviderRootPage() {
         onClose={() => setToastMsg(null)}
       />
 
-      <div className="bg-white rounded-2xl border border-[#E6E1D6] shadow-xs p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+      <div className="bg-white rounded-2xl border border-[#E6E1D6] shadow-xs p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-heading font-black text-[#1D232E] tracking-tight">
               Intelligence Artificielle (Gemini Flash &amp; Groq Gratuits)
@@ -174,7 +248,7 @@ export default function AiProviderRootPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <Button variant="outline" size="sm" onClick={() => setShowKeys((s) => !s)}>
             {showKeys ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             <span>{showKeys ? 'Masquer Clés' : 'Afficher Clés'}</span>
@@ -202,8 +276,12 @@ export default function AiProviderRootPage() {
               : 'bg-rose-50 border-rose-200 text-rose-900'
           }`}
         >
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span className="font-medium">{testReply.text}</span>
+          {testReply.ok ? (
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+          ) : (
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+          )}
+          <span className="font-medium break-words">{testReply.text}</span>
         </div>
       )}
 
@@ -238,7 +316,7 @@ export default function AiProviderRootPage() {
                 onChange={(e) => setConfig({ ...config, provider: e.target.value as 'GEMINI' | 'GROQ' })}
                 options={[
                   { label: 'Google AI Studio — Gemini Flash (Recommandé)', value: 'GEMINI' },
-                  { label: 'Groq Cloud LPU — Llama 3.3 / Qwen (Ultra-Rapide)', value: 'GROQ' },
+                  { label: 'Groq Cloud LPU — Open-Weight Ultra Rapide', value: 'GROQ' },
                 ]}
               />
               <Input
@@ -275,7 +353,7 @@ export default function AiProviderRootPage() {
                 <h3 className="text-sm font-bold text-[#1D232E] truncate">01 — Google AI Studio (Gemini Free Tier)</h3>
                 <GuideInfoButton onClick={() => { setGuideIndex(0); setGuideOpen(true); }} />
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
                 1 500 req/jour
               </span>
             </div>
@@ -307,9 +385,21 @@ export default function AiProviderRootPage() {
                 <h3 className="text-sm font-bold text-[#1D232E] truncate">02 — Groq Cloud LPU (Gratuit)</h3>
                 <GuideInfoButton onClick={() => { setGuideIndex(1); setGuideOpen(true); }} />
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                Quota Gratuit
-              </span>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleFetchGroqModels(false)}
+                  disabled={loadingModels}
+                  className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6] hover:bg-[#F3E9C9] transition cursor-pointer disabled:opacity-50"
+                  title="Synchroniser les modèles actifs de votre compte Groq"
+                >
+                  <RefreshCw className={`w-3 h-3 ${loadingModels ? 'animate-spin' : ''}`} />
+                  <span>Modèles Live</span>
+                </button>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                  Quota Gratuit
+                </span>
+              </div>
             </div>
 
             <Input
@@ -324,11 +414,7 @@ export default function AiProviderRootPage() {
               label="Modèle Groq"
               value={config.groqModel}
               onChange={(e) => setConfig({ ...config, groqModel: e.target.value })}
-              options={[
-                { label: 'llama-3.3-70b-versatile (Qualité rédactionnelle max)', value: 'llama-3.3-70b-versatile' },
-                { label: 'qwen-qwq-32b (Raisonnement rapide)', value: 'qwen-qwq-32b' },
-                { label: 'llama-3.1-8b-instant (Ultra rapide)', value: 'llama-3.1-8b-instant' },
-              ]}
+              options={groqSelectOptions}
             />
           </div>
         </form>
