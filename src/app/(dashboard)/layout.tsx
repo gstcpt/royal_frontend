@@ -127,6 +127,7 @@ function DashboardLayoutInner({
   const [visibilityMap, setVisibilityMap] = useState<Record<string, 'PUBLIC' | 'PRIVATE'>>({
     '/account/loyalty': 'PRIVATE',
     '/account/coupons': 'PRIVATE',
+    '/dashboard/section/users': 'PRIVATE',
     '/dashboard/root/superadmins': 'PRIVATE',
     '/dashboard/treasury': 'PRIVATE',
     '/dashboard/treasury/transactions': 'PRIVATE',
@@ -582,7 +583,7 @@ function DashboardLayoutInner({
       ],
     },
 
-    // R7-R14: Gestion des utilisateurs (ROOT, Super admin, Website Manager)
+    // R7-R14: Gestion des utilisateurs (ROOT, Super admin, Website Manager — visibilité pilotée par ROOT)
     {
       id: 'users',
       title: 'Gestion des utilisateurs',
@@ -590,9 +591,21 @@ function DashboardLayoutInner({
       visible: isRoot || isSuperAdmin || isWebsiteManager,
       items: [
         {
+          id: 'users-all',
+          label: 'Tous les utilisateurs',
+          href: '/dashboard/users',
+          icon: <Users className="h-4 w-4" />,
+        },
+        {
           id: 'users-super',
           label: 'Super admin',
           href: '/dashboard/root/superadmins',
+          icon: <ShieldCheck className="h-4 w-4" />,
+        },
+        {
+          id: 'users-admins',
+          label: 'Administrateurs',
+          href: '/dashboard/users/admins',
           icon: <ShieldCheck className="h-4 w-4" />,
         },
         {
@@ -630,6 +643,24 @@ function DashboardLayoutInner({
           label: 'Commercials',
           href: '/dashboard/users/commercials',
           icon: <Briefcase className="h-4 w-4" />,
+        },
+        {
+          id: 'users-deliv-mgr',
+          label: 'Responsables Livraison',
+          href: '/dashboard/users/delivery-managers',
+          icon: <Truck className="h-4 w-4" />,
+        },
+        {
+          id: 'users-deliv-agent',
+          label: 'Livreurs',
+          href: '/dashboard/users/delivery-agents',
+          icon: <Truck className="h-4 w-4" />,
+        },
+        {
+          id: 'users-clients',
+          label: 'Clients (Comptes)',
+          href: '/dashboard/users/clients',
+          icon: <User className="h-4 w-4" />,
         },
       ],
     },
@@ -891,11 +922,14 @@ function DashboardLayoutInner({
   const isCurrentPathBlocked = (() => {
     if (isRoot || !pathname) return false;
     const cleanPath = pathname.split('?')[0];
-    if (cleanPath.startsWith('/dashboard/root/visibility') || cleanPath.startsWith('/dashboard/section')) {
+    if (cleanPath.startsWith('/dashboard/root/visibility')) {
       return true;
     }
     if (cleanPath in visibilityMap) {
       return visibilityMap[cleanPath] === 'PRIVATE';
+    }
+    if (cleanPath.startsWith('/dashboard/section')) {
+      return true;
     }
     const matchedParent = Object.keys(visibilityMap)
       .filter((k) => cleanPath.startsWith(`${k}/`))
@@ -1297,7 +1331,7 @@ function DashboardLayoutInner({
 
                       {isOpen && (
                         <nav className="space-y-0.5 ml-3 pl-2.5 border-l border-[var(--royal-border)] pt-0.5">
-                          {isRoot && (
+                          {isHrefVisible(`/dashboard/section/${section.id}`) && (
                             <Link
                               href={`/dashboard/section/${section.id}`}
                               className={cn(
@@ -1308,7 +1342,8 @@ function DashboardLayoutInner({
                               )}
                             >
                               <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
-                              {renderDevTag(isHrefActive(`/dashboard/section/${section.id}`))}
+                              {visibilityMap[`/dashboard/section/${section.id}`] !== 'PUBLIC' &&
+                                renderDevTag(isHrefActive(`/dashboard/section/${section.id}`))}
                               <span>{t('dashboard.overview')}</span>
                             </Link>
                           )}
@@ -1534,14 +1569,15 @@ function DashboardLayoutInner({
               </button>
             </div>
             <div className="space-y-0.5">
-              {isRoot && (
+              {isHrefVisible(`/dashboard/section/${activeFlyout.section.id}`) && (
                 <Link
                   href={`/dashboard/section/${activeFlyout.section.id}`}
                   onClick={() => setActiveFlyout(null)}
                   className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-[var(--royal-primary)] bg-[var(--royal-gold-light)] hover:bg-[var(--royal-primary)] hover:text-white transition mb-1"
                 >
                   <LayoutDashboard className="w-3.5 h-3.5" />
-                  {renderDevTag(false)}
+                  {visibilityMap[`/dashboard/section/${activeFlyout.section.id}`] !== 'PUBLIC' &&
+                    renderDevTag(false)}
                   <span>{t('dashboard.overview')}</span>
                 </Link>
               )}

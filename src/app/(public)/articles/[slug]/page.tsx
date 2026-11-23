@@ -608,7 +608,7 @@ export default function ArticleDetailPage() {
                   className="flex-1 min-w-[180px] py-3.5 px-6 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs uppercase tracking-widest font-bold shadow-lg flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   <Zap className="w-4 h-4" />
-                  <span>{t('actions.buy_now_short')}</span>
+                  <span>{t('actions.buy')}</span>
                 </button>
               </div>
 

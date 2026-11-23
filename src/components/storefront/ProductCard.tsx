@@ -522,7 +522,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                   className="flex-1 py-3 px-4 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Zap className="w-4 h-4" />
-                  <span>{t('actions.buy_now_short')}</span>
+                  <span>{t('actions.buy')}</span>
                 </button>
               </div>
 
@@ -584,10 +584,10 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
   if (layout === 'list') {
     return (
       <>
-        <div className="group bg-white rounded-2xl border border-slate-200/80 p-4 flex flex-col sm:flex-row items-center gap-5 hover:shadow-md hover:border-slate-300 transition">
+        <div className="group bg-[var(--royal-card)] rounded-2xl border border-[var(--royal-border)] p-4 flex flex-col sm:flex-row items-center gap-5 hover:shadow-md hover:border-[var(--royal-primary)]/50 transition">
           <Link
             href={`/articles/${product.slug}`}
-            className="relative w-full sm:w-52 h-52 rounded-xl bg-neutral-100 overflow-hidden shrink-0 block"
+            className="relative w-full sm:w-52 h-52 rounded-xl bg-[var(--royal-silver-light)] overflow-hidden shrink-0 block"
           >
             <img
               src={getSafeImageUrl(product.primaryImage)}
@@ -599,10 +599,18 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                 {discountPct ? `-${discountPct}%` : 'PROMO'}
               </span>
             )}
+            {product.sku && (
+              <span
+                title={`SKU ${product.sku}`}
+                className="absolute bottom-2 left-2 px-2.5 py-0.5 rounded-full bg-[var(--royal-card)]/95 border-[1.5px] border-[var(--royal-primary)] text-[10px] font-mono font-bold text-[var(--royal-ink)] shadow-sm max-w-[80%] truncate"
+              >
+                {product.sku}
+              </span>
+            )}
           </Link>
 
           <div className="flex-1 min-w-0 space-y-2">
-            <div className="flex items-center gap-2 text-[11px] font-bold text-amber-600 uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-[11px] font-bold text-[var(--royal-primary)] uppercase tracking-wider">
               <span>{product.brand?.name || 'Royal'}</span>
               {product.category?.name && (
                 <>
@@ -612,7 +620,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
               )}
             </div>
             <Link href={`/articles/${product.slug}`}>
-              <h3 className="font-heading font-bold text-base text-slate-950 group-hover:text-amber-700 transition-colors">
+              <h3 className="font-heading font-bold text-base text-[var(--royal-ink)] group-hover:text-[var(--royal-primary)] transition-colors">
                 {product.name}
               </h3>
             </Link>
@@ -620,18 +628,20 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
               <p className="text-xs text-slate-500 line-clamp-2">{product.shortDescription}</p>
             )}
             <div className="flex items-center gap-3 pt-1">
-              <div className="flex text-amber-500">
+              <div className="flex text-[var(--royal-primary)]">
                 {[...Array(5)].map((_, i) => (
                   <Star key={i} className="w-3.5 h-3.5 fill-current" />
                 ))}
               </div>
-              <span className="text-xs text-slate-400">SKU : {product.sku}</span>
+              <span className="text-xs text-slate-500">
+                {product.reviewCount || product.reviewsCount || 0} {t('storefront.reviews_count')}
+              </span>
             </div>
           </div>
 
           <div className="flex flex-col sm:items-end justify-between w-full sm:w-auto gap-2.5 sm:gap-3 shrink-0 min-w-0">
-            <div className="flex sm:block items-baseline justify-between w-full sm:w-auto text-left sm:text-right">
-              <div className="text-lg font-black text-slate-950 font-mono">
+            <div className="flex items-baseline gap-2 justify-between sm:justify-end w-full sm:w-auto text-left sm:text-right">
+              <div className="text-lg font-black text-[var(--royal-primary)] font-mono">
                 {formatTndCurrency(currentPrice)}
               </div>
               {hasPromo && (
@@ -642,134 +652,6 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setActiveImage(getSafeImageUrl(product.primaryImage));
-                  setIsQuickViewOpen(true);
-                }}
-                title="Aperçu rapide"
-                className="w-9 h-9 rounded-full border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 flex items-center justify-center cursor-pointer"
-              >
-                <Eye className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={handleToggleCompare}
-                title="Comparer"
-                className={`w-9 h-9 rounded-full border flex items-center justify-center cursor-pointer ${
-                  inCompare
-                    ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)] border-[var(--royal-primary)]'
-                    : 'border-slate-200 bg-white hover:bg-slate-100 text-slate-700'
-                }`}
-              >
-                <Layers className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => handleReaction(e, 'LIKE')}
-                title="J'aime cet article"
-                className={`px-2.5 h-9 rounded-full border flex items-center gap-1 text-xs font-bold cursor-pointer ${
-                  myReaction === 'LIKE'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'border-slate-200 bg-white hover:bg-slate-100 text-slate-700'
-                }`}
-              >
-                <ThumbsUp className={`w-3.5 h-3.5 ${myReaction === 'LIKE' ? 'fill-current' : ''}`} />
-                <span>{reactionCounts.likeCount}</span>
-              </button>
-              <button
-                type="button"
-                onClick={(e) => handleReaction(e, 'DISLIKE')}
-                title="Je n'aime pas cet article"
-                className={`px-2.5 h-9 rounded-full border flex items-center gap-1 text-xs font-bold cursor-pointer ${
-                  myReaction === 'DISLIKE'
-                    ? 'bg-rose-50 text-rose-700 border-rose-200'
-                    : 'border-slate-200 bg-white hover:bg-slate-100 text-slate-700'
-                }`}
-              >
-                <ThumbsDown className={`w-3.5 h-3.5 ${myReaction === 'DISLIKE' ? 'fill-current' : ''}`} />
-                <span>{reactionCounts.dislikeCount}</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleToggleWishlist}
-                title={inWishlist ? t('actions.wishlist_remove') : t('actions.wishlist_add')}
-                className={`w-9 h-9 rounded-full border flex items-center justify-center cursor-pointer ${
-                  inWishlist
-                    ? 'bg-rose-50 text-rose-600 border-rose-200'
-                    : 'border-slate-200 bg-white hover:bg-slate-100 text-slate-700'
-                }`}
-              >
-                <Heart className={`w-4 h-4 ${inWishlist ? 'fill-current' : ''}`} />
-              </button>
-              <button
-                type="button"
-                onClick={handleIconAddToCart}
-                title={t('actions.add_to_cart')}
-                aria-label={t('actions.add_to_cart')}
-                className="w-9 h-9 rounded-full border border-[var(--royal-primary)] bg-white hover:bg-[var(--royal-gold-light)] text-[var(--royal-primary)] flex items-center justify-center cursor-pointer shrink-0 transition"
-              >
-                <ShoppingBag className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsQuickOrderOpen(true);
-                }}
-                className="px-4 py-2 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-              >
-                <Zap className="w-3.5 h-3.5" />
-                <span>{t('actions.buy_now_short')}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-        {renderModals()}
-      </>
-    );
-  }
-
-  // Standard Grid Card (Full-Size Image Fitting Container)
-  return (
-    <>
-      <motion.div
-        whileHover={{ y: -4 }}
-        transition={{ duration: 0.2 }}
-        className="group flex flex-col justify-between"
-      >
-        <div className="relative w-full rounded-2xl bg-white border border-slate-200/80 overflow-hidden flex flex-col justify-between transition-all duration-300 group-hover:border-slate-300 group-hover:shadow-md">
-          {/* Top Floating Overlay Controls */}
-          <div className="absolute top-2.5 left-2.5 right-2.5 flex items-start justify-between z-20 pointer-events-none">
-            {hasPromo ? (
-              <span className="pointer-events-auto px-2.5 py-1 rounded-full bg-rose-600 text-white text-[10px] font-extrabold tracking-wider uppercase shadow-sm">
-                {discountPct ? `-${discountPct}%` : 'PROMO'}
-              </span>
-            ) : (
-              <span className="pointer-events-auto px-2 py-0.5 rounded-full bg-white/90 border border-slate-200 text-[10px] font-bold text-slate-600 uppercase tracking-wider">
-                {product.brand?.name || 'Royal'}
-              </span>
-            )}
-
-            <div className="pointer-events-auto flex flex-col gap-1.5">
-              {articleFlags.showWishlistButton && (
-                <button
-                  type="button"
-                  onClick={handleToggleWishlist}
-                  title={inWishlist ? 'Retirer de la liste d’envies' : 'Ajouter à la liste d’envies'}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition bg-white/95 border shadow-sm cursor-pointer ${
-                    inWishlist
-                      ? 'text-rose-600 bg-rose-50 border-rose-200'
-                      : 'text-slate-600 border-[var(--royal-border)] hover:text-rose-600'
-                  }`}
-                >
-                  <Heart className={`w-3.5 h-3.5 ${inWishlist ? 'fill-current' : ''}`} />
-                </button>
-              )}
               {articleFlags.showQuickViewButton && (
                 <button
                   type="button"
@@ -780,53 +662,278 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                     setIsQuickViewOpen(true);
                   }}
                   title="Aperçu rapide"
-                  className="w-8 h-8 rounded-full flex items-center justify-center transition bg-white/95 border border-[var(--royal-border)] text-slate-600 hover:text-[var(--royal-primary)] shadow-sm cursor-pointer"
+                  className="w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] bg-[var(--royal-card)] hover:bg-[var(--royal-gold-light)] text-[var(--royal-ink)] hover:text-[var(--royal-primary)] flex items-center justify-center cursor-pointer transition"
                 >
-                  <Eye className="w-3.5 h-3.5" />
+                  <Eye className="w-4 h-4" />
                 </button>
               )}
               {articleFlags.showCompareButton && (
                 <button
                   type="button"
                   onClick={handleToggleCompare}
-                  title="Comparer cet article"
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition border shadow-sm cursor-pointer ${
+                  title="Comparer"
+                  className={`w-9 h-9 rounded-full border-[1.5px] flex items-center justify-center cursor-pointer transition ${
                     inCompare
                       ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)] border-[var(--royal-primary)]'
-                      : 'bg-white/95 border-[var(--royal-border)] text-slate-600 hover:text-[var(--royal-primary)]'
+                      : 'border-[var(--royal-primary)] bg-[var(--royal-card)] hover:bg-[var(--royal-gold-light)] text-[var(--royal-ink)] hover:text-[var(--royal-primary)]'
                   }`}
                 >
-                  <Layers className="w-3.5 h-3.5" />
+                  <Layers className="w-4 h-4" />
                 </button>
+              )}
+              {articleFlags.showLikeDislike !== false && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => handleReaction(e, 'LIKE')}
+                    title="J'aime cet article"
+                    className={`px-2.5 h-9 rounded-full border flex items-center gap-1 text-xs font-bold cursor-pointer ${
+                      myReaction === 'LIKE'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'border-[var(--royal-border)] bg-[var(--royal-card)] hover:bg-[var(--royal-silver-light)] text-[var(--royal-ink)]'
+                    }`}
+                  >
+                    <ThumbsUp className={`w-3.5 h-3.5 ${myReaction === 'LIKE' ? 'fill-current' : ''}`} />
+                    <span>{reactionCounts.likeCount}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => handleReaction(e, 'DISLIKE')}
+                    title="Je n'aime pas cet article"
+                    className={`px-2.5 h-9 rounded-full border flex items-center gap-1 text-xs font-bold cursor-pointer ${
+                      myReaction === 'DISLIKE'
+                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                        : 'border-[var(--royal-border)] bg-[var(--royal-card)] hover:bg-[var(--royal-silver-light)] text-[var(--royal-ink)]'
+                    }`}
+                  >
+                    <ThumbsDown className={`w-3.5 h-3.5 ${myReaction === 'DISLIKE' ? 'fill-current' : ''}`} />
+                    <span>{reactionCounts.dislikeCount}</span>
+                  </button>
+                </>
+              )}
+              {articleFlags.showWishlistButton && (
+                <button
+                  type="button"
+                  onClick={handleToggleWishlist}
+                  title={inWishlist ? t('actions.wishlist_remove') : t('actions.wishlist_add')}
+                  className={`w-9 h-9 rounded-full border-[1.5px] flex items-center justify-center cursor-pointer transition ${
+                    inWishlist
+                      ? 'bg-rose-50 text-rose-600 border-[var(--royal-primary)]'
+                      : 'border-[var(--royal-primary)] bg-[var(--royal-card)] hover:bg-[var(--royal-gold-light)] text-[var(--royal-ink)] hover:text-rose-600'
+                  }`}
+                >
+                  <Heart className={`w-4 h-4 ${inWishlist ? 'fill-current' : ''}`} />
+                </button>
+              )}
+              {articleFlags.showBuyButton && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleIconAddToCart}
+                    title={t('actions.add_to_cart')}
+                    aria-label={t('actions.add_to_cart')}
+                    className="w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] bg-[var(--royal-card)] hover:bg-[var(--royal-primary)] text-[var(--royal-primary)] hover:text-[var(--royal-primary-text)] flex items-center justify-center cursor-pointer shrink-0 transition"
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsQuickOrderOpen(true);
+                    }}
+                    className="px-4 py-2 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold flex items-center gap-1.5 cursor-pointer transition"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>{t('actions.buy')}</span>
+                  </button>
+                </>
               )}
             </div>
           </div>
+        </div>
+        {renderModals()}
+      </>
+    );
+  }
 
-          {/* Full-Bleed Fixed-Height Card Image */}
-          <Link
-            href={`/articles/${product.slug}`}
-            className="relative w-full h-72 overflow-hidden bg-neutral-100 block cursor-pointer shrink-0"
-          >
-            <img
-              src={getSafeImageUrl(product.primaryImage)}
-              alt={product.name}
-              className="w-full h-full object-cover object-center scale-[1.08] group-hover:scale-115 transition-transform duration-500"
-            />
-          </Link>
+  // Standard Grid Card (Full-Size Image Fitting Container + Primary-Bordered Overlay Icons + Bottom-Left SKU + Inline Prices Under Title)
+  return (
+    <>
+      <motion.div
+        whileHover={{ y: -4 }}
+        transition={{ duration: 0.2 }}
+        className="group flex flex-col h-full"
+      >
+        <div className="relative w-full h-full rounded-2xl bg-[var(--royal-card)] border border-[var(--royal-border)] overflow-hidden flex flex-col justify-between transition-all duration-300 group-hover:border-[var(--royal-primary)]/60 group-hover:shadow-md">
+          {/* Article Image Wrapper with Top Overlay Icons (Primary Border) & Bottom-Left SKU Pill */}
+          <div className="relative w-full h-72 overflow-hidden bg-[var(--royal-silver-light)] shrink-0">
+            {/* Top Floating Overlay Controls */}
+            <div className="absolute top-2.5 left-2.5 right-2.5 flex items-start justify-between z-20 pointer-events-none">
+              {hasPromo ? (
+                <span className="pointer-events-auto px-2.5 py-1 rounded-full bg-rose-600 text-white text-[10px] font-extrabold tracking-wider uppercase shadow-sm">
+                  {discountPct ? `-${discountPct}%` : 'PROMO'}
+                </span>
+              ) : (
+                <span className="pointer-events-auto px-2.5 py-0.5 rounded-full bg-[var(--royal-card)]/95 border border-[var(--royal-primary)] text-[10px] font-bold text-[var(--royal-ink)] uppercase tracking-wider shadow-sm">
+                  {product.brand?.name || 'Royal'}
+                </span>
+              )}
 
-          {/* Bottom Action Pill: Icon Cart + Quick Order + Promo Old/New Prices */}
-          <div className="p-2.5 bg-[var(--royal-silver-light)] border-t border-[var(--royal-border)] flex flex-wrap items-center justify-between gap-1.5 z-20">
-            {articleFlags.showBuyButton ? (
-              <div className="flex items-center gap-1.5 min-w-0">
-                <button
-                  type="button"
-                  onClick={handleIconAddToCart}
-                  title={t('actions.add_to_cart')}
-                  aria-label={t('actions.add_to_cart')}
-                  className="w-8 h-8 rounded-xl bg-white hover:bg-[var(--royal-gold-light)] border border-[var(--royal-border)] hover:border-[var(--royal-primary)] text-[var(--royal-ink)] hover:text-[var(--royal-primary)] flex items-center justify-center transition shadow-2xs shrink-0 cursor-pointer"
+              <div className="pointer-events-auto flex flex-col gap-1.5">
+                {articleFlags.showWishlistButton && (
+                  <button
+                    type="button"
+                    onClick={handleToggleWishlist}
+                    title={inWishlist ? 'Retirer de la liste d’envies' : 'Ajouter à la liste d’envies'}
+                    aria-label={inWishlist ? 'Retirer de la liste d’envies' : 'Ajouter à la liste d’envies'}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition border-[1.5px] border-[var(--royal-primary)] shadow-sm cursor-pointer ${
+                      inWishlist
+                        ? 'text-rose-600 bg-rose-50'
+                        : 'bg-[var(--royal-card)]/95 text-[var(--royal-ink)] hover:text-rose-600 hover:bg-[var(--royal-gold-light)]'
+                    }`}
+                  >
+                    <Heart className={`w-3.5 h-3.5 ${inWishlist ? 'fill-current' : ''}`} />
+                  </button>
+                )}
+                {articleFlags.showQuickViewButton && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setActiveImage(getSafeImageUrl(product.primaryImage));
+                      setIsQuickViewOpen(true);
+                    }}
+                    title="Aperçu rapide"
+                    aria-label="Aperçu rapide"
+                    className="w-8 h-8 rounded-full flex items-center justify-center transition bg-[var(--royal-card)]/95 border-[1.5px] border-[var(--royal-primary)] text-[var(--royal-ink)] hover:text-[var(--royal-primary)] hover:bg-[var(--royal-gold-light)] shadow-sm cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {articleFlags.showCompareButton && (
+                  <button
+                    type="button"
+                    onClick={handleToggleCompare}
+                    title="Comparer cet article"
+                    aria-label="Comparer cet article"
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition border-[1.5px] border-[var(--royal-primary)] shadow-sm cursor-pointer ${
+                      inCompare
+                        ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)]'
+                        : 'bg-[var(--royal-card)]/95 text-[var(--royal-ink)] hover:text-[var(--royal-primary)] hover:bg-[var(--royal-gold-light)]'
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {articleFlags.showBuyButton && (
+                  <button
+                    type="button"
+                    onClick={handleIconAddToCart}
+                    title={t('actions.add_to_cart')}
+                    aria-label={t('actions.add_to_cart')}
+                    className="w-8 h-8 rounded-full flex items-center justify-center transition bg-[var(--royal-card)]/95 border-[1.5px] border-[var(--royal-primary)] text-[var(--royal-primary)] hover:bg-[var(--royal-primary)] hover:text-[var(--royal-primary-text)] shadow-sm cursor-pointer"
+                  >
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <Link
+              href={`/articles/${product.slug}`}
+              className="w-full h-full block cursor-pointer"
+            >
+              <img
+                src={getSafeImageUrl(product.primaryImage)}
+                alt={product.name}
+                className="w-full h-full object-cover object-center scale-[1.08] group-hover:scale-115 transition-transform duration-500"
+              />
+            </Link>
+
+            {/* Bottom-Left SKU Badge styled symmetrically to top-right floating controls */}
+            {product.sku && (
+              <div className="pointer-events-none absolute bottom-2.5 left-2.5 z-20 max-w-[78%]">
+                <span
+                  title={`SKU ${product.sku}`}
+                  className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[var(--royal-card)]/95 border-[1.5px] border-[var(--royal-primary)] text-[10px] font-mono font-bold text-[var(--royal-ink)] shadow-sm truncate max-w-full"
                 >
-                  <ShoppingBag className="w-3.5 h-3.5" />
-                </button>
+                  {product.sku}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Card Content & Clean Single-Line "Acheter" Action */}
+          <div className="p-3.5 bg-[var(--royal-card)] border-t border-[var(--royal-border)] flex-1 flex flex-col justify-between gap-2">
+            <div className="space-y-1.5">
+              <Link href={`/articles/${product.slug}`}>
+                <h3 className="font-heading font-semibold text-sm text-[var(--royal-ink)] line-clamp-1 group-hover:text-[var(--royal-primary)] transition-colors">
+                  {product.name}
+                </h3>
+              </Link>
+
+              {/* Promo / Current Price & Old Price side by side right below the article title */}
+              <div className="flex items-baseline gap-2 flex-nowrap overflow-hidden">
+                <span className="text-[15px] font-black font-mono text-[var(--royal-primary)] leading-tight whitespace-nowrap">
+                  {formatTndCurrency(currentPrice)}
+                </span>
+                {hasPromo && (
+                  <span className="text-[11px] text-slate-400 line-through font-mono leading-tight whitespace-nowrap truncate">
+                    {formatTndCurrency(product.sellingPrice)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between text-xs gap-2">
+                <div className="flex items-center gap-1 min-w-0">
+                  <div className="flex text-[var(--royal-primary)] shrink-0">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="w-3 h-3 fill-current" />
+                    ))}
+                  </div>
+                  <span className="text-[11px] text-slate-500 truncate">
+                    {product.reviewCount || product.reviewsCount || 0} {t('storefront.reviews_count')}
+                  </span>
+                </div>
+
+                {articleFlags.showLikeDislike !== false && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => handleReaction(e, 'LIKE')}
+                      title={t('actions.like')}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-bold transition cursor-pointer ${
+                        myReaction === 'LIKE'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-[var(--royal-card)] text-slate-600 border-[var(--royal-border)] hover:border-emerald-300 hover:text-emerald-700'
+                      }`}
+                    >
+                      <ThumbsUp className={`w-3 h-3 ${myReaction === 'LIKE' ? 'fill-current' : ''}`} />
+                      <span>{reactionCounts.likeCount}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleReaction(e, 'DISLIKE')}
+                      title={t('actions.dislike')}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-bold transition cursor-pointer ${
+                        myReaction === 'DISLIKE'
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                          : 'bg-[var(--royal-card)] text-slate-600 border-[var(--royal-border)] hover:border-rose-300 hover:text-rose-700'
+                      }`}
+                    >
+                      <ThumbsDown className={`w-3 h-3 ${myReaction === 'DISLIKE' ? 'fill-current' : ''}`} />
+                      <span>{reactionCounts.dislikeCount}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {articleFlags.showBuyButton && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -835,74 +942,12 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                     setIsQuickOrderOpen(true);
                   }}
                   title={t('actions.quick_order')}
-                  className="px-2.5 py-1.5 rounded-xl bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-[11px] font-bold transition shadow-2xs flex items-center gap-1 whitespace-nowrap cursor-pointer"
+                  className="w-full py-2 px-3 rounded-xl bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold transition shadow-2xs flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer"
                 >
-                  <Zap className="w-3 h-3 shrink-0" />
-                  <span>{t('actions.buy_now_short')}</span>
+                  <Zap className="w-3.5 h-3.5 shrink-0" />
+                  <span>{t('actions.buy')}</span>
                 </button>
-              </div>
-            ) : <span />}
-
-            <div className="text-right leading-tight">
-              <div className="px-2.5 py-1 rounded-lg bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-bold font-mono inline-block shadow-2xs">
-                {formatTndCurrency(currentPrice)}
-              </div>
-              {hasPromo && (
-                <div className="text-[10px] text-slate-400 line-through font-mono mt-0.5 pr-1">
-                  {formatTndCurrency(product.sellingPrice)}
-                </div>
               )}
-            </div>
-          </div>
-        </div>
-
-        {/* Title & Meta Below Card */}
-        <div className="pt-3 px-1">
-          <Link href={`/articles/${product.slug}`}>
-            <h3 className="font-heading font-semibold text-sm text-slate-900 line-clamp-1 group-hover:text-amber-700 transition-colors">
-              {product.name}
-            </h3>
-          </Link>
-
-          <div className="flex items-center justify-between mt-1.5 text-xs gap-2">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <div className="flex text-amber-500">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-3 h-3 fill-current" />
-                ))}
-              </div>
-              <span className="text-[11px] text-slate-500 truncate">
-                {product.reviewCount || product.reviewsCount || 0} {t('storefront.reviews_count')}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={(e) => handleReaction(e, 'LIKE')}
-                title={t('actions.like')}
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-bold transition cursor-pointer ${
-                  myReaction === 'LIKE'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:text-emerald-700'
-                }`}
-              >
-                <ThumbsUp className={`w-3 h-3 ${myReaction === 'LIKE' ? 'fill-current' : ''}`} />
-                <span>{reactionCounts.likeCount}</span>
-              </button>
-              <button
-                type="button"
-                onClick={(e) => handleReaction(e, 'DISLIKE')}
-                title={t('actions.dislike')}
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-bold transition cursor-pointer ${
-                  myReaction === 'DISLIKE'
-                    ? 'bg-rose-50 text-rose-700 border-rose-200'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-rose-300 hover:text-rose-700'
-                }`}
-              >
-                <ThumbsDown className={`w-3 h-3 ${myReaction === 'DISLIKE' ? 'fill-current' : ''}`} />
-                <span>{reactionCounts.dislikeCount}</span>
-              </button>
             </div>
           </div>
         </div>

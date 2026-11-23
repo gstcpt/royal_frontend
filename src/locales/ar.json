@@ -86,7 +86,7 @@
   "actions": {
     "add_to_cart": "أضف إلى السلة",
     "buy_now": "اشتري الآن",
-    "buy_now_short": "اشتري الآن",
+    "buy_now_short": "شراء",
     "quick_order": "طلب سريع",
     "buy": "شراء",
     "confirm_add_to_cart": "تأكيد الإضافة إلى السلة",

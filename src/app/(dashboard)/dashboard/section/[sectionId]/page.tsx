@@ -68,15 +68,20 @@ const SECTION_META: Record<
   },
   users: {
     title: 'Vue d’ensemble — Gestion des utilisateurs',
-    subtitle: 'Administration par rôle métier des équipes internes et accès opérationnels.',
+    subtitle: 'Administration globale et par rôle métier des équipes internes, flotte livraison et comptes clients.',
     links: [
+      { label: 'Tous les utilisateurs', href: '/dashboard/users', desc: 'Annuaire complet tous rôles confondus' },
       { label: 'Super admin', href: '/dashboard/root/superadmins', desc: 'Direction Générale' },
+      { label: 'Administrateurs', href: '/dashboard/users/admins', desc: 'Administration Système' },
       { label: 'Website Manager', href: '/dashboard/users/website-managers', desc: 'Gestion Boutique & Catalogue' },
       { label: 'Magasiniers', href: '/dashboard/users/magasiniers', desc: 'Dépôts & Inventaires' },
       { label: 'Caissiers', href: '/dashboard/users/caissiers', desc: 'Points de vente POS' },
       { label: 'Vendeurs', href: '/dashboard/users/vendeurs', desc: 'Showrooms & Conseils' },
       { label: 'Financiers', href: '/dashboard/users/financiers', desc: 'Trésorerie & Comptabilité' },
       { label: 'Commercials', href: '/dashboard/users/commercials', desc: 'Prospection & B2B' },
+      { label: 'Responsables Livraison', href: '/dashboard/users/delivery-managers', desc: 'Flotte & Tournées' },
+      { label: 'Livreurs', href: '/dashboard/users/delivery-agents', desc: 'Agents Terrain & Colis' },
+      { label: 'Clients (Comptes)', href: '/dashboard/users/clients', desc: 'Comptes RBAC Clients' },
     ],
   },
   catalogue: {

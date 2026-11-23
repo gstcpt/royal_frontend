@@ -1429,12 +1429,11 @@ function StorefrontViewsContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Select
                 label="Colonnes Grille par Défaut"
-                value={String(a.defaultColumns)}
+                value={['3', '4', 'list'].includes(String(a.defaultColumns)) ? String(a.defaultColumns) : '4'}
                 onChange={(e) => setViews({ ...views, articles: { ...a, defaultColumns: e.target.value } })}
                 options={[
                   { value: '3', label: '3 Colonnes' },
                   { value: '4', label: '4 Colonnes' },
-                  { value: '6', label: '6 Colonnes' },
                   { value: 'list', label: 'Mode Liste' },
                 ]}
               />

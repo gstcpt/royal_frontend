@@ -129,11 +129,11 @@ function ArticlesContent() {
   const [loading, setLoading] = useState(true);
   const [, startTransition] = useTransition();
 
-  // Collapsible Left Filter Sidebar + Display Mode + Grid Columns (3 / 4 / 6)
+  // Collapsible Left Filter Sidebar + Display Mode + Grid Columns (3 / 4)
   const [isSidebarOpen, setIsSidebarOpen] = useState(articlesCfg.showSidebarFiltersByDefault !== false);
   const [displayMode, setDisplayMode] = useState<'grid' | 'list'>(articlesCfg.defaultColumns === 'list' ? 'list' : 'grid');
-  const [gridCols, setGridCols] = useState<3 | 4 | 6>(
-    articlesCfg.defaultColumns === '6' ? 6 : articlesCfg.defaultColumns === '3' ? 3 : 4
+  const [gridCols, setGridCols] = useState<3 | 4>(
+    articlesCfg.defaultColumns === '3' ? 3 : 4
   );
 
   useEffect(() => {
@@ -141,15 +141,12 @@ function ArticlesContent() {
     setIsSidebarOpen(!isSmall && articlesCfg.showFiltersSection !== false && articlesCfg.showSidebarFiltersByDefault !== false);
     if (isSmall || articlesCfg.defaultColumns === 'list') {
       setDisplayMode('list');
-    } else if (articlesCfg.defaultColumns === '6') {
-      setDisplayMode('grid');
-      setGridCols(6);
-    } else if (articlesCfg.defaultColumns === '4') {
-      setDisplayMode('grid');
-      setGridCols(4);
     } else if (articlesCfg.defaultColumns === '3') {
       setDisplayMode('grid');
       setGridCols(3);
+    } else {
+      setDisplayMode('grid');
+      setGridCols(4);
     }
   }, [articlesCfg.defaultColumns, articlesCfg.showSidebarFiltersByDefault, articlesCfg.showFiltersSection]);
 
@@ -518,9 +515,7 @@ function ArticlesContent() {
     (urlMinPrice || urlMaxPrice ? 1 : 0);
 
   const gridClassName =
-    gridCols === 6
-      ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6'
-      : gridCols === 4
+    gridCols === 4
       ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
       : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
 
@@ -621,7 +616,7 @@ function ArticlesContent() {
           </div>
         </div>
 
-        {/* 4. Right Controls: 4 Icon-Only Display Modes (3 cols | 4 cols | 6 cols | List) + Limit + Sort */}
+        {/* 4. Right Controls: 3 Icon-Only Display Modes (3 cols | 4 cols | List) + Limit + Sort */}
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="inline-flex items-center bg-[#F4F5F7] p-1 rounded-xl border border-neutral-200 gap-0.5">
             {/* Mode 1: Grid 3 Columns */}
@@ -676,38 +671,7 @@ function ArticlesContent() {
               </svg>
             </button>
 
-            {/* Mode 3: Grid 6 Columns */}
-            <button
-              type="button"
-              onClick={() => {
-                setDisplayMode('grid');
-                setGridCols(6);
-              }}
-              title="Grille 6 colonnes"
-              aria-label="Grille 6 colonnes"
-              className={`hidden xl:flex p-1.5 rounded-lg transition cursor-pointer ${
-                displayMode === 'grid' && gridCols === 6
-                  ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)] shadow-xs'
-                  : 'text-slate-500 hover:text-[var(--royal-ink)]'
-              }`}
-            >
-              <svg className="w-4 h-4" viewBox="0 0 18 16" fill="currentColor" aria-hidden="true">
-                <rect x="0.5" y="2.5" width="2" height="4.8" rx="0.5" />
-                <rect x="3.5" y="2.5" width="2" height="4.8" rx="0.5" />
-                <rect x="6.5" y="2.5" width="2" height="4.8" rx="0.5" />
-                <rect x="9.5" y="2.5" width="2" height="4.8" rx="0.5" />
-                <rect x="12.5" y="2.5" width="2" height="4.8" rx="0.5" />
-                <rect x="15.5" y="2.5" width="2" height="4.8" rx="0.5" />
-                <rect x="0.5" y="8.8" width="2" height="4.8" rx="0.5" />
-                <rect x="3.5" y="8.8" width="2" height="4.8" rx="0.5" />
-                <rect x="6.5" y="8.8" width="2" height="4.8" rx="0.5" />
-                <rect x="9.5" y="8.8" width="2" height="4.8" rx="0.5" />
-                <rect x="12.5" y="8.8" width="2" height="4.8" rx="0.5" />
-                <rect x="15.5" y="8.8" width="2" height="4.8" rx="0.5" />
-              </svg>
-            </button>
-
-            {/* Mode 4: List View */}
+            {/* Mode 3: List View */}
             <button
               type="button"
               onClick={() => setDisplayMode('list')}

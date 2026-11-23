@@ -41,15 +41,16 @@ export function resolveRouteVisibility(
   }
 
   const normalized = ROUTE_ALIASES[cleanPath] || cleanPath;
-  if (
-    normalized.startsWith('/dashboard/root/visibility') ||
-    normalized.startsWith('/dashboard/section')
-  ) {
+  if (normalized.startsWith('/dashboard/root/visibility')) {
     return false;
   }
 
   if (normalized in visibilityMap) {
     return visibilityMap[normalized] !== 'PRIVATE';
+  }
+
+  if (normalized.startsWith('/dashboard/section/')) {
+    return false;
   }
 
   const matchedParent = Object.keys(visibilityMap)
