@@ -17,6 +17,12 @@ import {
   Calendar,
   KeyRound,
   Dices,
+  Warehouse,
+  Store,
+  CreditCard,
+  Search,
+  Check,
+  MapPin,
 } from 'lucide-react';
 import {
   DataTable,
@@ -42,6 +48,29 @@ export interface RoleOption {
   displayName?: string;
 }
 
+export interface WarehouseOption {
+  id: string;
+  name: string;
+  code: string;
+  city?: string | null;
+  isDefault?: boolean;
+}
+
+export interface ShowroomOption {
+  id: string;
+  name: string;
+  code: string;
+  address?: string | null;
+}
+
+export interface CashRegisterOption {
+  id: string;
+  name: string;
+  posId: string;
+  posName?: string;
+  hasActiveSession?: boolean;
+}
+
 export interface RoleUserItem {
   id: string;
   firstName: string;
@@ -53,8 +82,20 @@ export interface RoleUserItem {
   lastLoginAt?: string | null;
   createdAt: string;
   roles?: string[];
-  roleDetails?: Array<{ id?: string; name: string; displayName?: string }>;
+  roleDetails?: Array<{
+    id?: string;
+    name: string;
+    displayName?: string;
+    warehouse?: { id: string; name: string; code: string } | null;
+    pos?: { id: string; name: string; code: string } | null;
+  }>;
   userRoles?: Array<{ role?: { id?: string; name: string; displayName?: string } }>;
+  warehouseIds?: string[];
+  posIds?: string[];
+  cashRegisterIds?: string[];
+  assignedWarehouses?: Array<{ id: string; name: string; code: string }>;
+  assignedShowrooms?: Array<{ id: string; name: string; code: string }>;
+  assignedCashRegisters?: Array<{ id: string; name: string; posId: string; posName?: string }>;
 }
 
 interface RoleUsersDirectoryProps {
@@ -85,14 +126,16 @@ const USERS_GUIDE_STEPS: ViewGuideStep[] = [
   {
     id: 'users-crud',
     number: '01',
-    title: 'Création & Édition Uniformes des Comptes',
-    description: 'Les formulaires Ajouter et Modifier proposent les mêmes champs : identité, contact, rôle RBAC et mot de passe.',
+    title: 'Création & Édition Contextuelles des Comptes',
+    description:
+      'Dans les vues par rôle, le rôle est pré-assigné automatiquement sans liste déroulante inutile. Sur « Tous les utilisateurs », la sélection du rôle révèle dynamiquement les champs d’affectation.',
     fields: [
       {
-        label: 'Mot de passe à la création et à la modification',
+        label: 'Affectations multi-sites par métier',
         steps: [
-          'En création : saisissez un mot de passe (min. 8 caractères) ou utilisez « Générer ».',
-          'En modification : laissez vide pour conserver le mot de passe actuel, ou renseignez-en un nouveau pour le mettre à jour immédiatement.',
+          'Magasiniers : sélection multiple des Dépôts / Entrepôts gérés.',
+          'Caissiers : sélection multiple des Caisses enregistreuses POS.',
+          'Vendeurs : sélection multiple des Showrooms / Salles d’exposition.',
         ],
       },
     ],
@@ -100,14 +143,15 @@ const USERS_GUIDE_STEPS: ViewGuideStep[] = [
   {
     id: 'users-reset',
     number: '02',
-    title: 'Réinitialisation Système & Envoi E-Mail SMTP',
-    description: 'L’icône clé sur chaque ligne déclenche la génération côté serveur d’un nouveau mot de passe sécurisé envoyé par e-mail.',
+    title: 'Mot de Passe & Réinitialisation E-Mail SMTP',
+    description:
+      'Définissez ou modifiez le mot de passe directement dans la modale unifiée, ou cliquez sur la clé pour générer et envoyer un nouveau mot de passe par e-mail.',
     fields: [
       {
         label: 'Sécurité des sessions',
         steps: [
-          'Le système génère un mot de passe aléatoire unique, l’envoie par e-mail via Paramètres SMTP puis révoque les anciennes sessions.',
-          'Le compte ROOT principal reste strictement protégé contre la suppression, la suspension et le changement de rôle.',
+          'En modification, laissez le champ vide pour conserver le mot de passe actuel.',
+          'La réinitialisation système envoie un nouveau mot de passe via SMTP puis révoque les sessions actives.',
         ],
       },
     ],
@@ -149,6 +193,149 @@ function getPrimaryRoleId(item: RoleUserItem, rolesList: RoleOption[]): string {
   return matched?.id || '';
 }
 
+function normalizeRoleType(roleName: string): string {
+  const up = (roleName || '').toUpperCase();
+  return ROLE_ALIAS_MAP[up] || up;
+}
+
+function AssignmentMultiSelector({
+  title,
+  subtitle,
+  icon,
+  items,
+  selectedIds,
+  onToggle,
+  onSelectAll,
+  onClearAll,
+  emptyLabel,
+}: {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  items: Array<{ id: string; title: string; badge?: string; meta?: string }>;
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+  onSelectAll: () => void;
+  onClearAll: () => void;
+  emptyLabel: string;
+}) {
+  const [filterText, setFilterText] = React.useState('');
+
+  const filtered = React.useMemo(() => {
+    const q = filterText.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(
+      (it) =>
+        it.title.toLowerCase().includes(q) ||
+        (it.badge && it.badge.toLowerCase().includes(q)) ||
+        (it.meta && it.meta.toLowerCase().includes(q)),
+    );
+  }, [items, filterText]);
+
+  return (
+    <div className="rounded-2xl border border-[#E6D6A6] bg-[#FBF9F4] p-4 space-y-3 animate-in fade-in slide-in-from-top-1">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-7 h-7 rounded-xl bg-white border border-[#E6D6A6] text-[#9A7414] flex items-center justify-center shrink-0">
+            {icon}
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs font-extrabold text-[#1D232E] flex items-center gap-2">
+              <span>{title}</span>
+              <span className="px-2 py-0.5 rounded-full bg-[#C59B27] text-white text-[10px] font-black">
+                {selectedIds.length}
+              </span>
+            </div>
+            <div className="text-[11px] text-slate-500">{subtitle}</div>
+          </div>
+        </div>
+        {items.length > 0 && (
+          <div className="flex items-center gap-2 text-[11px] font-bold">
+            <button
+              type="button"
+              onClick={onSelectAll}
+              className="text-[#9A7414] hover:underline cursor-pointer"
+            >
+              Tout cocher
+            </button>
+            <span className="text-slate-300">•</span>
+            <button
+              type="button"
+              onClick={onClearAll}
+              className="text-slate-500 hover:text-rose-600 cursor-pointer"
+            >
+              Effacer
+            </button>
+          </div>
+        )}
+      </div>
+
+      {items.length > 4 && (
+        <div className="relative">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+            placeholder="Filtrer..."
+            className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-[#E6E1D6] bg-white text-xs text-[#1D232E] focus:outline-none focus:border-[#C59B27]"
+          />
+        </div>
+      )}
+
+      {items.length === 0 ? (
+        <div className="p-3 rounded-xl bg-white border border-[#E6E1D6] text-[11px] text-slate-500 text-center">
+          {emptyLabel}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto pr-0.5">
+          {filtered.map((it) => {
+            const active = selectedIds.includes(it.id);
+            return (
+              <button
+                key={it.id}
+                type="button"
+                onClick={() => onToggle(it.id)}
+                className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2.5 cursor-pointer ${
+                  active
+                    ? 'bg-[#FBF6E8] border-[#C59B27] shadow-2xs'
+                    : 'bg-white border-[#E6E1D6] hover:border-[#C59B27]/60'
+                }`}
+              >
+                <span
+                  className={`mt-0.5 w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition ${
+                    active
+                      ? 'bg-[#C59B27] border-[#C59B27] text-white'
+                      : 'bg-white border-slate-300'
+                  }`}
+                >
+                  {active && <Check className="w-3 h-3" />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-xs font-bold text-[#1D232E] truncate">{it.title}</span>
+                    {it.badge && (
+                      <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-white border border-[#E6E1D6] text-[#9A7414] shrink-0">
+                        {it.badge}
+                      </span>
+                    )}
+                  </div>
+                  {it.meta && (
+                    <div className="text-[10px] text-slate-500 truncate mt-0.5 flex items-center gap-1">
+                      <MapPin className="w-2.5 h-2.5 text-[#C59B27] shrink-0" />
+                      <span className="truncate">{it.meta}</span>
+                    </div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function RoleUsersDirectory({
   roleCode,
   title,
@@ -164,6 +351,9 @@ export function RoleUsersDirectory({
   const [items, setItems] = React.useState<RoleUserItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [rolesList, setRolesList] = React.useState<RoleOption[]>([]);
+  const [warehousesList, setWarehousesList] = React.useState<WarehouseOption[]>([]);
+  const [showroomsList, setShowroomsList] = React.useState<ShowroomOption[]>([]);
+  const [registersList, setRegistersList] = React.useState<CashRegisterOption[]>([]);
   const [defaultRoleId, setDefaultRoleId] = React.useState<string>('');
   const [roleFilter, setRoleFilter] = React.useState<string>('ALL');
 
@@ -177,6 +367,9 @@ export function RoleUsersDirectory({
   const [email, setEmail] = React.useState('');
   const [phone, setPhone] = React.useState('');
   const [selectedRoleId, setSelectedRoleId] = React.useState('');
+  const [selectedWarehouseIds, setSelectedWarehouseIds] = React.useState<string[]>([]);
+  const [selectedPosIds, setSelectedPosIds] = React.useState<string[]>([]);
+  const [selectedCashRegisterIds, setSelectedCashRegisterIds] = React.useState<string[]>([]);
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -208,17 +401,39 @@ export function RoleUsersDirectory({
       const endpoint = isAllMode
         ? '/users'
         : `/users?role=${encodeURIComponent(roleCode)}`;
-      const [usersList, rolesRes] = await Promise.all([
-        fetchAllPaginated<RoleUserItem>(endpoint, 200)
-          .then((r) => r.items)
-          .catch(() => []),
-        fetchApi('/roles').catch(() => []),
-      ]);
-      setItems(Array.isArray(usersList) ? usersList : []);
 
-      const parsedRoles: RoleOption[] = rolesRes?.data || (Array.isArray(rolesRes) ? rolesRes : []);
+      const normalizedPageRole = normalizeRoleType(roleCode);
+      const needsWarehouses = isAllMode || normalizedPageRole === 'STOCK_MANAGER';
+      const needsPos = isAllMode || normalizedPageRole === 'SALESPERSON';
+      const needsRegisters = isAllMode || normalizedPageRole === 'CASHIER';
+
+      const [usersRes, rolesRes, whRes, posRes, regRes] = await Promise.allSettled([
+        fetchAllPaginated<RoleUserItem>(endpoint, 200).then((r) => r.items),
+        fetchApi('/roles'),
+        needsWarehouses ? fetchApi('/warehouses') : Promise.resolve([]),
+        needsPos ? fetchApi('/pos') : Promise.resolve([]),
+        needsRegisters ? fetchApi('/pos/registers') : Promise.resolve([]),
+      ]);
+
+      setItems(usersRes.status === 'fulfilled' && Array.isArray(usersRes.value) ? usersRes.value : []);
+
+      const rawRoles = rolesRes.status === 'fulfilled' ? rolesRes.value : [];
+      const parsedRoles: RoleOption[] = rawRoles?.data || (Array.isArray(rawRoles) ? rawRoles : []);
       const validRoles = Array.isArray(parsedRoles) ? parsedRoles : [];
       setRolesList(validRoles);
+
+      if (whRes.status === 'fulfilled') {
+        const rawWh = whRes.value?.data || whRes.value || [];
+        setWarehousesList(Array.isArray(rawWh) ? rawWh : []);
+      }
+      if (posRes.status === 'fulfilled') {
+        const rawPos = posRes.value?.data || posRes.value || [];
+        setShowroomsList(Array.isArray(rawPos) ? rawPos : []);
+      }
+      if (regRes.status === 'fulfilled') {
+        const rawReg = regRes.value?.data || regRes.value || [];
+        setRegistersList(Array.isArray(rawReg) ? rawReg : []);
+      }
 
       if (!isAllMode) {
         const normalizedTarget = ROLE_ALIAS_MAP[roleCode.toUpperCase()] || roleCode.toUpperCase();
@@ -227,8 +442,7 @@ export function RoleUsersDirectory({
           validRoles.find((r) => String(r.name).toUpperCase() === roleCode.toUpperCase());
         if (foundRole) setDefaultRoleId(foundRole.id);
       } else {
-        const nonRoot = validRoles.find((r) => r.name !== 'ROOT') || validRoles[0];
-        if (nonRoot) setDefaultRoleId(nonRoot.id);
+        setDefaultRoleId('');
       }
     } finally {
       setLoading(false);
@@ -239,13 +453,27 @@ export function RoleUsersDirectory({
     loadData();
   }, [loadData]);
 
+  const activeModalRoleName = React.useMemo(() => {
+    if (!isAllMode) return normalizeRoleType(roleCode);
+    if (!selectedRoleId) return '';
+    const found = rolesList.find((r) => r.id === selectedRoleId);
+    return found ? normalizeRoleType(found.name) : '';
+  }, [isAllMode, roleCode, selectedRoleId, rolesList]);
+
+  const showDepotSelector = activeModalRoleName === 'STOCK_MANAGER';
+  const showCaisseSelector = activeModalRoleName === 'CASHIER';
+  const showShowroomSelector = activeModalRoleName === 'SALESPERSON';
+
   const openCreateModal = () => {
     setEditingItem(null);
     setFirstName('');
     setLastName('');
     setEmail('');
     setPhone('');
-    setSelectedRoleId(defaultRoleId);
+    setSelectedRoleId(isAllMode ? '' : defaultRoleId);
+    setSelectedWarehouseIds([]);
+    setSelectedPosIds([]);
+    setSelectedCashRegisterIds([]);
     setPassword(generateSecurePassword());
     setShowPassword(true);
     setIsModalOpen(true);
@@ -258,9 +486,31 @@ export function RoleUsersDirectory({
     setEmail(item.email || '');
     setPhone(item.phone || '');
     setSelectedRoleId(getPrimaryRoleId(item, rolesList) || defaultRoleId);
+    setSelectedWarehouseIds(
+      Array.isArray(item.warehouseIds)
+        ? item.warehouseIds
+        : (item.assignedWarehouses || []).map((w) => w.id),
+    );
+    setSelectedPosIds(
+      Array.isArray(item.posIds)
+        ? item.posIds
+        : (item.assignedShowrooms || []).map((p) => p.id),
+    );
+    setSelectedCashRegisterIds(
+      Array.isArray(item.cashRegisterIds)
+        ? item.cashRegisterIds
+        : (item.assignedCashRegisters || []).map((r) => r.id),
+    );
     setPassword('');
     setShowPassword(false);
     setIsModalOpen(true);
+  };
+
+  const toggleIdInList = (
+    setter: React.Dispatch<React.SetStateAction<string[]>>,
+    id: string,
+  ) => {
+    setter((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
   const handleSave = async (e?: React.FormEvent) => {
@@ -269,6 +519,16 @@ export function RoleUsersDirectory({
       showToast('error', 'Prénom, nom et adresse e-mail sont obligatoires.');
       return;
     }
+
+    const editingIsRoot = editingItem
+      ? getPrimaryRoleName(editingItem, roleCode).toUpperCase() === 'ROOT'
+      : false;
+
+    if (isAllMode && !editingIsRoot && !selectedRoleId) {
+      showToast('error', 'Veuillez sélectionner un rôle RBAC.');
+      return;
+    }
+
     const cleanPass = password.trim();
     if (!editingItem && cleanPass.length < 8) {
       showToast('error', 'Le mot de passe initial doit contenir au moins 8 caractères.');
@@ -279,9 +539,11 @@ export function RoleUsersDirectory({
       return;
     }
 
-    const editingIsRoot = editingItem
-      ? getPrimaryRoleName(editingItem, roleCode).toUpperCase() === 'ROOT'
-      : false;
+    const locationPayload: Record<string, any> = {
+      warehouseIds: showDepotSelector ? selectedWarehouseIds : [],
+      posIds: showShowroomSelector ? selectedPosIds : [],
+      cashRegisterIds: showCaisseSelector ? selectedCashRegisterIds : [],
+    };
 
     setSaving(true);
     try {
@@ -291,8 +553,9 @@ export function RoleUsersDirectory({
           lastName: lastName.trim(),
           email: email.trim(),
           phone: phone.trim() || undefined,
+          ...(editingIsRoot ? {} : locationPayload),
         };
-        if (!editingIsRoot && selectedRoleId) {
+        if (!editingIsRoot && isAllMode && selectedRoleId) {
           bodyPayload.roleIds = [selectedRoleId];
         }
         if (cleanPass.length >= 8) {
@@ -309,6 +572,13 @@ export function RoleUsersDirectory({
             : `${singularLabel} mis à jour avec succès.`,
         );
       } else {
+        const assignedRoleIds = !isAllMode
+          ? defaultRoleId
+            ? [defaultRoleId]
+            : undefined
+          : selectedRoleId
+          ? [selectedRoleId]
+          : undefined;
         await fetchApi('/users', {
           method: 'POST',
           body: JSON.stringify({
@@ -317,7 +587,8 @@ export function RoleUsersDirectory({
             email: email.trim(),
             phone: phone.trim() || undefined,
             password: cleanPass,
-            roleIds: selectedRoleId ? [selectedRoleId] : defaultRoleId ? [defaultRoleId] : undefined,
+            roleIds: assignedRoleIds,
+            ...locationPayload,
           }),
         });
         showToast('success', `Compte ${singularLabel} créé pour ${email.trim()}.`);
@@ -364,13 +635,15 @@ export function RoleUsersDirectory({
         method: 'PATCH',
         body: JSON.stringify({ isActive: !item.isActive }),
       });
+      setItems((prev) =>
+        prev.map((u) => (u.id === item.id ? { ...u, isActive: !item.isActive } : u)),
+      );
       showToast(
         'info',
         item.isActive
           ? `Compte de ${item.firstName} ${item.lastName} suspendu.`
           : `Compte de ${item.firstName} ${item.lastName} activé.`,
       );
-      await loadData();
     } catch (err: any) {
       showToast('error', err?.message || 'Impossible de modifier le statut.');
     }
@@ -380,9 +653,10 @@ export function RoleUsersDirectory({
     if (!deleteItem) return;
     try {
       await fetchApi(`/users/${deleteItem.id}`, { method: 'DELETE' });
+      const deletedId = deleteItem.id;
       setDeleteItem(null);
+      setItems((prev) => prev.filter((u) => u.id !== deletedId));
       showToast('info', `Compte ${singularLabel} supprimé.`);
-      await loadData();
     } catch (err: any) {
       showToast('error', err?.message || 'Erreur lors de la suppression.');
     }
@@ -400,10 +674,11 @@ export function RoleUsersDirectory({
       await Promise.allSettled(
         deletable.map((u) => fetchApi(`/users/${u.id}`, { method: 'DELETE' })),
       );
+      const deletedSet = new Set(deletable.map((d) => d.id));
       setBulkDeleteKeys([]);
       setSelectedKeys([]);
+      setItems((prev) => prev.filter((u) => !deletedSet.has(u.id)));
       showToast('info', `${deletable.length} compte(s) supprimé(s) (ROOT protégé).`);
-      await loadData();
     } catch (err: any) {
       showToast('error', err?.message || 'Erreur lors de la suppression groupée.');
     } finally {
@@ -428,12 +703,15 @@ export function RoleUsersDirectory({
           }),
         ),
       );
+      const targetSet = new Set(targets.map((t) => t.id));
+      setItems((prev) =>
+        prev.map((u) => (targetSet.has(u.id) ? { ...u, isActive } : u)),
+      );
       showToast(
         'success',
         `${targets.length} compte(s) ${isActive ? 'activé(s)' : 'suspendu(s)'}.`,
       );
       setSelectedKeys([]);
-      await loadData();
     } catch (err: any) {
       showToast('error', err?.message || 'Erreur lors de la modification groupée.');
     } finally {
@@ -488,6 +766,62 @@ export function RoleUsersDirectory({
     }));
   }, [rolesList]);
 
+  const renderAssignmentsBadges = (item: RoleUserItem) => {
+    const whs = item.assignedWarehouses || [];
+    const regs = item.assignedCashRegisters || [];
+    const shs = item.assignedShowrooms || [];
+    if (whs.length === 0 && regs.length === 0 && shs.length === 0) {
+      return <span className="text-[11px] text-slate-400">—</span>;
+    }
+    return (
+      <div className="flex flex-wrap gap-1 max-w-[240px]">
+        {whs.map((w) => (
+          <span
+            key={w.id}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FBF6E8] border border-[#E6D6A6] text-[10px] font-bold text-[#9A7414]"
+          >
+            <Warehouse className="w-2.5 h-2.5" />
+            <span>{w.name}</span>
+          </span>
+        ))}
+        {regs.map((r) => (
+          <span
+            key={r.id}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-[10px] font-bold text-emerald-700"
+          >
+            <CreditCard className="w-2.5 h-2.5" />
+            <span>{r.name}</span>
+          </span>
+        ))}
+        {shs.map((s) => (
+          <span
+            key={s.id}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-[10px] font-bold text-sky-700"
+          >
+            <Store className="w-2.5 h-2.5" />
+            <span>{s.name}</span>
+          </span>
+        ))}
+      </div>
+    );
+  };
+
+  const normalizedViewRole = normalizeRoleType(roleCode);
+  const showAssignmentColumn =
+    isAllMode ||
+    normalizedViewRole === 'STOCK_MANAGER' ||
+    normalizedViewRole === 'CASHIER' ||
+    normalizedViewRole === 'SALESPERSON';
+
+  const assignmentColumnHeader =
+    normalizedViewRole === 'STOCK_MANAGER'
+      ? 'Dépôts Assignés'
+      : normalizedViewRole === 'CASHIER'
+      ? 'Caisses Assignées'
+      : normalizedViewRole === 'SALESPERSON'
+      ? 'Showrooms Assignés'
+      : 'Affectation Site / Caisse';
+
   const columns: ColumnDef<RoleUserItem>[] = [
     {
       key: 'firstName',
@@ -541,6 +875,21 @@ export function RoleUsersDirectory({
       },
       printRender: (item) => getPrimaryRoleName(item, roleCode),
     },
+    ...(showAssignmentColumn
+      ? [
+          {
+            key: 'assignments',
+            header: assignmentColumnHeader,
+            render: (item: RoleUserItem) => renderAssignmentsBadges(item),
+            printRender: (item: RoleUserItem) =>
+              [
+                ...(item.assignedWarehouses || []).map((w) => w.name),
+                ...(item.assignedCashRegisters || []).map((r) => r.name),
+                ...(item.assignedShowrooms || []).map((s) => s.name),
+              ].join(', ') || '—',
+          },
+        ]
+      : []),
     {
       key: 'isActive',
       header: 'Statut',
@@ -691,18 +1040,18 @@ export function RoleUsersDirectory({
         <div className="bg-white p-5 rounded-2xl border border-[#E6E1D6] shadow-sm flex items-center justify-between">
           <div>
             <div className="text-[11px] font-bold uppercase text-slate-500">Actifs</div>
-            <div className="text-2xl font-black font-mono text-emerald-700 mt-1">
+            <div className="text-2xl font-black font-mono text-emerald-600 mt-1">
               {activeCount}
             </div>
           </div>
-          <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700">
+          <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600">
             <CheckCircle2 className="w-5 h-5" />
           </div>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-[#E6E1D6] shadow-sm flex items-center justify-between">
           <div>
             <div className="text-[11px] font-bold uppercase text-slate-500">Suspendus</div>
-            <div className="text-2xl font-black font-mono text-slate-600 mt-1">
+            <div className="text-2xl font-black font-mono text-slate-500 mt-1">
               {filteredItems.length - activeCount}
             </div>
           </div>
@@ -715,18 +1064,10 @@ export function RoleUsersDirectory({
       <DataTable
         data={filteredItems}
         columns={columns}
-        keyExtractor={(item) => item.id}
         isLoading={loading}
-        printTitle={printTitle}
-        exportFileName={roleCode.toLowerCase()}
-        searchPlaceholder={`Rechercher un ${singularLabel.toLowerCase()}...`}
+        keyExtractor={(item) => item.id}
         searchKeys={['firstName', 'lastName', 'email', 'phone']}
-        supportedModes={['table', 'list', 'matrix']}
-        defaultMode="table"
-        enableMultiSelect
-        selectedKeys={selectedKeys}
-        onSelectionChange={setSelectedKeys}
-        onBulkDelete={(keys) => setBulkDeleteKeys(keys)}
+        searchPlaceholder={`Rechercher ${singularLabel.toLowerCase()}...`}
         customFilters={
           isAllMode
             ? [
@@ -742,9 +1083,16 @@ export function RoleUsersDirectory({
                   })),
                 },
               ]
-            : []
+            : undefined
         }
-        renderBulkActions={() => (
+        printTitle={printTitle}
+        exportFileName={`${roleCode.toLowerCase()}-users`}
+        displayModes={['table', 'list', 'matrix']}
+        enableMultiSelect
+        selectedKeys={selectedKeys}
+        onSelectionChange={setSelectedKeys}
+        onBulkDelete={(keys) => setBulkDeleteKeys(keys)}
+        renderBulkActions={(_keys) => (
           <>
             <button
               type="button"
@@ -764,7 +1112,7 @@ export function RoleUsersDirectory({
               <XCircle className="w-3.5 h-3.5" />
               <span>Suspendre</span>
             </button>
-            {roleSelectOptions.length > 0 && (
+            {isAllMode && roleSelectOptions.length > 0 && (
               <select
                 value=""
                 disabled={bulkBusy}
@@ -816,6 +1164,11 @@ export function RoleUsersDirectory({
                   {item.isActive ? 'Actif' : 'Suspendu'}
                 </Badge>
               </div>
+              {(item.assignedWarehouses?.length ||
+                item.assignedCashRegisters?.length ||
+                item.assignedShowrooms?.length) ? (
+                <div className="pt-1">{renderAssignmentsBadges(item)}</div>
+              ) : null}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
                 <div className="flex flex-col gap-0.5 min-w-0">
                   <span className="text-[10px] font-bold text-[#9A7414] truncate">{rName}</span>
@@ -836,7 +1189,7 @@ export function RoleUsersDirectory({
                     type="button"
                     onClick={() => openEditModal(item)}
                     className="p-1.5 rounded-lg border border-slate-200 hover:bg-[#FBF6E8] cursor-pointer"
-                    title="Modifier"
+                    title="Modifier profil / mot de passe"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
                   </button>
@@ -887,7 +1240,7 @@ export function RoleUsersDirectory({
                   }}
                 >
                   <KeyRound className="w-3.5 h-3.5 text-[#C59B27]" />
-                  <span>Réinitialiser MDP (Email)</span>
+                  <span>Réinitialiser &amp; Envoyer MDP</span>
                 </Button>
               )}
             <div className="flex items-center gap-2 ml-auto">
@@ -959,17 +1312,34 @@ export function RoleUsersDirectory({
                 </span>
               </div>
             </div>
+            {(inspectItem.assignedWarehouses?.length ||
+              inspectItem.assignedCashRegisters?.length ||
+              inspectItem.assignedShowrooms?.length) ? (
+              <div className="p-3.5 rounded-xl bg-[#FBF9F4] border border-[#E6D6A6] space-y-2">
+                <span className="text-[10px] uppercase font-bold text-[#9A7414] block">
+                  Affectations Opérationnelles
+                </span>
+                {renderAssignmentsBadges(inspectItem)}
+              </div>
+            ) : null}
           </div>
         )}
       </Modal>
 
-      {/* Unified Create / Edit Modal — Exact Same Fields Including Password */}
+      {/* Unified Create / Edit Modal — Context-Aware Role & Dynamic Multi-Assignments */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingItem ? `Modifier ${singularLabel}` : `Nouveau compte ${singularLabel}`}
+        subtitle={
+          !isAllMode
+            ? `Rôle automatique : ${breadcrumbLabel}`
+            : activeModalRoleName
+            ? `Rôle sélectionné : ${activeModalRoleName}`
+            : 'Champs communs puis affectation selon le rôle'
+        }
         type={editingItem ? 'edit' : 'create'}
-        size="md"
+        size="lg"
         footer={
           <div className="flex flex-wrap items-center justify-between gap-2 w-full">
             {editingItem && (!editingIsRoot || currentAuthUser?.id === editingItem.id) ? (
@@ -1058,27 +1428,87 @@ export function RoleUsersDirectory({
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Rôle RBAC *</label>
-            {editingIsRoot ? (
-              <input
-                type="text"
-                disabled
-                value="ROOT — Console Système Protégée"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D6] text-xs bg-[#F8F9FA] text-slate-500 font-semibold"
-              />
-            ) : (
-              <Select
-                value={selectedRoleId}
-                onChange={(e) => setSelectedRoleId(e.target.value)}
-                options={
-                  roleSelectOptions.length > 0
-                    ? roleSelectOptions
-                    : [{ value: '', label: singularLabel }]
-                }
-              />
-            )}
-          </div>
+          {/* Role dropdown ONLY displayed inside "Tous les utilisateurs" */}
+          {isAllMode && (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Rôle RBAC *</label>
+              {editingIsRoot ? (
+                <input
+                  type="text"
+                  disabled
+                  value="ROOT — Console Système Protégée"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D6] text-xs bg-[#F8F9FA] text-slate-500 font-semibold"
+                />
+              ) : (
+                <Select
+                  value={selectedRoleId}
+                  onChange={(e) => setSelectedRoleId(e.target.value)}
+                  options={[
+                    { value: '', label: '— Sélectionner un rôle —' },
+                    ...roleSelectOptions,
+                  ]}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Dynamic Multi-Site / Cash Register Assignment Panels based on Active Role */}
+          {showDepotSelector && (
+            <AssignmentMultiSelector
+              title="Dépôt(s) / Entrepôt(s) assigné(s)"
+              subtitle="Sélectionnez un ou plusieurs dépôts sous la responsabilité du magasinier"
+              icon={<Warehouse className="w-4 h-4" />}
+              items={warehousesList.map((w) => ({
+                id: w.id,
+                title: w.name,
+                badge: w.code,
+                meta: w.city || (w.isDefault ? 'Entrepôt principal' : undefined),
+              }))}
+              selectedIds={selectedWarehouseIds}
+              onToggle={(id) => toggleIdInList(setSelectedWarehouseIds, id)}
+              onSelectAll={() => setSelectedWarehouseIds(warehousesList.map((w) => w.id))}
+              onClearAll={() => setSelectedWarehouseIds([])}
+              emptyLabel="Aucun entrepôt disponible. Créez un dépôt dans Stock & entrepôts > Dépôts."
+            />
+          )}
+
+          {showCaisseSelector && (
+            <AssignmentMultiSelector
+              title="Caisse(s) enregistreuse(s) POS assignée(s)"
+              subtitle="Choisissez la ou les caisses opérées par ce caissier"
+              icon={<CreditCard className="w-4 h-4" />}
+              items={registersList.map((r) => ({
+                id: r.id,
+                title: r.name,
+                badge: r.hasActiveSession ? 'OUVERTE' : 'PRÊTE',
+                meta: r.posName ? `Showroom : ${r.posName}` : undefined,
+              }))}
+              selectedIds={selectedCashRegisterIds}
+              onToggle={(id) => toggleIdInList(setSelectedCashRegisterIds, id)}
+              onSelectAll={() => setSelectedCashRegisterIds(registersList.map((r) => r.id))}
+              onClearAll={() => setSelectedCashRegisterIds([])}
+              emptyLabel="Aucune caisse enregistrée dans Point de vente > Showrooms."
+            />
+          )}
+
+          {showShowroomSelector && (
+            <AssignmentMultiSelector
+              title="Showroom(s) assigné(s)"
+              subtitle="Sélectionnez le(s) showroom(s) d’affectation pour ce vendeur"
+              icon={<Store className="w-4 h-4" />}
+              items={showroomsList.map((s) => ({
+                id: s.id,
+                title: s.name,
+                badge: s.code,
+                meta: s.address || 'Showroom Royal',
+              }))}
+              selectedIds={selectedPosIds}
+              onToggle={(id) => toggleIdInList(setSelectedPosIds, id)}
+              onSelectAll={() => setSelectedPosIds(showroomsList.map((s) => s.id))}
+              onClearAll={() => setSelectedPosIds([])}
+              emptyLabel="Aucun showroom disponible dans Point de vente > Salles d'exposition."
+            />
+          )}
 
           <div>
             <div className="flex items-center justify-between gap-2 mb-1">
@@ -1198,8 +1628,8 @@ export function RoleUsersDirectory({
       <ViewGuideModal
         isOpen={guideOpen}
         onClose={() => setGuideOpen(false)}
-        title="Guide Gestion des Utilisateurs & Mots de Passe"
-        subtitle="Création, édition unifiée et réinitialisation par e-mail SMTP"
+        title="Guide Gestion des Utilisateurs & Affectations"
+        subtitle="Rôles contextuels, multi-affectation dépôts/caisses/showrooms et reset SMTP"
         steps={USERS_GUIDE_STEPS}
         currentIndex={guideIndex}
         onStepChange={setGuideIndex}

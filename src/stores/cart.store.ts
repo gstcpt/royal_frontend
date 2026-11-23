@@ -61,6 +61,12 @@ interface CartState {
   clearCart: () => Promise<void>;
 }
 
+const countCartItems = (cartData: any): number =>
+  (cartData?.items || []).reduce(
+    (sum: number, it: any) => sum + (it.quantity || 1),
+    0,
+  );
+
 export const useCartStore = create<CartState>((set, get) => ({
   cart: null,
   isLoading: false,
@@ -76,11 +82,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       if (res.ok) {
         const json = await res.json();
         const cartData = json.data || json;
-        const totalItems = (cartData.items || []).reduce(
-          (sum: number, it: any) => sum + (it.quantity || 1),
-          0,
-        );
-        set({ cart: cartData, itemCount: totalItems });
+        set({ cart: cartData, itemCount: countCartItems(cartData) });
       }
     } catch (e) {
       console.error('Error fetching cart:', e);
@@ -90,7 +92,10 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   addItem: async (item: AddItemDto) => {
-    set({ isLoading: true });
+    const qty = Math.max(1, Number(item.quantity || 1));
+    const prevCount = get().itemCount;
+    // Optimistic count update so the header badge & toast respond instantly
+    set({ itemCount: prevCount + qty });
     try {
       const res = await fetch('/api/v1/cart/items', {
         method: 'POST',
@@ -99,21 +104,36 @@ export const useCartStore = create<CartState>((set, get) => ({
         body: JSON.stringify({
           ...(item.productId ? { productId: item.productId } : {}),
           ...(item.variantId ? { variantId: item.variantId } : {}),
-          quantity: item.quantity || 1,
+          quantity: qty,
         }),
       });
 
       if (res.ok) {
-        await get().fetchCart();
+        const json = await res.json();
+        const cartData = json.data || json;
+        if (cartData && Array.isArray(cartData.items)) {
+          set({ cart: cartData, itemCount: countCartItems(cartData) });
+        } else {
+          await get().fetchCart();
+        }
+      } else {
+        set({ itemCount: prevCount });
       }
     } catch (e) {
+      set({ itemCount: prevCount });
       console.error('Error adding to cart:', e);
-    } finally {
-      set({ isLoading: false });
     }
   },
 
   removeItem: async (itemId: string) => {
+    const prevCart = get().cart;
+    if (prevCart?.items) {
+      const nextItems = prevCart.items.filter((i) => i.id !== itemId);
+      set({
+        cart: { ...prevCart, items: nextItems },
+        itemCount: countCartItems({ items: nextItems }),
+      });
+    }
     try {
       const res = await fetch(`/api/v1/cart/items/${itemId}`, {
         method: 'DELETE',
@@ -121,7 +141,11 @@ export const useCartStore = create<CartState>((set, get) => ({
         credentials: 'include',
       });
       if (res.ok) {
-        await get().fetchCart();
+        const json = await res.json();
+        const cartData = json.data || json;
+        if (cartData && Array.isArray(cartData.items)) {
+          set({ cart: cartData, itemCount: countCartItems(cartData) });
+        }
       }
     } catch (e) {
       console.error('Error removing from cart:', e);
@@ -129,6 +153,16 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   updateQuantity: async (itemId: string, quantity: number) => {
+    const prevCart = get().cart;
+    if (prevCart?.items) {
+      const nextItems = prevCart.items.map((i) =>
+        i.id === itemId ? { ...i, quantity } : i,
+      );
+      set({
+        cart: { ...prevCart, items: nextItems },
+        itemCount: countCartItems({ items: nextItems }),
+      });
+    }
     try {
       const res = await fetch(`/api/v1/cart/items/${itemId}`, {
         method: 'PUT',
@@ -137,7 +171,11 @@ export const useCartStore = create<CartState>((set, get) => ({
         body: JSON.stringify({ quantity }),
       });
       if (res.ok) {
-        await get().fetchCart();
+        const json = await res.json();
+        const cartData = json.data || json;
+        if (cartData && Array.isArray(cartData.items)) {
+          set({ cart: cartData, itemCount: countCartItems(cartData) });
+        }
       }
     } catch (e) {
       console.error('Error updating cart quantity:', e);
@@ -145,13 +183,13 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   clearCart: async () => {
+    set({ cart: { id: '', items: [], subtotal: 0 }, itemCount: 0 });
     try {
       await fetch('/api/v1/cart', {
         method: 'DELETE',
         headers: getCartHeaders(),
         credentials: 'include',
       });
-      set({ cart: { id: '', items: [], subtotal: 0 }, itemCount: 0 });
     } catch (e) {
       console.error('Error clearing cart:', e);
     }

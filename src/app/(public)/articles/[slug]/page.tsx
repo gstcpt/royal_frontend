@@ -14,6 +14,7 @@ import { fetchAllPaginated } from '@/lib/api';
 import { ProductMediaViewer } from '@/components/storefront/ProductMediaViewer';
 import { ProductCard, StorefrontProduct } from '@/components/storefront/ProductCard';
 import { QuickOrderModal } from '@/components/storefront/QuickOrderModal';
+import { ShareProductModal } from '@/components/storefront/ShareProductModal';
 import { trackMarketingEvent } from '@/components/storefront/MarketingPixelsTracker';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
@@ -149,6 +150,7 @@ export default function ArticleDetailPage() {
   }, [product?.id, detailCfg.showRelatedProducts, detailCfg.extraRecommendedBlocks]);
   const [addedToCartToast, setAddedToCartToast] = useState(false);
   const [isQuickOrderOpen, setIsQuickOrderOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const [reviewsData, setReviewsData] = useState<{
     averageRating: number;
@@ -672,11 +674,7 @@ export default function ArticleDetailPage() {
                 {detailCfg.showShareButton !== false && (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                        navigator.clipboard.writeText(window.location.href);
-                      }
-                    }}
+                    onClick={() => setIsShareModalOpen(true)}
                     className="col-span-2 sm:col-span-1 py-2.5 rounded-xl border bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
                   >
                     <Share2 className="w-3.5 h-3.5" />
@@ -1146,35 +1144,52 @@ export default function ArticleDetailPage() {
         })()}
       </div>
       {product && (
-        <QuickOrderModal
-          isOpen={isQuickOrderOpen}
-          onClose={() => setIsQuickOrderOpen(false)}
-          product={{
-            id: product.id,
-            sku: product.sku,
-            name: product.name,
-            slug: product.slug,
-            shortDescription: product.shortDescription,
-            description: product.description,
-            sellingPrice: Number(product.sellingPrice),
-            discountPrice: product.discountPrice ? Number(product.discountPrice) : null,
-            discountPercentage: product.discountPercentage,
-            primaryImage:
-              product.images?.find((im) => im.isPrimary)?.url || product.images?.[0]?.url || '',
-            images: product.images?.map((im) => im.url) || [],
-            category: product.category ? { name: product.category.name, slug: product.category.slug } : null,
-            brand: product.brand ? { name: product.brand.name, slug: product.brand.slug } : null,
-            variants: (product.variants || []).map((v) => ({
-              id: v.id,
-              sku: v.sku,
-              name: v.name,
-              sellingPrice: v.sellingPrice ? Number(v.sellingPrice) : undefined,
-              attributesJson: v.attributesJson || v.attributes || null,
-            })),
-          }}
-          initialVariantId={selectedVariantId}
-          initialQuantity={quantity}
-        />
+        <>
+          <QuickOrderModal
+            isOpen={isQuickOrderOpen}
+            onClose={() => setIsQuickOrderOpen(false)}
+            product={{
+              id: product.id,
+              sku: product.sku,
+              name: product.name,
+              slug: product.slug,
+              shortDescription: product.shortDescription,
+              description: product.description,
+              sellingPrice: Number(product.sellingPrice),
+              discountPrice: product.discountPrice ? Number(product.discountPrice) : null,
+              discountPercentage: product.discountPercentage,
+              primaryImage:
+                product.images?.find((im) => im.isPrimary)?.url || product.images?.[0]?.url || '',
+              images: product.images?.map((im) => im.url) || [],
+              category: product.category ? { name: product.category.name, slug: product.category.slug } : null,
+              brand: product.brand ? { name: product.brand.name, slug: product.brand.slug } : null,
+              variants: (product.variants || []).map((v) => ({
+                id: v.id,
+                sku: v.sku,
+                name: v.name,
+                sellingPrice: v.sellingPrice ? Number(v.sellingPrice) : undefined,
+                attributesJson: v.attributesJson || v.attributes || null,
+              })),
+            }}
+            initialVariantId={selectedVariantId}
+            initialQuantity={quantity}
+          />
+          <ShareProductModal
+            isOpen={isShareModalOpen}
+            onClose={() => setIsShareModalOpen(false)}
+            product={{
+              id: product.id,
+              sku: product.sku,
+              name: product.name,
+              slug: product.slug,
+              sellingPrice: Number(product.sellingPrice),
+              discountPrice: product.discountPrice ? Number(product.discountPrice) : null,
+              primaryImage:
+                product.images?.find((im) => im.isPrimary)?.url || product.images?.[0]?.url || '',
+              brand: product.brand ? { name: product.brand.name } : null,
+            }}
+          />
+        </>
       )}
     </div>
   );

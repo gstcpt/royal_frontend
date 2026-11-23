@@ -1,8 +1,19 @@
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== 'undefined'
-    ? `${window.location.origin}/api/v1`
-    : 'http://localhost:4000/api/v1');
+const _resolveApiBaseUrl = (): string => {
+  if (typeof window !== 'undefined') {
+    const envUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!envUrl || envUrl.includes('localhost') || envUrl.includes('127.0.0.1')) {
+      return `${window.location.origin}/api/v1`;
+    }
+    return envUrl;
+  }
+  const internalUrl = process.env.INTERNAL_API_URL;
+  if (internalUrl) {
+    return `${internalUrl.replace(/\/+$/, '')}/api/v1`;
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+};
+
+export const API_BASE_URL = _resolveApiBaseUrl();
 
 let isRefreshing = false;
 let failedQueue: Array<{

@@ -181,12 +181,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    const token =
+      typeof window !== 'undefined' ? localStorage.getItem('royal_token') : null;
+    get().clearAuth();
     try {
-      await fetchApi('/auth/logout', { method: 'POST' });
-    } catch (e) {
+      const apiBase =
+        process.env.NEXT_PUBLIC_API_URL ||
+        (typeof window !== 'undefined'
+          ? `${window.location.origin}/api/v1`
+          : '/api/v1');
+      await fetch(`${apiBase}/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        keepalive: true,
+      });
+    } catch {
       // Ignore network errors on logout
-    } finally {
-      get().clearAuth();
     }
   },
 

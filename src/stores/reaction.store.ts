@@ -12,6 +12,7 @@ interface ReactionState {
   reactions: Record<string, ReactionValue>;
   counts: Record<string, ReactionCounts>;
   loaded: boolean;
+  isLoading: boolean;
   authPromptProductId: string | null;
   fetchMyReactions: () => Promise<void>;
   getCounts: (productId: string, initialLike?: number, initialDislike?: number) => ReactionCounts;
@@ -24,32 +25,45 @@ interface ReactionState {
   clearAuthPrompt: () => void;
 }
 
+let inFlightReactionsPromise: Promise<void> | null = null;
+
 export const useReactionStore = create<ReactionState>((set, get) => ({
   reactions: {},
   counts: {},
   loaded: false,
+  isLoading: false,
   authPromptProductId: null,
 
   fetchMyReactions: async () => {
     if (typeof window === 'undefined' || !localStorage.getItem('royal_token')) {
-      set({ reactions: {}, loaded: true });
+      set({ reactions: {}, loaded: true, isLoading: false });
       return;
     }
-    try {
-      const res = await fetch('/api/v1/storefront-cms/my-reactions', {
-        headers: getCartHeaders(true),
-        credentials: 'include',
-      });
-      if (!res.ok) {
-        set({ loaded: true });
-        return;
+    if (get().loaded) return;
+    if (inFlightReactionsPromise) return inFlightReactionsPromise;
+
+    set({ isLoading: true });
+    inFlightReactionsPromise = (async () => {
+      try {
+        const res = await fetch('/api/v1/storefront-cms/my-reactions', {
+          headers: getCartHeaders(true),
+          credentials: 'include',
+        });
+        if (!res.ok) {
+          set({ loaded: true, isLoading: false });
+          return;
+        }
+        const json = await res.json();
+        const map = json?.data?.reactions || json?.reactions || {};
+        set({ reactions: map, loaded: true, isLoading: false });
+      } catch {
+        set({ loaded: true, isLoading: false });
+      } finally {
+        inFlightReactionsPromise = null;
       }
-      const json = await res.json();
-      const map = json?.data?.reactions || json?.reactions || {};
-      set({ reactions: map, loaded: true });
-    } catch {
-      set({ loaded: true });
-    }
+    })();
+
+    return inFlightReactionsPromise;
   },
 
   getCounts: (productId, initialLike = 0, initialDislike = 0) => {

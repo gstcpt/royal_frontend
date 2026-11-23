@@ -35,7 +35,9 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
   const containerRef = useRef<HTMLDivElement>(null);
   const [openMenu, setOpenMenu] = useState<'contacts' | 'notifications' | null>(null);
   const [contacts, setContacts] = useState<ContactItem[]>([]);
+  const [unreadContactsTotal, setUnreadContactsTotal] = useState<number>(0);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadNotifsTotal, setUnreadNotifsTotal] = useState<number>(0);
 
   const allNotifsHref = isClientOnly ? '/account/notifications' : '/dashboard/community/notifications';
   const canShowContacts = !isClientOnly && isRouteVisible('/dashboard/community/contacts');
@@ -44,23 +46,41 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
   const loadFeeds = useCallback(async () => {
     try {
       const notifUrl = isClientOnly
-        ? '/storefront-cms/my-notifications?limit=10&offset=0'
-        : '/storefront-cms/notifications?limit=10&offset=0';
+        ? '/storefront-cms/my-notifications?limit=5&offset=0'
+        : '/storefront-cms/notifications?limit=5&offset=0';
       const [notifRes, contactRes] = await Promise.all([
         canShowNotifications ? fetchApi(notifUrl).catch(() => null) : Promise.resolve(null),
-        canShowContacts ? fetchApi('/storefront-cms/contacts').catch(() => null) : Promise.resolve(null),
+        canShowContacts ? fetchApi('/storefront-cms/contacts?limit=5').catch(() => null) : Promise.resolve(null),
       ]);
 
       const rawNotifs = Array.isArray(notifRes)
         ? notifRes
         : notifRes?.notifications || notifRes?.data || notifRes?.items || [];
-      setNotifications(Array.isArray(rawNotifs) ? rawNotifs.slice(0, 5) : []);
+      const top5Notifs = Array.isArray(rawNotifs) ? rawNotifs.slice(0, 5) : [];
+      setNotifications(top5Notifs);
+      const serverNotifUnread =
+        typeof notifRes?.unreadCount === 'number'
+          ? notifRes.unreadCount
+          : typeof notifRes?.data?.unreadCount === 'number'
+          ? notifRes.data.unreadCount
+          : Array.isArray(rawNotifs)
+          ? rawNotifs.filter((n: any) => !n.isRead).length
+          : 0;
+      setUnreadNotifsTotal(serverNotifUnread);
 
       if (canShowContacts && contactRes) {
         const rawContacts = Array.isArray(contactRes)
           ? contactRes
-          : contactRes?.data || contactRes?.items || [];
-        setContacts(Array.isArray(rawContacts) ? rawContacts.slice(0, 5) : []);
+          : contactRes?.items || contactRes?.data || [];
+        const top5Contacts = Array.isArray(rawContacts) ? rawContacts.slice(0, 5) : [];
+        setContacts(top5Contacts);
+        const serverContactUnread =
+          typeof contactRes?.unreadCount === 'number'
+            ? contactRes.unreadCount
+            : Array.isArray(rawContacts)
+            ? rawContacts.filter((c: any) => !c.isRead).length
+            : 0;
+        setUnreadContactsTotal(serverContactUnread);
       }
     } catch {
       // ignore transient polling failure
@@ -86,20 +106,36 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
     return () => document.removeEventListener('mousedown', onOutside);
   }, [openMenu]);
 
-  const unreadContacts = contacts.filter((c) => !c.isRead).length;
-  const unreadNotifs = notifications.filter((n) => !n.isRead).length;
+  const unreadContacts = unreadContactsTotal;
+  const unreadNotifs = unreadNotifsTotal;
 
   if (!canShowContacts && !canShowNotifications) {
     return null;
   }
 
-  const markNotifRead = async (n: NotificationItem) => {
+  const markAllContactsRead = () => {
+    setContacts((prev) => prev.map((x) => ({ ...x, isRead: true })));
+    setUnreadContactsTotal(0);
+    void fetchApi('/storefront-cms/contacts/read-all', { method: 'PATCH' }).catch(() => null);
+  };
+
+  const markAllNotifsRead = () => {
+    setNotifications((prev) => prev.map((x) => ({ ...x, isRead: true })));
+    setUnreadNotifsTotal(0);
+    const url = isClientOnly
+      ? '/storefront-cms/my-notifications/read-all'
+      : '/storefront-cms/notifications/read-all';
+    void fetchApi(url, { method: 'PATCH' }).catch(() => null);
+  };
+
+  const markNotifRead = (n: NotificationItem) => {
     if (!n.isRead) {
+      setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, isRead: true } : x)));
+      setUnreadNotifsTotal((prev) => Math.max(0, prev - 1));
       const endpoint = isClientOnly
         ? `/storefront-cms/my-notifications/${n.id}/read`
         : `/storefront-cms/notifications/${n.id}/read`;
-      await fetchApi(endpoint, { method: 'PATCH' }).catch(() => null);
-      setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, isRead: true } : x)));
+      void fetchApi(endpoint, { method: 'PATCH' }).catch(() => null);
     }
     setOpenMenu(null);
     const safeTarget = n.link && isRouteVisible(n.link) ? n.link : allNotifsHref;
@@ -125,20 +161,32 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
             <Mail className="w-4 h-4 text-[#C59B27]" />
             {unreadContacts > 0 && (
               <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-rose-600 text-white text-[9px] font-black shadow-xs">
-                {unreadContacts > 9 ? '9+' : unreadContacts}
+                {unreadContacts}
               </span>
             )}
           </button>
 
           {openMenu === 'contacts' && (
             <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl border border-[#E6E1D6] shadow-2xl overflow-hidden z-[9999]">
-              <div className="px-4 py-3 border-b border-slate-100 bg-[#FBF9F4] flex items-center justify-between">
-                <span className="text-xs font-extrabold text-[#1D232E]">
-                  {t('dashboard.contacts_header')}
-                </span>
-                <span className="text-[10px] font-bold text-[#9A7414]">
-                  {unreadContacts} {t('dashboard.unread_suffix')}
-                </span>
+              <div className="px-4 py-3 border-b border-slate-100 bg-[#FBF9F4] flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="text-xs font-extrabold text-[#1D232E] block truncate">
+                    {t('dashboard.contacts_header')}
+                  </span>
+                  <span className="text-[10px] font-bold text-[#9A7414]">
+                    {unreadContacts} {t('dashboard.unread_suffix')}
+                  </span>
+                </div>
+                {unreadContacts > 0 && (
+                  <button
+                    type="button"
+                    onClick={markAllContactsRead}
+                    className="inline-flex items-center gap-1 text-[10px] font-bold text-[#9A7414] hover:underline cursor-pointer shrink-0"
+                  >
+                    <CheckCheck className="w-3 h-3" />
+                    <span>{t('dashboard.mark_all_read')}</span>
+                  </button>
+                )}
               </div>
               <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
                 {contacts.length === 0 ? (
@@ -151,6 +199,14 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
                       key={c.id}
                       type="button"
                       onClick={() => {
+                        if (!c.isRead) {
+                          setContacts((prev) => prev.map((x) => (x.id === c.id ? { ...x, isRead: true } : x)));
+                          setUnreadContactsTotal((prev) => Math.max(0, prev - 1));
+                          void fetchApi(`/storefront-cms/contacts/${c.id}`, {
+                            method: 'PATCH',
+                            body: JSON.stringify({ isRead: true }),
+                          }).catch(() => null);
+                        }
                         setOpenMenu(null);
                         router.push('/dashboard/community/contacts');
                       }}
@@ -206,28 +262,27 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
           <Bell className="w-4 h-4 text-[#C59B27]" />
           {unreadNotifs > 0 && (
             <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-[#C59B27] text-white text-[9px] font-black shadow-xs">
-              {unreadNotifs > 9 ? '9+' : unreadNotifs}
+              {unreadNotifs}
             </span>
           )}
         </button>
 
         {openMenu === 'notifications' && (
           <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl border border-[#E6E1D6] shadow-2xl overflow-hidden z-[9999]">
-            <div className="px-4 py-3 border-b border-slate-100 bg-[#FBF9F4] flex items-center justify-between">
-              <span className="text-xs font-extrabold text-[#1D232E]">
-                {t('dashboard.notifications_header')}
-              </span>
+            <div className="px-4 py-3 border-b border-slate-100 bg-[#FBF9F4] flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <span className="text-xs font-extrabold text-[#1D232E] block truncate">
+                  {t('dashboard.notifications_header')}
+                </span>
+                <span className="text-[10px] font-bold text-[#9A7414]">
+                  {unreadNotifs} {t('dashboard.unread_suffix')}
+                </span>
+              </div>
               {unreadNotifs > 0 && (
                 <button
                   type="button"
-                  onClick={async () => {
-                    const url = isClientOnly
-                      ? '/storefront-cms/my-notifications/read-all'
-                      : '/storefront-cms/notifications/read-all';
-                    await fetchApi(url, { method: 'PATCH' }).catch(() => null);
-                    setNotifications((prev) => prev.map((x) => ({ ...x, isRead: true })));
-                  }}
-                  className="inline-flex items-center gap-1 text-[10px] font-bold text-[#9A7414] hover:underline cursor-pointer"
+                  onClick={markAllNotifsRead}
+                  className="inline-flex items-center gap-1 text-[10px] font-bold text-[#9A7414] hover:underline cursor-pointer shrink-0"
                 >
                   <CheckCheck className="w-3 h-3" />
                   <span>{t('dashboard.mark_all_read')}</span>

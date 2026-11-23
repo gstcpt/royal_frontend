@@ -17,6 +17,8 @@ import {
   ThumbsUp,
   ThumbsDown,
   Zap,
+  Share2,
+  Copy,
 } from 'lucide-react';
 import { useWishlistStore } from '@/stores/wishlist.store';
 import { useCartStore } from '@/stores/cart.store';
@@ -30,6 +32,7 @@ import { useI18nStore } from '@/stores/i18n.store';
 import { Modal } from '@/components/ui';
 import { trackMarketingEvent } from './MarketingPixelsTracker';
 import { QuickOrderModal } from './QuickOrderModal';
+import { ShareProductModal } from './ShareProductModal';
 
 export interface StorefrontVariant {
   id: string;
@@ -84,6 +87,8 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
   const [isQuickOrderOpen, setIsQuickOrderOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [copiedSku, setCopiedSku] = useState(false);
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
     product.variants?.[0]?.id || ''
   );
@@ -201,10 +206,34 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
     setTimeout(() => setCompareNotice(null), 2200);
   };
 
+  const handleCopySku = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!product.sku) return;
+    try {
+      await navigator.clipboard.writeText(product.sku);
+    } catch {
+      if (typeof document !== 'undefined') {
+        const el = document.createElement('textarea');
+        el.value = product.sku;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      }
+    }
+    setCopiedSku(true);
+    setTimeout(() => setCopiedSku(false), 2200);
+  };
+
   const handleConfirmAddToCart = async (e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
-    await addToCart({
+    setIsBuyModalOpen(false);
+    setIsQuickViewOpen(false);
+    setAddedBanner(true);
+    setTimeout(() => setAddedBanner(false), 3800);
+    addToCart({
       productId: product.id,
       ...(selectedVariant?.id ? { variantId: selectedVariant.id } : {}),
       quantity,
@@ -218,10 +247,6 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
       content_name: product.name,
       content_ids: [product.id],
     });
-    setIsBuyModalOpen(false);
-    setIsQuickViewOpen(false);
-    setAddedBanner(true);
-    setTimeout(() => setAddedBanner(false), 3800);
   };
 
   const handleIconAddToCart = async (e: React.MouseEvent) => {
@@ -262,6 +287,24 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
           </Link>
         </div>
       )}
+
+      {/* SKU Copied Toast Notification */}
+      {copiedSku && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="fixed bottom-6 left-6 z-[9999] bg-[var(--royal-card)] text-[var(--royal-ink)] px-4 py-2.5 rounded-xl shadow-xl border border-[var(--royal-primary)] flex items-center gap-2 text-xs font-bold animate-in fade-in slide-in-from-bottom-3"
+        >
+          <Check className="w-4 h-4 text-[var(--royal-primary)] shrink-0" />
+          <span>Code SKU copié : <span className="font-mono text-[var(--royal-primary)]">{product.sku}</span></span>
+        </div>
+      )}
+
+      {/* Share Article Modal */}
+      <ShareProductModal
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        product={product}
+      />
 
       {/* Compare Feedback Toast */}
       {compareNotice && (
@@ -600,12 +643,16 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
               </span>
             )}
             {product.sku && (
-              <span
-                title={`SKU ${product.sku}`}
-                className="absolute bottom-2 left-2 px-2.5 py-0.5 rounded-full bg-[var(--royal-card)]/95 border-[1.5px] border-[var(--royal-primary)] text-[10px] font-mono font-bold text-[var(--royal-ink)] shadow-sm max-w-[80%] truncate"
+              <button
+                type="button"
+                onClick={handleCopySku}
+                title={`Cliquer pour copier le SKU (${product.sku})`}
+                aria-label={`Copier le code SKU ${product.sku}`}
+                className="absolute bottom-2 left-2 px-2.5 py-0.5 rounded-full bg-white/25 backdrop-blur-sm hover:bg-white border-[1.5px] border-[var(--royal-primary)] text-[10px] font-mono font-bold text-[var(--royal-primary)] hover:text-[var(--royal-ink)] shadow-sm transition-all cursor-pointer max-w-[82%] truncate inline-flex items-center gap-1"
               >
-                {product.sku}
-              </span>
+                {copiedSku ? <Check className="w-3 h-3 shrink-0" /> : <Copy className="w-2.5 h-2.5 shrink-0" />}
+                <span className="truncate">{copiedSku ? 'Copié' : product.sku}</span>
+              </button>
             )}
           </Link>
 
@@ -662,7 +709,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                     setIsQuickViewOpen(true);
                   }}
                   title="Aperçu rapide"
-                  className="w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] bg-[var(--royal-card)] hover:bg-[var(--royal-gold-light)] text-[var(--royal-ink)] hover:text-[var(--royal-primary)] flex items-center justify-center cursor-pointer transition"
+                  className="w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] bg-white/25 backdrop-blur-sm hover:bg-white text-[var(--royal-primary)] flex items-center justify-center cursor-pointer transition"
                 >
                   <Eye className="w-4 h-4" />
                 </button>
@@ -672,15 +719,28 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                   type="button"
                   onClick={handleToggleCompare}
                   title="Comparer"
-                  className={`w-9 h-9 rounded-full border-[1.5px] flex items-center justify-center cursor-pointer transition ${
+                  className={`w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] flex items-center justify-center cursor-pointer transition ${
                     inCompare
-                      ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)] border-[var(--royal-primary)]'
-                      : 'border-[var(--royal-primary)] bg-[var(--royal-card)] hover:bg-[var(--royal-gold-light)] text-[var(--royal-ink)] hover:text-[var(--royal-primary)]'
+                      ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)]'
+                      : 'bg-white/25 backdrop-blur-sm hover:bg-white text-[var(--royal-primary)]'
                   }`}
                 >
                   <Layers className="w-4 h-4" />
                 </button>
               )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsShareOpen(true);
+                }}
+                title={t('actions.share')}
+                aria-label={t('actions.share')}
+                className="w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] bg-white/25 backdrop-blur-sm hover:bg-white text-[var(--royal-primary)] flex items-center justify-center cursor-pointer transition"
+              >
+                <Share2 className="w-4 h-4" />
+              </button>
               {articleFlags.showLikeDislike !== false && (
                 <>
                   <button
@@ -716,10 +776,10 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                   type="button"
                   onClick={handleToggleWishlist}
                   title={inWishlist ? t('actions.wishlist_remove') : t('actions.wishlist_add')}
-                  className={`w-9 h-9 rounded-full border-[1.5px] flex items-center justify-center cursor-pointer transition ${
+                  className={`w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] flex items-center justify-center cursor-pointer transition ${
                     inWishlist
-                      ? 'bg-rose-50 text-rose-600 border-[var(--royal-primary)]'
-                      : 'border-[var(--royal-primary)] bg-[var(--royal-card)] hover:bg-[var(--royal-gold-light)] text-[var(--royal-ink)] hover:text-rose-600'
+                      ? 'bg-rose-50 text-rose-600 hover:bg-white'
+                      : 'bg-white/25 backdrop-blur-sm hover:bg-white text-[var(--royal-primary)] hover:text-rose-600'
                   }`}
                 >
                   <Heart className={`w-4 h-4 ${inWishlist ? 'fill-current' : ''}`} />
@@ -732,7 +792,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                     onClick={handleIconAddToCart}
                     title={t('actions.add_to_cart')}
                     aria-label={t('actions.add_to_cart')}
-                    className="w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] bg-[var(--royal-card)] hover:bg-[var(--royal-primary)] text-[var(--royal-primary)] hover:text-[var(--royal-primary-text)] flex items-center justify-center cursor-pointer shrink-0 transition"
+                    className="w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] bg-white/25 backdrop-blur-sm hover:bg-white text-[var(--royal-primary)] flex items-center justify-center cursor-pointer shrink-0 transition"
                   >
                     <ShoppingBag className="w-4 h-4" />
                   </button>
@@ -758,7 +818,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
     );
   }
 
-  // Standard Grid Card (Full-Size Image Fitting Container + Primary-Bordered Overlay Icons + Bottom-Left SKU + Inline Prices Under Title)
+  // Standard Grid Card (Full-Size Image Fitting Container + Translucent Gold Overlay Icons + Copyable Bottom-Left SKU + Inline Prices Under Title)
   return (
     <>
       <motion.div
@@ -767,7 +827,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
         className="group flex flex-col h-full"
       >
         <div className="relative w-full h-full rounded-2xl bg-[var(--royal-card)] border border-[var(--royal-border)] overflow-hidden flex flex-col justify-between transition-all duration-300 group-hover:border-[var(--royal-primary)]/60 group-hover:shadow-md">
-          {/* Article Image Wrapper with Top Overlay Icons (Primary Border) & Bottom-Left SKU Pill */}
+          {/* Article Image Wrapper with Translucent White (25%) + Primary Gold Overlay Icons & Copyable SKU Pill */}
           <div className="relative w-full h-72 overflow-hidden bg-[var(--royal-silver-light)] shrink-0">
             {/* Top Floating Overlay Controls */}
             <div className="absolute top-2.5 left-2.5 right-2.5 flex items-start justify-between z-20 pointer-events-none">
@@ -776,7 +836,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                   {discountPct ? `-${discountPct}%` : 'PROMO'}
                 </span>
               ) : (
-                <span className="pointer-events-auto px-2.5 py-0.5 rounded-full bg-[var(--royal-card)]/95 border border-[var(--royal-primary)] text-[10px] font-bold text-[var(--royal-ink)] uppercase tracking-wider shadow-sm">
+                <span className="pointer-events-auto px-2.5 py-0.5 rounded-full bg-white/25 backdrop-blur-sm hover:bg-white border border-[var(--royal-primary)] text-[10px] font-bold text-[var(--royal-primary)] uppercase tracking-wider shadow-sm transition-all">
                   {product.brand?.name || 'Royal'}
                 </span>
               )}
@@ -788,10 +848,10 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                     onClick={handleToggleWishlist}
                     title={inWishlist ? 'Retirer de la liste d’envies' : 'Ajouter à la liste d’envies'}
                     aria-label={inWishlist ? 'Retirer de la liste d’envies' : 'Ajouter à la liste d’envies'}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition border-[1.5px] border-[var(--royal-primary)] shadow-sm cursor-pointer ${
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 border-[1.5px] border-[var(--royal-primary)] shadow-sm cursor-pointer ${
                       inWishlist
-                        ? 'text-rose-600 bg-rose-50'
-                        : 'bg-[var(--royal-card)]/95 text-[var(--royal-ink)] hover:text-rose-600 hover:bg-[var(--royal-gold-light)]'
+                        ? 'text-rose-600 bg-rose-50/90 hover:bg-white'
+                        : 'bg-white/25 backdrop-blur-sm text-[var(--royal-primary)] hover:bg-white hover:text-rose-600'
                     }`}
                   >
                     <Heart className={`w-3.5 h-3.5 ${inWishlist ? 'fill-current' : ''}`} />
@@ -808,7 +868,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                     }}
                     title="Aperçu rapide"
                     aria-label="Aperçu rapide"
-                    className="w-8 h-8 rounded-full flex items-center justify-center transition bg-[var(--royal-card)]/95 border-[1.5px] border-[var(--royal-primary)] text-[var(--royal-ink)] hover:text-[var(--royal-primary)] hover:bg-[var(--royal-gold-light)] shadow-sm cursor-pointer"
+                    className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 bg-white/25 backdrop-blur-sm border-[1.5px] border-[var(--royal-primary)] text-[var(--royal-primary)] hover:bg-white shadow-sm cursor-pointer"
                   >
                     <Eye className="w-3.5 h-3.5" />
                   </button>
@@ -819,10 +879,10 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                     onClick={handleToggleCompare}
                     title="Comparer cet article"
                     aria-label="Comparer cet article"
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition border-[1.5px] border-[var(--royal-primary)] shadow-sm cursor-pointer ${
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 border-[1.5px] border-[var(--royal-primary)] shadow-sm cursor-pointer ${
                       inCompare
                         ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)]'
-                        : 'bg-[var(--royal-card)]/95 text-[var(--royal-ink)] hover:text-[var(--royal-primary)] hover:bg-[var(--royal-gold-light)]'
+                        : 'bg-white/25 backdrop-blur-sm text-[var(--royal-primary)] hover:bg-white'
                     }`}
                   >
                     <Layers className="w-3.5 h-3.5" />
@@ -834,11 +894,24 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                     onClick={handleIconAddToCart}
                     title={t('actions.add_to_cart')}
                     aria-label={t('actions.add_to_cart')}
-                    className="w-8 h-8 rounded-full flex items-center justify-center transition bg-[var(--royal-card)]/95 border-[1.5px] border-[var(--royal-primary)] text-[var(--royal-primary)] hover:bg-[var(--royal-primary)] hover:text-[var(--royal-primary-text)] shadow-sm cursor-pointer"
+                    className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 bg-white/25 backdrop-blur-sm border-[1.5px] border-[var(--royal-primary)] text-[var(--royal-primary)] hover:bg-white shadow-sm cursor-pointer"
                   >
                     <ShoppingBag className="w-3.5 h-3.5" />
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsShareOpen(true);
+                  }}
+                  title={t('actions.share')}
+                  aria-label={t('actions.share')}
+                  className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 bg-white/25 backdrop-blur-sm border-[1.5px] border-[var(--royal-primary)] text-[var(--royal-primary)] hover:bg-white shadow-sm cursor-pointer"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
 
@@ -853,15 +926,28 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
               />
             </Link>
 
-            {/* Bottom-Left SKU Badge styled symmetrically to top-right floating controls */}
+            {/* Bottom-Left Click-to-Copy SKU Badge styled symmetrically to top-right controls */}
             {product.sku && (
-              <div className="pointer-events-none absolute bottom-2.5 left-2.5 z-20 max-w-[78%]">
-                <span
-                  title={`SKU ${product.sku}`}
-                  className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[var(--royal-card)]/95 border-[1.5px] border-[var(--royal-primary)] text-[10px] font-mono font-bold text-[var(--royal-ink)] shadow-sm truncate max-w-full"
+              <div className="absolute bottom-2.5 left-2.5 z-20 max-w-[78%]">
+                <button
+                  type="button"
+                  onClick={handleCopySku}
+                  title={`Cliquer pour copier le SKU (${product.sku})`}
+                  aria-label={`Copier le code SKU ${product.sku}`}
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/25 backdrop-blur-sm hover:bg-white border-[1.5px] border-[var(--royal-primary)] text-[10px] font-mono font-bold text-[var(--royal-primary)] hover:text-[var(--royal-ink)] shadow-sm transition-all cursor-pointer truncate max-w-full"
                 >
-                  {product.sku}
-                </span>
+                  {copiedSku ? (
+                    <>
+                      <Check className="w-3 h-3 shrink-0" />
+                      <span>Copié !</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-2.5 h-2.5 shrink-0 opacity-80" />
+                      <span className="truncate">{product.sku}</span>
+                    </>
+                  )}
+                </button>
               </div>
             )}
           </div>
