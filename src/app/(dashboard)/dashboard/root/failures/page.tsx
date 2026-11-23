@@ -103,18 +103,6 @@ export default function SystemFailuresPage() {
 
   const columns: ColumnDef<SystemFailureItem>[] = [
     {
-      key: 'id',
-      header: 'Sélection',
-      render: (item) => (
-        <input
-          type="checkbox"
-          checked={selectedIds.includes(item.id)}
-          onChange={() => toggleSelect(item.id)}
-          className="rounded border-neutral-300 text-[var(--royal-primary)] focus:ring-0 cursor-pointer"
-        />
-      ),
-    },
-    {
       key: 'statusCode',
       header: 'Code Erreur',
       sortable: true,
@@ -259,7 +247,30 @@ export default function SystemFailuresPage() {
       <DataTable
         data={failures}
         columns={columns}
+        keyExtractor={(item) => item.id}
         isLoading={loading}
+        enableMultiSelect={true}
+        selectedKeys={selectedIds}
+        onSelectionChange={setSelectedIds}
+        onBulkDelete={handleDeleteSelected}
+        renderBulkActions={() => (
+          <button
+            type="button"
+            onClick={() => {
+              const sel = failures.filter((f) => selectedIds.includes(f.id));
+              const blob = new Blob([JSON.stringify(sel, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `incidents_selection_${Date.now()}.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="px-2.5 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200 border border-neutral-200 text-xs font-semibold transition cursor-pointer"
+          >
+            Exporter JSON ({selectedIds.length})
+          </button>
+        )}
         supportedModes={['table', 'list', 'matrix']}
         defaultMode="table"
         searchKeys={['errorCode', 'service', 'endpoint', 'errorMessage']}

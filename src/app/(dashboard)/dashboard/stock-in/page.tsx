@@ -45,6 +45,7 @@ import {
   Select,
   Badge,
   Modal,
+  DeleteConfirmModal,
   Breadcrumb,
   Toast,
   Textarea,
@@ -317,6 +318,35 @@ export default function StockInDashboardPage() {
   const [isWizardOpen, setIsWizardOpen] = React.useState(false);
   const [previewReceipt, setPreviewReceipt] = React.useState<GoodsReceiptItem | null>(null);
   const [activeDocumentPreview, setActiveDocumentPreview] = React.useState<AttachedDocument | null>(null);
+  const [selectedReceiptIds, setSelectedReceiptIds] = React.useState<string[]>([]);
+  const [bulkDeleteReceiptIds, setBulkDeleteReceiptIds] = React.useState<string[]>([]);
+
+  const handleBulkReceiptStatus = async (status: StockInStatus) => {
+    if (selectedReceiptIds.length === 0) return;
+    const idSet = new Set(selectedReceiptIds);
+    const nextList = receipts.map((r) => (idSet.has(r.id) ? { ...r, status } : r));
+    setReceipts(nextList);
+    await fetchApi('/storefront-cms/sys-config/stockIns', {
+      method: 'PUT',
+      body: JSON.stringify({ value: nextList }),
+    }).catch(() => null);
+    showToast('success', `${selectedReceiptIds.length} bon(s) d’entrée passé(s) en ${status}.`);
+    setSelectedReceiptIds([]);
+  };
+
+  const confirmBulkDeleteReceipts = async () => {
+    if (bulkDeleteReceiptIds.length === 0) return;
+    const idSet = new Set(bulkDeleteReceiptIds);
+    const nextList = receipts.filter((r) => !idSet.has(r.id));
+    setReceipts(nextList);
+    await fetchApi('/storefront-cms/sys-config/stockIns', {
+      method: 'PUT',
+      body: JSON.stringify({ value: nextList }),
+    }).catch(() => null);
+    showToast('success', `${bulkDeleteReceiptIds.length} bon(s) d’entrée supprimé(s).`);
+    setBulkDeleteReceiptIds([]);
+    setSelectedReceiptIds([]);
+  };
 
   // Filters State
   const [filterStatus, setFilterStatus] = React.useState<string>('ALL');
@@ -855,6 +885,27 @@ export default function StockInDashboardPage() {
         data={filteredReceipts}
         columns={columns}
         keyExtractor={(item) => item.id}
+        enableMultiSelect={true}
+        selectedKeys={selectedReceiptIds}
+        onSelectionChange={setSelectedReceiptIds}
+        onBulkDelete={(keys) => setBulkDeleteReceiptIds(keys)}
+        renderBulkActions={() => (
+          <select
+            value=""
+            onChange={(e) => {
+              const st = e.target.value as StockInStatus;
+              if (st) handleBulkReceiptStatus(st);
+            }}
+            aria-label="Changer statut bon d'entrée"
+            className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+          >
+            <option value="">Statut entrée...</option>
+            <option value="CONFIRMED">Imputé en Stock</option>
+            <option value="INSPECTION">En Contrôle Quai</option>
+            <option value="PENDING_DOCS">En Attente Pièces</option>
+            <option value="CANCELLED">Annulé</option>
+          </select>
+        )}
         searchPlaceholder="Rechercher par N° Bon d'entrée, N° Commande, fournisseur ou dépôt..."
         searchKeys={['receiptNumber', 'poNumber', 'supplierName', 'warehouseName']}
         supportedModes={['table', 'list', 'matrix']}
@@ -1621,6 +1672,13 @@ export default function StockInDashboardPage() {
           </div>
         )}
       </Modal>
+      <DeleteConfirmModal
+        isOpen={bulkDeleteReceiptIds.length > 0}
+        onClose={() => setBulkDeleteReceiptIds([])}
+        onConfirm={confirmBulkDeleteReceipts}
+        title="Supprimer les bons d’entrée sélectionnés"
+        description={`Confirmez-vous la suppression des ${bulkDeleteReceiptIds.length} bon(s) d’entrée sélectionné(s) ?`}
+      />
     </div>
   );
 }

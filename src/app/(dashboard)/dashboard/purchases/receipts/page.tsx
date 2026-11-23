@@ -76,6 +76,8 @@ function PurchaseReceiptsContent() {
   const [editingReceipt, setEditingReceipt] = React.useState<PurchaseReceiptItem | null>(null);
   const [selectedReceipt, setSelectedReceipt] = React.useState<PurchaseReceiptItem | null>(null);
   const [deleteItem, setDeleteItem] = React.useState<PurchaseReceiptItem | null>(null);
+  const [selectedReceiptIds, setSelectedReceiptIds] = React.useState<string[]>([]);
+  const [bulkDeleteReceiptIds, setBulkDeleteReceiptIds] = React.useState<string[]>([]);
   const [toast, setToast] = React.useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const [formBcRef, setFormBcRef] = React.useState('');
@@ -148,6 +150,27 @@ function PurchaseReceiptsContent() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleBulkReceiptStatus = async (status: PurchaseReceiptItem['status']) => {
+    if (selectedReceiptIds.length === 0) return;
+    const set = new Set(selectedReceiptIds);
+    await persistReceipts(
+      receipts.map((r) => (set.has(r.id) ? { ...r, status } : r)),
+      `${selectedReceiptIds.length} bon(s) de réception passé(s) en ${status}.`
+    );
+    setSelectedReceiptIds([]);
+  };
+
+  const confirmBulkDeleteReceipts = async () => {
+    if (bulkDeleteReceiptIds.length === 0) return;
+    const set = new Set(bulkDeleteReceiptIds);
+    await persistReceipts(
+      receipts.filter((r) => !set.has(r.id)),
+      `${bulkDeleteReceiptIds.length} bon(s) de réception supprimé(s).`
+    );
+    setBulkDeleteReceiptIds([]);
+    setSelectedReceiptIds([]);
   };
 
   const openCreateModal = () => {
@@ -394,7 +417,29 @@ function PurchaseReceiptsContent() {
       <DataTable
         data={receipts}
         columns={columns}
+        keyExtractor={(item) => item.id}
         isLoading={loading}
+        enableMultiSelect={true}
+        selectedKeys={selectedReceiptIds}
+        onSelectionChange={setSelectedReceiptIds}
+        onBulkDelete={(keys) => setBulkDeleteReceiptIds(keys)}
+        renderBulkActions={() => (
+          <select
+            value=""
+            disabled={saving}
+            onChange={(e) => {
+              const st = e.target.value as PurchaseReceiptItem['status'];
+              if (st) handleBulkReceiptStatus(st);
+            }}
+            aria-label="Changer statut BR"
+            className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+          >
+            <option value="">Statut BR...</option>
+            <option value="PENDING_INSPECTION">Contrôle Quai en attente</option>
+            <option value="VERIFIED">Vérifié / Conforme</option>
+            <option value="CONVERTED_TO_STOCK_IN">Converti en Bon d&apos;Entrée</option>
+          </select>
+        )}
         supportedModes={['table', 'list', 'matrix']}
         defaultMode="table"
         searchKeys={['receiptNumber', 'purchaseOrderRef', 'supplierName', 'supplierDeliveryNoteNumber']}
@@ -658,6 +703,17 @@ function PurchaseReceiptsContent() {
           }}
           title="Supprimer le bon de réception"
           message={`Êtes-vous certain de vouloir supprimer le bon de réception "${deleteItem.receiptNumber}" ?`}
+        />
+      )}
+
+      {bulkDeleteReceiptIds.length > 0 && (
+        <DeleteConfirmModal
+          isOpen={true}
+          onClose={() => setBulkDeleteReceiptIds([])}
+          onConfirm={confirmBulkDeleteReceipts}
+          isDeleting={saving}
+          title="Supprimer les bons de réception sélectionnés"
+          description={`Confirmez-vous la suppression des ${bulkDeleteReceiptIds.length} bon(s) de réception sélectionné(s) ?`}
         />
       )}
 

@@ -33,6 +33,8 @@ import {
   Globe,
   Boxes,
   Calendar,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 import { cn, formatTndCurrency } from '@/lib/utils';
 import {
@@ -50,7 +52,7 @@ import {
   Toast,
 } from '@/components/ui';
 import { ModalArticlesTable, RelatedArticlesModal } from '@/components/dashboard';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
 
 export interface CategoryItem {
   id: string;
@@ -322,25 +324,23 @@ export default function DashboardCategoriesPage() {
   const loadData = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const [catRes, prodRes] = await Promise.all([
-        fetchApi('/categories?tree=false').catch(() => null),
-        fetchApi('/products?limit=1000').catch(() => null),
-      ]);
+      const productsPromise = fetchAllPaginated('/products', 200)
+        .then((prodRes) => {
+          if (prodRes?.items) setProducts(prodRes.items);
+        })
+        .catch(() => null);
 
+      const catRes = await fetchApi('/categories?tree=false').catch(() => null);
       if (catRes) {
         const list = Array.isArray(catRes) ? catRes : catRes.data || [];
         setCategories(list);
       } else {
         setCategories(defaultDemoCategories);
       }
-
-      if (prodRes) {
-        const list = Array.isArray(prodRes) ? prodRes : prodRes.data || [];
-        setProducts(list);
-      }
+      setIsLoading(false);
+      await productsPromise;
     } catch {
       setCategories(defaultDemoCategories);
-    } finally {
       setIsLoading(false);
     }
   }, []);
@@ -856,35 +856,96 @@ export default function DashboardCategoriesPage() {
         selectedKeys={selectedCategoryIds}
         onSelectionChange={setSelectedCategoryIds}
         onBulkDelete={() => setIsBulkDeleteModalOpen(true)}
+        renderBulkActions={(keys, clearSel) => (
+          <>
+            <button
+              type="button"
+              onClick={async () => {
+                await Promise.all(
+                  keys.map((id) =>
+                    fetchApi(`/categories/${id}`, {
+                      method: 'PATCH',
+                      body: JSON.stringify({ isActive: true }),
+                    }).catch(() => null),
+                  ),
+                );
+                clearSel();
+                await loadData();
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-white border border-emerald-200 text-emerald-700 text-xs font-bold hover:bg-emerald-50 cursor-pointer"
+            >
+              Activer ({keys.length})
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                await Promise.all(
+                  keys.map((id) =>
+                    fetchApi(`/categories/${id}`, {
+                      method: 'PATCH',
+                      body: JSON.stringify({ isActive: false }),
+                    }).catch(() => null),
+                  ),
+                );
+                clearSel();
+                await loadData();
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-white border border-neutral-200 text-neutral-700 text-xs font-bold hover:bg-neutral-50 cursor-pointer"
+            >
+              Masquer
+            </button>
+          </>
+        )}
         printTitle="Référentiel des Rayons et Catégories — Royal"
         exportFileName="catégories"
         /* Mode Matrix (Grid Cards) */
-        renderMatrixCard={(item) => (
-          <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
-            <div className="p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="relative w-12 h-12 rounded-xl bg-neutral-100 overflow-hidden border border-neutral-200">
-                  {item.imageUrl ? (
-                    <Image src={item.imageUrl} alt={item.name} fill className="object-cover" unoptimized />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950 text-white font-black text-sm">
-                      {getInitials(item.name)}
-                    </div>
-                  )}
+        renderMatrixCard={(item, isChecked, onToggleCheck) => (
+          <div
+            className={cn(
+              'bg-white rounded-2xl border overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between group',
+              isChecked
+                ? 'border-[var(--royal-primary)] ring-2 ring-[var(--royal-primary)]/30 bg-[#FBF9F4]'
+                : 'border-neutral-200',
+            )}
+          >
+            <div className="p-4 sm:p-5 space-y-3.5 min-w-0">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={onToggleCheck}
+                    aria-label={`Sélectionner ${item.name}`}
+                    className="text-neutral-400 hover:text-[var(--royal-primary)] shrink-0 cursor-pointer"
+                  >
+                    {isChecked ? (
+                      <CheckSquare className="w-4 h-4 text-[var(--royal-primary)]" />
+                    ) : (
+                      <Square className="w-4 h-4" />
+                    )}
+                  </button>
+                  <div className="relative w-12 h-12 rounded-xl bg-neutral-100 overflow-hidden border border-neutral-200 shrink-0">
+                    {item.imageUrl ? (
+                      <Image src={item.imageUrl} alt={item.name} fill className="object-cover" unoptimized />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950 text-white font-black text-sm">
+                        {getInitials(item.name)}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <Badge variant={item.isActive !== false ? 'success' : 'neutral'} size="sm">
                   {item.isActive !== false ? 'Actif' : 'Masqué'}
                 </Badge>
               </div>
 
-              <div>
-                <h3 className="font-bold text-neutral-900 text-sm">{item.name}</h3>
+              <div className="min-w-0">
+                <h3 className="font-bold text-neutral-900 text-sm break-words">{item.name}</h3>
                 <p className="text-xs text-neutral-500 mt-1 line-clamp-2">
                   {item.description || 'Rayon du catalogue.'}
                 </p>
               </div>
 
-              <div className="pt-2 border-t border-neutral-100 flex items-center justify-between text-xs">
+              <div className="pt-2 border-t border-neutral-100 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="text-neutral-400">Articles liés :</span>
                 <button
                   type="button"
@@ -892,28 +953,39 @@ export default function DashboardCategoriesPage() {
                     setArticlesModalCategory(item);
                     setArticlesModalPage(1);
                   }}
-                  className="font-bold text-neutral-900 hover:underline"
+                  className="font-bold text-neutral-900 hover:underline cursor-pointer"
                 >
                   {getCategoryProductCount(item)} article(s)
                 </button>
               </div>
             </div>
 
-            <div className="p-3 bg-neutral-50/70 border-t border-neutral-100 flex items-center justify-between">
-              <span className="text-[11px] font-mono text-neutral-400">/{item.slug}</span>
+            <div className="p-3 bg-neutral-50/70 border-t border-neutral-100 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[11px] font-mono text-neutral-400 truncate">/{item.slug}</span>
               {renderActions(item)}
             </div>
           </div>
         )}
         /* Mode List (No Black Line) */
-        renderListItem={(item, isSelected, onSelect) => (
+        renderListItem={(item, isSelected, onSelect, isChecked, onToggleCheck) => (
           <div
             onClick={onSelect}
-            className={`p-3.5 flex items-center justify-between gap-4 transition-all ${
-              isSelected ? 'bg-neutral-100/70' : 'hover:bg-neutral-50/60'
+            className={`p-3.5 flex flex-wrap items-center justify-between gap-3 transition-all ${
+              isChecked ? 'bg-[#FBF6E8]/70' : isSelected ? 'bg-neutral-100/70' : 'hover:bg-neutral-50/60'
             }`}
           >
-            <div className="flex items-center gap-3.5 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={onToggleCheck}
+                className="text-neutral-400 hover:text-[var(--royal-primary)] shrink-0 cursor-pointer"
+              >
+                {isChecked ? (
+                  <CheckSquare className="w-4 h-4 text-[var(--royal-primary)]" />
+                ) : (
+                  <Square className="w-4 h-4" />
+                )}
+              </button>
               <div className="relative w-10 h-10 rounded-xl bg-neutral-100 overflow-hidden shrink-0 border border-neutral-200">
                 {item.imageUrl ? (
                   <Image src={item.imageUrl} alt={item.name} fill className="object-cover" unoptimized />
@@ -923,7 +995,7 @@ export default function DashboardCategoriesPage() {
                   </div>
                 )}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="font-bold text-neutral-900 text-xs truncate">{item.name}</div>
                 <div className="text-[11px] text-neutral-400 truncate max-w-md">
                   {item.description || `/${item.slug}`}
@@ -931,7 +1003,7 @@ export default function DashboardCategoriesPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 shrink-0">
               <button
                 type="button"
                 onClick={() => {

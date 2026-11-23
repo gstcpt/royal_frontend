@@ -53,7 +53,7 @@ import {
   MultiSelect,
 } from '@/components/ui';
 import { ModalArticlesTable, RelatedArticlesModal } from '@/components/dashboard';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
 
 export type CharacteristicType =
   | 'NUMBER'
@@ -347,10 +347,15 @@ export default function DashboardCharacteristicsPage() {
   const loadData = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const [charRes, catRes, prodRes] = await Promise.all([
+      const productsPromise = fetchAllPaginated('/products', 200)
+        .then((prodRes) => {
+          if (prodRes?.items) setProducts(prodRes.items);
+        })
+        .catch(() => null);
+
+      const [charRes, catRes] = await Promise.all([
         fetchApi('/characteristics').catch(() => null),
         fetchApi('/categories?tree=false').catch(() => null),
-        fetchApi('/products?limit=1000').catch(() => null),
       ]);
 
       if (catRes) {
@@ -360,21 +365,17 @@ export default function DashboardCharacteristicsPage() {
         setCategories(defaultCategories);
       }
 
-      if (prodRes) {
-        const list = Array.isArray(prodRes) ? prodRes : prodRes.data || [];
-        setProducts(list);
-      }
-
       if (charRes) {
         const chList = Array.isArray(charRes) ? charRes : charRes.data || [];
         setCharacteristics(chList);
       } else {
         setCharacteristics(defaultCharacteristics);
       }
+      setIsLoading(false);
+      await productsPromise;
     } catch {
       setCharacteristics(defaultCharacteristics);
       setCategories(defaultCategories);
-    } finally {
       setIsLoading(false);
     }
   }, []);
@@ -994,23 +995,126 @@ export default function DashboardCharacteristicsPage() {
         selectedKeys={selectedCharIds}
         onSelectionChange={setSelectedCharIds}
         onBulkDelete={() => setIsBulkDeleteModalOpen(true)}
+        renderBulkActions={(keys, clearSel) => (
+          <>
+            <button
+              type="button"
+              onClick={async () => {
+                await Promise.all(
+                  keys.map((id) =>
+                    fetchApi(`/characteristics/${id}`, {
+                      method: 'PATCH',
+                      body: JSON.stringify({ isRequired: true }),
+                    }).catch(() => null),
+                  ),
+                );
+                clearSel();
+                await loadData();
+                showToast('success', `${keys.length} caractéristique(s) marquée(s) obligatoires.`);
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-700 text-xs font-bold hover:bg-rose-50 cursor-pointer"
+            >
+              Requis : Oui
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                await Promise.all(
+                  keys.map((id) =>
+                    fetchApi(`/characteristics/${id}`, {
+                      method: 'PATCH',
+                      body: JSON.stringify({ isRequired: false }),
+                    }).catch(() => null),
+                  ),
+                );
+                clearSel();
+                await loadData();
+                showToast('success', `${keys.length} caractéristique(s) marquée(s) optionnelles.`);
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-white border border-neutral-200 text-neutral-700 text-xs font-bold hover:bg-neutral-50 cursor-pointer"
+            >
+              Optionnel
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                await Promise.all(
+                  keys.map((id) =>
+                    fetchApi(`/characteristics/${id}`, {
+                      method: 'PATCH',
+                      body: JSON.stringify({ isFilterable: true }),
+                    }).catch(() => null),
+                  ),
+                );
+                clearSel();
+                await loadData();
+                showToast('success', `${keys.length} caractéristique(s) activée(s) en filtre.`);
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-white border border-emerald-200 text-emerald-700 text-xs font-bold hover:bg-emerald-50 cursor-pointer"
+            >
+              Filtre : Actif
+            </button>
+            <select
+              aria-label="Changer type en masse"
+              defaultValue=""
+              onChange={async (e) => {
+                const typeVal = e.target.value;
+                if (!typeVal) return;
+                await Promise.all(
+                  keys.map((id) =>
+                    fetchApi(`/characteristics/${id}`, {
+                      method: 'PATCH',
+                      body: JSON.stringify({ type: typeVal }),
+                    }).catch(() => null),
+                  ),
+                );
+                clearSel();
+                await loadData();
+                showToast('success', `Type mis à jour vers ${typeVal} sur ${keys.length} caractéristique(s).`);
+                e.target.value = '';
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-white border border-[#E6D6A6] text-xs font-bold text-[#1D232E] cursor-pointer"
+            >
+              <option value="">Changer type...</option>
+              <option value="TEXT">Texte Libre</option>
+              <option value="NUMBER">Nombre / Numérique</option>
+              <option value="BOOLEAN">Booléen (Oui / Non)</option>
+              <option value="SELECT">Liste Déroulante</option>
+              <option value="MULTI_SELECT">Multi-sélection</option>
+              <option value="DATE">Date</option>
+            </select>
+          </>
+        )}
         printTitle="Référentiel des Caractéristiques Techniques — Royal"
         exportFileName="caractéristiques"
         /* Mode Matrix (Grid Cards) */
-        renderMatrixCard={(item) => (
-          <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
-            <div className="p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="relative w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center shrink-0 border border-neutral-200 text-neutral-800 overflow-hidden">
-                  {item.iconUrl ? (
-                    <Image src={item.iconUrl} alt={item.name} fill className="object-cover" unoptimized />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950 text-white font-black text-xs">
-                      {getInitials(item.name)}
-                    </div>
-                  )}
+        renderMatrixCard={(item, isChecked, onToggleCheck) => (
+          <div className={cn(
+            'bg-white rounded-2xl border overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between group',
+            isChecked ? 'border-[var(--royal-primary)] ring-2 ring-[var(--royal-primary)]/30 bg-[#FBF9F4]' : 'border-neutral-200'
+          )}>
+            <div className="p-4 sm:p-5 space-y-3.5 min-w-0">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={onToggleCheck}
+                    aria-label={`Sélectionner ${item.name}`}
+                    className="text-neutral-400 hover:text-[var(--royal-primary)] shrink-0 cursor-pointer"
+                  >
+                    {isChecked ? <CheckSquare className="w-4 h-4 text-[var(--royal-primary)]" /> : <Square className="w-4 h-4" />}
+                  </button>
+                  <div className="relative w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center shrink-0 border border-neutral-200 text-neutral-800 overflow-hidden">
+                    {item.iconUrl ? (
+                      <Image src={item.iconUrl} alt={item.name} fill className="object-cover" unoptimized />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950 text-white font-black text-xs">
+                        {getInitials(item.name)}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center justify-end gap-1.5">
                   <Badge variant={item.isRequired ? 'danger' : 'neutral'} size="sm">
                     {item.isRequired ? 'Requis' : 'Optionnel'}
                   </Badge>
@@ -1020,14 +1124,14 @@ export default function DashboardCharacteristicsPage() {
                 </div>
               </div>
 
-              <div>
-                <h3 className="font-bold text-neutral-900 text-sm">{item.name}</h3>
+              <div className="min-w-0">
+                <h3 className="font-bold text-neutral-900 text-sm break-words">{item.name}</h3>
                 <span className="text-xs text-neutral-500 mt-1 block">
                   {getTypeInfo(item.type).label} {item.unit && `(${item.unit})`}
                 </span>
               </div>
 
-              <div className="pt-2 border-t border-neutral-100 flex items-center justify-between text-xs">
+              <div className="pt-2 border-t border-neutral-100 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="text-neutral-400">Articles liés :</span>
                 <button
                   type="button"
@@ -1035,28 +1139,35 @@ export default function DashboardCharacteristicsPage() {
                     setArticlesModalItem(item);
                     setModalArticlesPage(1);
                   }}
-                  className="font-bold text-neutral-900 hover:underline"
+                  className="font-bold text-neutral-900 hover:underline cursor-pointer"
                 >
                   {item.articlesCount || 0} articles
                 </button>
               </div>
             </div>
 
-            <div className="p-3 bg-neutral-50/70 border-t border-neutral-100 flex items-center justify-between">
-              <span className="text-[11px] font-mono text-neutral-400">/{item.code}</span>
+            <div className="p-3 bg-neutral-50/70 border-t border-neutral-100 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[11px] font-mono text-neutral-400 truncate">/{item.code}</span>
               {renderActions(item)}
             </div>
           </div>
         )}
         /* Mode List (No Black Line) */
-        renderListItem={(item, isSelected, onSelect) => (
+        renderListItem={(item, isSelected, onSelect, isChecked, onToggleCheck) => (
           <div
             onClick={onSelect}
-            className={`p-3.5 flex items-center justify-between gap-4 transition-all ${
-              isSelected ? 'bg-neutral-100/70' : 'hover:bg-neutral-50/60'
+            className={`p-3.5 flex flex-wrap items-center justify-between gap-3 transition-all ${
+              isChecked ? 'bg-[#FBF6E8]/70' : isSelected ? 'bg-neutral-100/70' : 'hover:bg-neutral-50/60'
             }`}
           >
-            <div className="flex items-center gap-3.5 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={onToggleCheck}
+                className="text-neutral-400 hover:text-[var(--royal-primary)] shrink-0 cursor-pointer"
+              >
+                {isChecked ? <CheckSquare className="w-4 h-4 text-[var(--royal-primary)]" /> : <Square className="w-4 h-4" />}
+              </button>
               <div className="relative w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center shrink-0 border border-neutral-200 text-neutral-800 overflow-hidden">
                 {item.iconUrl ? (
                   <Image src={item.iconUrl} alt={item.name} fill className="object-cover" unoptimized />
@@ -1066,7 +1177,7 @@ export default function DashboardCharacteristicsPage() {
                   </div>
                 )}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="font-bold text-neutral-900 text-xs truncate">{item.name}</div>
                 <div className="text-[11px] text-neutral-400 truncate max-w-md">
                   {getTypeInfo(item.type).label} {item.unit && `• ${item.unit}`}
@@ -1074,7 +1185,7 @@ export default function DashboardCharacteristicsPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 shrink-0">
               <button
                 type="button"
                 onClick={() => {

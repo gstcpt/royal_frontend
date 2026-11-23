@@ -168,13 +168,21 @@ export default function ProspectsPage() {
   const confirmBulkDelete = async () => {
     if (bulkDeleteKeys.length === 0) return;
     const set = new Set(bulkDeleteKeys);
-    await persist(
-      prospects.filter((p) => !set.has(p.id)),
-      `${bulkDeleteKeys.length} prospect(s) supprimé(s).`
-    );
-    setBulkDeleteKeys([]);
-    setSelectedKeys([]);
-  };
+      await persist(
+        prospects.filter((p) => !set.has(p.id)),
+        `${bulkDeleteKeys.length} prospect(s) supprimé(s).`
+      );
+      setBulkDeleteKeys([]);
+      setSelectedKeys([]);
+    };
+
+    const handleBulkStatus = async (status: ProspectItem['status']) => {
+      if (selectedKeys.length === 0) return;
+      const set = new Set(selectedKeys);
+      const nextList = prospects.map((p) => (set.has(p.id) ? { ...p, status } : p));
+      await persist(nextList, `${selectedKeys.length} prospect(s) passé(s) en « ${STATUS_LABELS[status] || status} ».`);
+      setSelectedKeys([]);
+    };
 
   const columns: ColumnDef<ProspectItem>[] = [
     {
@@ -336,6 +344,38 @@ export default function ProspectsPage() {
         selectedKeys={selectedKeys}
         onSelectionChange={setSelectedKeys}
         onBulkDelete={handleBulkDelete}
+        renderBulkActions={() => (
+          <>
+            <button
+              type="button"
+              onClick={() => handleBulkStatus('NEW')}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Nouveau
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkStatus('CONTACTED')}
+              className="px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Contacté
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkStatus('QUALIFIED')}
+              className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Qualifier
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkStatus('ARCHIVED')}
+              className="px-2.5 py-1.5 rounded-lg bg-neutral-100 text-neutral-600 hover:bg-neutral-200 border border-neutral-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Archiver
+            </button>
+          </>
+        )}
         onRefresh={loadData}
         renderMatrixCard={(p, isChecked, onToggle) => (
           <div className="bg-white p-5 rounded-3xl border border-[#E6E1D6] shadow-sm space-y-3 flex flex-col justify-between">

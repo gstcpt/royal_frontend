@@ -26,12 +26,12 @@ import {
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Modal } from '@/components/ui/modal';
+import { Modal, DeleteConfirmModal } from '@/components/ui/modal';
 import { Toast } from '@/components/ui/toast';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Select } from '@/components/ui/select';
 import { Printer } from 'lucide-react';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 export interface UserItem {
@@ -127,6 +127,10 @@ export default function UsersManagementPage() {
   const [loading, setLoading] = useState(true);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [bulkDeleteUserIds, setBulkDeleteUserIds] = useState<string[]>([]);
+  const [rolesList, setRolesList] = useState<Array<{ id: string; name: string; displayName?: string }>>([]);
+  const [bulkUpdating, setBulkUpdating] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteFirstName, setInviteFirstName] = useState('');
   const [inviteLastName, setInviteLastName] = useState('');
@@ -138,8 +142,12 @@ export default function UsersManagementPage() {
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchApi('/users?limit=200');
-      const raw = res?.data?.items || res?.items || res?.data || (Array.isArray(res) ? res : []);
+      const [raw, rolesRes] = await Promise.all([
+        fetchAllPaginated<any>('/users', 200).then((r) => r.items),
+        fetchApi('/roles').catch(() => []),
+      ]);
+      const rList = rolesRes?.data || (Array.isArray(rolesRes) ? rolesRes : []);
+      setRolesList(Array.isArray(rList) ? rList : []);
       const mapped: UserItem[] = (Array.isArray(raw) ? raw : []).map((u: any) => {
         const primaryRole = u.userRoles?.[0]?.role?.name || u.roles?.[0] || 'STAFF';
         const loc =
@@ -198,6 +206,71 @@ export default function UsersManagementPage() {
       await loadUsers();
     } catch (err: any) {
       setFeedbackMessage(err?.message || 'Erreur mise à jour statut utilisateur.');
+    }
+  };
+
+  const handleBulkUserStatus = async (isActive: boolean) => {
+    if (selectedUserIds.length === 0) return;
+    setBulkUpdating(true);
+    try {
+      const targets = users.filter((u) => selectedUserIds.includes(u.id) && u.role !== 'ROOT');
+      await Promise.allSettled(
+        targets.map((u) =>
+          fetchApi(`/users/${u.id}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify({ isActive }),
+          })
+        )
+      );
+      setFeedbackMessage(`${targets.length} utilisateur(s) ${isActive ? 'activé(s)' : 'suspendu(s)'}.`);
+      setSelectedUserIds([]);
+      await loadUsers();
+    } catch (err: any) {
+      setFeedbackMessage(err?.message || 'Erreur mise à jour groupée.');
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
+  const handleBulkUserRole = async (roleId: string, roleName: string) => {
+    if (selectedUserIds.length === 0 || !roleId) return;
+    setBulkUpdating(true);
+    try {
+      const targets = users.filter((u) => selectedUserIds.includes(u.id) && u.role !== 'ROOT');
+      await Promise.allSettled(
+        targets.map((u) =>
+          fetchApi(`/users/${u.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ roleIds: [roleId] }),
+          })
+        )
+      );
+      setFeedbackMessage(`${targets.length} compte(s) réaffecté(s) au rôle ${roleName}.`);
+      setSelectedUserIds([]);
+      await loadUsers();
+    } catch (err: any) {
+      setFeedbackMessage(err?.message || 'Erreur modification rôle groupée.');
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
+  const confirmBulkDeleteUsers = async () => {
+    if (bulkDeleteUserIds.length === 0) return;
+    setBulkUpdating(true);
+    try {
+      const targets = users.filter((u) => bulkDeleteUserIds.includes(u.id) && u.role !== 'ROOT');
+      await Promise.allSettled(
+        targets.map((u) => fetchApi(`/users/${u.id}`, { method: 'DELETE' }))
+      );
+      setFeedbackMessage(`${targets.length} utilisateur(s) supprimé(s).`);
+      setBulkDeleteUserIds([]);
+      setSelectedUserIds([]);
+      await loadUsers();
+    } catch (err: any) {
+      setFeedbackMessage(err?.message || 'Erreur suppression groupée.');
+    } finally {
+      setBulkUpdating(false);
     }
   };
 
@@ -470,6 +543,52 @@ export default function UsersManagementPage() {
         isLoading={loading}
         columns={columns}
         keyExtractor={(item) => item.id}
+        enableMultiSelect={true}
+        selectedKeys={selectedUserIds}
+        onSelectionChange={setSelectedUserIds}
+        onBulkDelete={(keys) => setBulkDeleteUserIds(keys)}
+        renderBulkActions={() => (
+          <>
+            <button
+              type="button"
+              disabled={bulkUpdating}
+              onClick={() => handleBulkUserStatus(true)}
+              className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              Activer
+            </button>
+            <button
+              type="button"
+              disabled={bulkUpdating}
+              onClick={() => handleBulkUserStatus(false)}
+              className="px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              Suspendre
+            </button>
+            {rolesList.filter((r) => r.name !== 'ROOT').length > 0 && (
+              <select
+                value=""
+                disabled={bulkUpdating}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  const roleObj = rolesList.find((r) => r.id === id);
+                  if (id && roleObj) handleBulkUserRole(id, roleObj.displayName || roleObj.name);
+                }}
+                aria-label="Changer rôle RBAC"
+                className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700 max-w-[160px]"
+              >
+                <option value="">Changer rôle...</option>
+                {rolesList
+                  .filter((r) => r.name !== 'ROOT')
+                  .map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.displayName || r.name}
+                    </option>
+                  ))}
+              </select>
+            )}
+          </>
+        )}
         searchPlaceholder="Rechercher par nom, email, téléphone, affectation..."
         searchKeys={['firstName', 'lastName', 'email', 'phone', 'assignedLocation', 'role']}
         supportedModes={['table', 'list', 'matrix']}
@@ -657,6 +776,14 @@ export default function UsersManagementPage() {
           </div>
         </div>
       </Modal>
+      <DeleteConfirmModal
+        isOpen={bulkDeleteUserIds.length > 0}
+        onClose={() => setBulkDeleteUserIds([])}
+        onConfirm={confirmBulkDeleteUsers}
+        isDeleting={bulkUpdating}
+        title="Supprimer les utilisateurs sélectionnés"
+        description={`Confirmez-vous la suppression des ${bulkDeleteUserIds.length} compte(s) utilisateur(s) ? Le compte ROOT est protégé.`}
+      />
     </div>
   );
 }

@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Modal } from '@/components/ui/modal';
+import { Modal, DeleteConfirmModal } from '@/components/ui/modal';
 import { Toast } from '@/components/ui/toast';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { fetchApi } from '@/lib/api';
@@ -126,6 +126,8 @@ function PaymentMethodsContent() {
   const [feedbackType, setFeedbackType] = useState<'success' | 'error'>('success');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState<PaymentMethodItem | null>(null);
+  const [selectedMethodIds, setSelectedMethodIds] = useState<string[]>([]);
+  const [bulkDeleteMethodIds, setBulkDeleteMethodIds] = useState<string[]>([]);
 
   const handlePanelFeedback = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
     setFeedbackType(type);
@@ -170,6 +172,36 @@ function PaymentMethodsContent() {
         `Modalité "${changed.name}" ${changed.isActive ? 'activée' : 'désactivée'} en base.`
       );
     }
+  };
+
+  const handleBulkMethodPatch = async (
+    patch: Partial<PaymentMethodItem>,
+    label: string
+  ) => {
+    if (selectedMethodIds.length === 0) return;
+    const idSet = new Set(selectedMethodIds);
+    const next = methods.map((m) => (idSet.has(m.id) ? { ...m, ...patch } : m));
+    setMethods(next);
+    await fetchApi('/storefront-cms/sys-config/paymentMethods', {
+      method: 'PUT',
+      body: JSON.stringify({ value: next }),
+    }).catch(() => null);
+    setFeedbackMessage(`${selectedMethodIds.length} modalité(s) ${label}.`);
+    setSelectedMethodIds([]);
+  };
+
+  const confirmBulkDeleteMethods = async () => {
+    if (bulkDeleteMethodIds.length === 0) return;
+    const idSet = new Set(bulkDeleteMethodIds);
+    const next = methods.filter((m) => !idSet.has(m.id));
+    setMethods(next);
+    await fetchApi('/storefront-cms/sys-config/paymentMethods', {
+      method: 'PUT',
+      body: JSON.stringify({ value: next }),
+    }).catch(() => null);
+    setFeedbackMessage(`${bulkDeleteMethodIds.length} modalité(s) supprimée(s).`);
+    setBulkDeleteMethodIds([]);
+    setSelectedMethodIds([]);
   };
 
   const columns: ColumnDef<PaymentMethodItem>[] = [
@@ -434,6 +466,44 @@ function PaymentMethodsContent() {
         data={methods}
         columns={columns}
         keyExtractor={(item) => item.id}
+        enableMultiSelect={true}
+        selectedKeys={selectedMethodIds}
+        onSelectionChange={setSelectedMethodIds}
+        onBulkDelete={(keys) => setBulkDeleteMethodIds(keys)}
+        renderBulkActions={() => (
+          <>
+            <button
+              type="button"
+              onClick={() => handleBulkMethodPatch({ isActive: true }, 'activée(s)')}
+              className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Activer
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkMethodPatch({ isActive: false }, 'désactivée(s)')}
+              className="px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Désactiver
+            </button>
+            <select
+              value=""
+              onChange={(e) => {
+                const tp = e.target.value as PaymentMethodItem['type'];
+                if (tp) handleBulkMethodPatch({ type: tp }, `classée(s) (${tp})`);
+              }}
+              aria-label="Changer type de paiement"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">Type modalité...</option>
+              <option value="CASH">Espèces / COD</option>
+              <option value="CARD_ONLINE">Carte en Ligne</option>
+              <option value="BANK_TRANSFER">Virement Bancaire</option>
+              <option value="CHECK">Chèque Bancaire</option>
+              <option value="INSTALLMENT">Facilités / Échéances</option>
+            </select>
+          </>
+        )}
         searchPlaceholder="Rechercher une modalité de paiement par nom, code, délai..."
         searchKeys={['name', 'code', 'description', 'settlementDelay']}
         supportedModes={['table', 'list', 'matrix']}
@@ -497,6 +567,13 @@ function PaymentMethodsContent() {
           </div>
         </Modal>
       )}
+      <DeleteConfirmModal
+        isOpen={bulkDeleteMethodIds.length > 0}
+        onClose={() => setBulkDeleteMethodIds([])}
+        onConfirm={confirmBulkDeleteMethods}
+        title="Supprimer les modalités sélectionnées"
+        description={`Confirmez-vous la suppression des ${bulkDeleteMethodIds.length} modalité(s) de paiement ?`}
+      />
         </>
       )}
     </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Building2, Plus, Phone, MapPin, Save, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Building2, Plus, Phone, MapPin, Save, CheckCircle2, RefreshCw, Check } from 'lucide-react';
 import { Button, Input, Modal, Badge, Breadcrumb, Toast } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
 
@@ -17,6 +17,7 @@ interface ShowroomItem {
 
 export default function ShowroomsPage() {
   const [items, setItems] = React.useState<ShowroomItem[]>([]);
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [modalOpen, setModalOpen] = React.useState(false);
   const [form, setForm] = React.useState({ name: '', code: '', address: '', city: 'Tunis', phone: '' });
@@ -46,6 +47,21 @@ export default function ShowroomsPage() {
     setModalOpen(false);
     setForm({ name: '', code: '', address: '', city: 'Tunis', phone: '' });
     setToastMsg('Salle d’exposition créée en base PostgreSQL.');
+    await loadData();
+  };
+
+  const handleBulkShowroomStatus = async (isActive: boolean) => {
+    if (selectedIds.length === 0) return;
+    await Promise.allSettled(
+      selectedIds.map((id) =>
+        fetchApi(`/storefront-cms/cms/showrooms/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ isActive }),
+        })
+      )
+    );
+    setToastMsg(`${selectedIds.length} salle(s) ${isActive ? 'ouverte(s)' : 'désactivée(s)'}.`);
+    setSelectedIds([]);
     await loadData();
   };
 
@@ -87,15 +103,75 @@ export default function ShowroomsPage() {
         </div>
       </div>
 
+      {items.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-white px-4 py-3 rounded-2xl border border-[#E6E1D6] shadow-xs">
+          <button
+            type="button"
+            onClick={() =>
+              setSelectedIds(selectedIds.length === items.length ? [] : items.map((s) => s.id))
+            }
+            className="text-xs font-bold text-[#1D232E] hover:text-[#C59B27] inline-flex items-center gap-2 cursor-pointer"
+          >
+            <span
+              className={`w-4 h-4 rounded border flex items-center justify-center ${
+                selectedIds.length === items.length && items.length > 0
+                  ? 'bg-[#C59B27] border-[#C59B27] text-white'
+                  : 'border-slate-300 bg-white'
+              }`}
+            >
+              {selectedIds.length === items.length && items.length > 0 && <Check className="w-3 h-3" />}
+            </span>
+            <span>
+              {selectedIds.length === items.length ? 'Tout désélectionner' : `Tout sélectionner (${items.length})`}
+            </span>
+          </button>
+
+          {selectedIds.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => handleBulkShowroomStatus(true)}>
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                <span>Ouvrir ({selectedIds.length})</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleBulkShowroomStatus(false)}>
+                <span>Désactiver ({selectedIds.length})</span>
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {items.map((sh) => (
-          <div key={sh.id} className="bg-white p-6 rounded-3xl border border-[#E6E1D6] shadow-sm space-y-4">
+        {items.map((sh) => {
+          const isChecked = selectedIds.includes(sh.id);
+          return (
+          <div
+            key={sh.id}
+            className={`bg-white p-6 rounded-3xl border shadow-sm space-y-4 transition ${
+              isChecked ? 'border-[#C59B27] ring-2 ring-[#C59B27]/20 bg-[#FBF9F4]/30' : 'border-[#E6E1D6]'
+            }`}
+          >
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <span className="font-mono text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6]">
-                  {sh.code}
-                </span>
-                <h3 className="text-base font-heading font-black text-[#1D232E] mt-2">{sh.name}</h3>
+              <div className="flex items-start gap-2.5 min-w-0">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedIds((prev) =>
+                      prev.includes(sh.id) ? prev.filter((x) => x !== sh.id) : [...prev, sh.id]
+                    )
+                  }
+                  aria-label={`Sélectionner ${sh.name}`}
+                  className={`mt-1 w-4 h-4 rounded border flex items-center justify-center shrink-0 cursor-pointer ${
+                    isChecked ? 'bg-[#C59B27] border-[#C59B27] text-white' : 'border-slate-300 bg-white'
+                  }`}
+                >
+                  {isChecked && <Check className="w-3 h-3" />}
+                </button>
+                <div className="min-w-0">
+                  <span className="font-mono text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6]">
+                    {sh.code}
+                  </span>
+                  <h3 className="text-base font-heading font-black text-[#1D232E] mt-2">{sh.name}</h3>
+                </div>
               </div>
               <Badge variant={sh.isActive ? 'success' : 'neutral'} size="sm">
                 {sh.isActive ? 'Ouvert' : 'Inactif'}
@@ -114,7 +190,8 @@ export default function ShowroomsPage() {
               </span>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <Modal

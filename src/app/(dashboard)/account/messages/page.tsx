@@ -11,7 +11,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { fetchApi } from '@/lib/api';
-import { Breadcrumb, Button, Input } from '@/components/ui';
+import { Breadcrumb, Button, Input, Modal } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth.store';
 
 interface SupportMessageItem {
@@ -52,6 +52,16 @@ export default function ClientMessagesPage() {
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [creatingNew, setCreatingNew] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
+  const [mobileModalOpen, setMobileModalOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)');
+    const sync = () => setIsMobile(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
 
   const [newSubject, setNewSubject] = React.useState('');
   const [messageText, setMessageText] = React.useState('');
@@ -78,6 +88,143 @@ export default function ClientMessagesPage() {
   }, [loadThreads]);
 
   const activeThread = threads.find((t) => t.id === selectedId) || null;
+
+  const renderThreadOrComposer = (inModal = false) =>
+    creatingNew || !activeThread ? (
+      <form
+        onSubmit={handleSend}
+        className={inModal ? 'p-5 sm:p-6 space-y-5 flex flex-col justify-between' : 'p-6 sm:p-8 space-y-5 flex-1 flex flex-col justify-between'}
+      >
+        <div className="space-y-5">
+          <div className="flex items-center gap-2.5 pb-4 border-b border-neutral-100">
+            <ShieldCheck className="w-5 h-5 text-amber-600" />
+            <div>
+              <h2 className="text-sm font-black text-neutral-900">
+                Nouveau message vers Royal Support
+              </h2>
+              <p className="text-[11px] text-neutral-500">
+                Destinataire automatique : Support Royal (ROOT, SuperAdmin &amp; Website Manager)
+              </p>
+            </div>
+          </div>
+
+          <Input
+            label="Objet de votre demande"
+            placeholder="Ex: Renseignement sur une commande, garantie, disponibilité..."
+            value={newSubject}
+            onChange={(e) => setNewSubject(e.target.value)}
+          />
+
+          <div>
+            <label className="block text-xs font-bold text-neutral-700 mb-1.5">
+              Votre message *
+            </label>
+            <textarea
+              rows={inModal ? 5 : 7}
+              required
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              placeholder="Décrivez votre question ou demande en détail..."
+              className="w-full p-4 rounded-2xl bg-[#F8F9FA] border border-neutral-200 text-xs sm:text-sm text-neutral-900 focus:outline-none focus:border-neutral-950"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-4 border-t border-neutral-100">
+          <Button type="submit" disabled={sending} className="text-xs px-7">
+            <Send className="w-3.5 h-3.5 mr-2" />
+            {sending ? 'Envoi en cours...' : 'Envoyer à Royal Support'}
+          </Button>
+        </div>
+      </form>
+    ) : (
+      <>
+        {/* Thread Header */}
+        <div className="p-5 border-b border-neutral-100 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-black text-neutral-900">{activeThread.subject}</h2>
+            <p className="text-[11px] text-neutral-500">
+              Discussion ouverte avec Support Royal (ROOT • SuperAdmin • Website Manager)
+            </p>
+          </div>
+          <span
+            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full border text-[11px] font-bold ${
+              (STATUS_BADGE[activeThread.status] || STATUS_BADGE.OPEN).cls
+            }`}
+          >
+            {activeThread.status === 'RESOLVED' ? (
+              <CheckCircle2 className="w-3.5 h-3.5" />
+            ) : (
+              <Clock className="w-3.5 h-3.5" />
+            )}
+            {(STATUS_BADGE[activeThread.status] || STATUS_BADGE.OPEN).label}
+          </span>
+        </div>
+
+        {/* Conversation Messages */}
+        <div className="flex-1 p-5 space-y-4 overflow-y-auto max-h-[420px] bg-[#FAFBFB]">
+          {activeThread.messages.map((m) => {
+            const isOwn = m.senderRole === 'CLIENT' || m.senderId === user?.id;
+            const roleCls = ROLE_BADGE[m.senderRole] || ROLE_BADGE.ADMIN;
+            return (
+              <div
+                key={m.id}
+                className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}
+              >
+                <div
+                  className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-4 border shadow-2xs space-y-1.5 ${
+                    isOwn
+                      ? 'bg-[#FBF6E8] text-[#1D232E] border-[#E6D6A6]'
+                      : 'bg-white text-neutral-900 border-neutral-200'
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-bold">{m.senderName}</span>
+                    <span
+                      className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                        isOwn ? 'bg-[var(--royal-primary)] text-white border-[var(--royal-primary)]' : roleCls
+                      }`}
+                    >
+                      {m.senderRole === 'CLIENT' ? 'Vous' : m.senderRole}
+                    </span>
+                    <span className="text-[10px] font-mono text-neutral-400">
+                      {new Date(m.createdAt).toLocaleDateString('fr-TN', {
+                        day: '2-digit',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
+                    {m.body}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Quick Reply Input */}
+        <form
+          onSubmit={handleSend}
+          className="p-4 border-t border-neutral-200 bg-white flex flex-col sm:flex-row sm:items-end gap-3 rounded-b-2xl"
+        >
+          <textarea
+            rows={2}
+            required
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            placeholder="Écrire votre réponse dans cette discussion..."
+            className="flex-1 w-full p-3 rounded-xl bg-[#F8F9FA] border border-neutral-200 text-xs sm:text-sm text-neutral-900 focus:outline-none focus:border-neutral-950 resize-none"
+          />
+          <Button type="submit" disabled={sending} className="text-xs shrink-0 h-11 px-5 w-full sm:w-auto">
+            <Send className="w-3.5 h-3.5 mr-1.5" />
+            {sending ? 'Envoi...' : 'Répondre'}
+          </Button>
+        </form>
+      </>
+    );
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,6 +294,9 @@ export default function ClientMessagesPage() {
             onClick={() => {
               setCreatingNew(true);
               setSelectedId(null);
+              if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                setMobileModalOpen(true);
+              }
             }}
             className="text-xs"
           >
@@ -186,6 +336,9 @@ export default function ClientMessagesPage() {
                     onClick={() => {
                       setCreatingNew(false);
                       setSelectedId(t.id);
+                      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                        setMobileModalOpen(true);
+                      }
                     }}
                     className={`w-full text-left p-4 rounded-2xl border transition cursor-pointer space-y-1.5 ${
                       isSel
@@ -227,146 +380,23 @@ export default function ClientMessagesPage() {
           )}
         </div>
 
-        {/* Active Conversation or New Message Composer */}
-        <div className="lg:col-span-8 bg-white rounded-2xl border border-neutral-200/80 shadow-sm flex flex-col min-h-[540px]">
-          {creatingNew || !activeThread ? (
-            <form onSubmit={handleSend} className="p-6 sm:p-8 space-y-5 flex-1 flex flex-col justify-between">
-              <div className="space-y-5">
-                <div className="flex items-center gap-2.5 pb-4 border-b border-neutral-100">
-                  <ShieldCheck className="w-5 h-5 text-amber-600" />
-                  <div>
-                    <h2 className="text-sm font-black text-neutral-900">
-                      Nouveau message vers Royal Support
-                    </h2>
-                    <p className="text-[11px] text-neutral-500">
-                      Destinataire automatique : Support Royal (ROOT, SuperAdmin &amp; Website Manager)
-                    </p>
-                  </div>
-                </div>
-
-                <Input
-                  label="Objet de votre demande"
-                  placeholder="Ex: Renseignement sur une commande, garantie, disponibilité..."
-                  value={newSubject}
-                  onChange={(e) => setNewSubject(e.target.value)}
-                />
-
-                <div>
-                  <label className="block text-xs font-bold text-neutral-700 mb-1.5">
-                    Votre message *
-                  </label>
-                  <textarea
-                    rows={7}
-                    required
-                    value={messageText}
-                    onChange={(e) => setMessageText(e.target.value)}
-                    placeholder="Décrivez votre question ou demande en détail..."
-                    className="w-full p-4 rounded-2xl bg-[#F8F9FA] border border-neutral-200 text-xs sm:text-sm text-neutral-900 focus:outline-none focus:border-neutral-950"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-4 border-t border-neutral-100">
-                <Button type="submit" disabled={sending} className="text-xs px-7">
-                  <Send className="w-3.5 h-3.5 mr-2" />
-                  {sending ? 'Envoi en cours...' : 'Envoyer à Royal Support'}
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <>
-              {/* Thread Header */}
-              <div className="p-5 border-b border-neutral-100 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-sm font-black text-neutral-900">{activeThread.subject}</h2>
-                  <p className="text-[11px] text-neutral-500">
-                    Discussion ouverte avec Support Royal (ROOT • SuperAdmin • Website Manager)
-                  </p>
-                </div>
-                <span
-                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full border text-[11px] font-bold ${
-                    (STATUS_BADGE[activeThread.status] || STATUS_BADGE.OPEN).cls
-                  }`}
-                >
-                  {activeThread.status === 'RESOLVED' ? (
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                  ) : (
-                    <Clock className="w-3.5 h-3.5" />
-                  )}
-                  {(STATUS_BADGE[activeThread.status] || STATUS_BADGE.OPEN).label}
-                </span>
-              </div>
-
-              {/* Conversation Messages */}
-              <div className="flex-1 p-5 space-y-4 overflow-y-auto max-h-[420px] bg-[#FAFBFB]">
-                {activeThread.messages.map((m) => {
-                  const isOwn = m.senderRole === 'CLIENT' || m.senderId === user?.id;
-                  const roleCls = ROLE_BADGE[m.senderRole] || ROLE_BADGE.ADMIN;
-                  return (
-                    <div
-                      key={m.id}
-                      className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}
-                    >
-                      <div
-                        className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-4 border shadow-2xs space-y-1.5 ${
-                          isOwn
-                            ? 'bg-[#FBF6E8] text-[#1D232E] border-[#E6D6A6]'
-                            : 'bg-white text-neutral-900 border-neutral-200'
-                        }`}
-                      >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-xs font-bold">{m.senderName}</span>
-                          <span
-                            className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
-                              isOwn ? 'bg-[var(--royal-primary)] text-white border-[var(--royal-primary)]' : roleCls
-                            }`}
-                          >
-                            {m.senderRole === 'CLIENT' ? 'Vous' : m.senderRole}
-                          </span>
-                          <span
-                            className={`text-[10px] font-mono ${
-                              isOwn ? 'text-neutral-400' : 'text-neutral-400'
-                            }`}
-                          >
-                            {new Date(m.createdAt).toLocaleDateString('fr-TN', {
-                              day: '2-digit',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
-                        </div>
-                        <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
-                          {m.body}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Quick Reply Input */}
-              <form
-                onSubmit={handleSend}
-                className="p-4 border-t border-neutral-200 bg-white flex items-end gap-3 rounded-b-2xl"
-              >
-                <textarea
-                  rows={2}
-                  required
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  placeholder="Écrire votre réponse dans cette discussion..."
-                  className="flex-1 p-3 rounded-xl bg-[#F8F9FA] border border-neutral-200 text-xs sm:text-sm text-neutral-900 focus:outline-none focus:border-neutral-950 resize-none"
-                />
-                <Button type="submit" disabled={sending} className="text-xs shrink-0 h-11 px-5">
-                  <Send className="w-3.5 h-3.5 mr-1.5" />
-                  {sending ? 'Envoi...' : 'Répondre'}
-                </Button>
-              </form>
-            </>
-          )}
+        {/* Active Conversation or New Message Composer (Desktop inline pane + Mobile Modal) */}
+        <div className="hidden lg:flex lg:col-span-8 bg-white rounded-2xl border border-neutral-200/80 shadow-sm flex-col min-h-[540px]">
+          {renderThreadOrComposer(false)}
         </div>
       </div>
+
+      <Modal
+        isOpen={isMobile && mobileModalOpen}
+        onClose={() => setMobileModalOpen(false)}
+        title={creatingNew || !activeThread ? 'Nouveau message Support' : activeThread.subject}
+        subtitle="Royal Support (ROOT • SuperAdmin • Website Manager)"
+        size="3xl"
+      >
+        <div className="flex flex-col min-h-[380px]">
+          {renderThreadOrComposer(true)}
+        </div>
+      </Modal>
     </div>
   );
 }

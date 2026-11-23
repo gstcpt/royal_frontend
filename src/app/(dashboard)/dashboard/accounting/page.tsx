@@ -20,7 +20,7 @@ import {
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Modal } from '@/components/ui/modal';
+import { Modal, DeleteConfirmModal } from '@/components/ui/modal';
 import { Toast } from '@/components/ui/toast';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Select } from '@/components/ui/select';
@@ -128,6 +128,8 @@ export default function AccountingLedgerPage() {
   const [loading, setLoading] = useState(true);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [previewEntry, setPreviewEntry] = useState<AccountingEntryItem | null>(null);
+  const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
+  const [bulkDeleteEntryIds, setBulkDeleteEntryIds] = useState<string[]>([]);
 
   const [filterJournal, setFilterJournal] = useState<string>('ALL');
 
@@ -147,6 +149,36 @@ export default function AccountingLedgerPage() {
   useEffect(() => {
     loadEntries();
   }, [loadEntries]);
+
+  const persistEntries = async (next: AccountingEntryItem[], msg: string) => {
+    setEntries(next);
+    await fetchApi('/storefront-cms/sys-config/accountingEntries', {
+      method: 'PUT',
+      body: JSON.stringify({ value: next }),
+    }).catch(() => null);
+    setFeedbackMessage(msg);
+  };
+
+  const handleBulkJournalChange = async (journalType: AccountingEntryItem['journalType']) => {
+    if (selectedEntryIds.length === 0) return;
+    const idSet = new Set(selectedEntryIds);
+    await persistEntries(
+      entries.map((e) => (idSet.has(e.id) ? { ...e, journalType } : e)),
+      `${selectedEntryIds.length} écriture(s) réaffectée(s) au journal ${journalType}.`
+    );
+    setSelectedEntryIds([]);
+  };
+
+  const confirmBulkDeleteEntries = async () => {
+    if (bulkDeleteEntryIds.length === 0) return;
+    const idSet = new Set(bulkDeleteEntryIds);
+    await persistEntries(
+      entries.filter((e) => !idSet.has(e.id)),
+      `${bulkDeleteEntryIds.length} écriture(s) comptable(s) supprimée(s).`
+    );
+    setBulkDeleteEntryIds([]);
+    setSelectedEntryIds([]);
+  };
 
   // Stats KPIs
   const stats = useMemo(() => {
@@ -371,6 +403,28 @@ export default function AccountingLedgerPage() {
         isLoading={loading}
         columns={columns}
         keyExtractor={(item) => item.id}
+        enableMultiSelect={true}
+        selectedKeys={selectedEntryIds}
+        onSelectionChange={setSelectedEntryIds}
+        onBulkDelete={(keys) => setBulkDeleteEntryIds(keys)}
+        renderBulkActions={() => (
+          <select
+            value=""
+            onChange={(e) => {
+              const j = e.target.value as AccountingEntryItem['journalType'];
+              if (j) handleBulkJournalChange(j);
+            }}
+            aria-label="Réaffecter au journal"
+            className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+          >
+            <option value="">Journal comptable...</option>
+            <option value="VENTES">Journal Ventes</option>
+            <option value="ACHATS">Journal Achats</option>
+            <option value="BANQUE">Journal Banque</option>
+            <option value="CAISSE">Journal Caisse</option>
+            <option value="OD">Opérations Diverses</option>
+          </select>
+        )}
         searchPlaceholder="Rechercher par écriture ECR, compte général, pièce, libellé..."
         searchKeys={['entryNumber', 'accountCode', 'accountLabel', 'pieceReference', 'label']}
         supportedModes={['table', 'list', 'matrix']}
@@ -471,6 +525,13 @@ export default function AccountingLedgerPage() {
           </div>
         </Modal>
       )}
+      <DeleteConfirmModal
+        isOpen={bulkDeleteEntryIds.length > 0}
+        onClose={() => setBulkDeleteEntryIds([])}
+        onConfirm={confirmBulkDeleteEntries}
+        title="Supprimer les écritures sélectionnées"
+        description={`Confirmez-vous la suppression des ${bulkDeleteEntryIds.length} écriture(s) comptable(s) ?`}
+      />
     </div>
   );
 }

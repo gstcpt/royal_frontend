@@ -58,6 +58,8 @@ export default function PaymentsTrackingPage() {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [previewItem, setPreviewItem] = React.useState<PaymentItem | null>(null);
   const [deleteItem, setDeleteItem] = React.useState<PaymentItem | null>(null);
+  const [selectedPaymentIds, setSelectedPaymentIds] = React.useState<string[]>([]);
+  const [bulkDeletePaymentIds, setBulkDeletePaymentIds] = React.useState<string[]>([]);
   const [toast, setToast] = React.useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const [newNumber, setNewNumber] = React.useState('');
@@ -135,6 +137,23 @@ export default function PaymentsTrackingPage() {
     const next = payments.filter((p) => p.id !== deleteItem.id);
     setDeleteItem(null);
     await persistPayments(next, 'Règlement supprimé du portefeuille.');
+  };
+
+  const handleBulkPaymentPatch = async (patch: Partial<PaymentItem>, label: string) => {
+    if (selectedPaymentIds.length === 0) return;
+    const idSet = new Set(selectedPaymentIds);
+    const next = payments.map((p) => (idSet.has(p.id) ? { ...p, ...patch } : p));
+    await persistPayments(next, `${selectedPaymentIds.length} règlement(s) ${label}.`);
+    setSelectedPaymentIds([]);
+  };
+
+  const confirmBulkDeletePayments = async () => {
+    if (bulkDeletePaymentIds.length === 0) return;
+    const idSet = new Set(bulkDeletePaymentIds);
+    const next = payments.filter((p) => !idSet.has(p.id));
+    setBulkDeletePaymentIds([]);
+    setSelectedPaymentIds([]);
+    await persistPayments(next, `${idSet.size} règlement(s) supprimé(s) du portefeuille.`);
   };
 
   const columns: ColumnDef<PaymentItem>[] = [
@@ -338,7 +357,46 @@ export default function PaymentsTrackingPage() {
       <DataTable
         data={payments}
         columns={columns}
+        keyExtractor={(item) => item.id}
         isLoading={loading}
+        enableMultiSelect={true}
+        selectedKeys={selectedPaymentIds}
+        onSelectionChange={setSelectedPaymentIds}
+        onBulkDelete={(keys) => setBulkDeletePaymentIds(keys)}
+        renderBulkActions={() => (
+          <>
+            <select
+              value=""
+              disabled={saving}
+              onChange={(e) => {
+                const st = e.target.value as PaymentItem['status'];
+                if (st) handleBulkPaymentPatch({ status: st }, `marqué(s) « ${STATUS_META[st].label} »`);
+              }}
+              aria-label="Changer statut règlement"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">Statut effet...</option>
+              <option value="IN_PORTFOLIO">En Portefeuille</option>
+              <option value="DEPOSITED">Déposé en Banque</option>
+              <option value="CLEARED">Encaissé Définitivement</option>
+              <option value="REJECTED">Rejeté / Impayé</option>
+            </select>
+            <select
+              value=""
+              disabled={saving}
+              onChange={(e) => {
+                const tp = e.target.value as PaymentItem['instrumentType'];
+                if (tp) handleBulkPaymentPatch({ instrumentType: tp }, `converti(s) en ${tp === 'CHECK' ? 'Chèque' : 'Traite'}`);
+              }}
+              aria-label="Changer type instrument"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">Type instrument...</option>
+              <option value="CHECK">Chèque Bancaire</option>
+              <option value="BILL">Traite / Effet</option>
+            </select>
+          </>
+        )}
         supportedModes={['table', 'list', 'matrix']}
         defaultMode="table"
         searchKeys={['checkNumber', 'bankName', 'emitterName', 'reference']}
@@ -534,6 +592,16 @@ export default function PaymentsTrackingPage() {
           onConfirm={handleDelete}
           title="Supprimer le règlement"
           message={`Êtes-vous certain de vouloir supprimer le règlement "${deleteItem.checkNumber}" ?`}
+        />
+      )}
+      {bulkDeletePaymentIds.length > 0 && (
+        <DeleteConfirmModal
+          isOpen={true}
+          onClose={() => setBulkDeletePaymentIds([])}
+          onConfirm={confirmBulkDeletePayments}
+          isDeleting={saving}
+          title="Supprimer les règlements sélectionnés"
+          description={`Confirmez-vous la suppression des ${bulkDeletePaymentIds.length} effet(s)/règlement(s) sélectionné(s) ?`}
         />
       )}
     </div>

@@ -48,43 +48,155 @@ const CAT_BADGE: Record<string, { label: string; cls: string; Icon: React.Compon
 export default function ClientNotificationsPage() {
   const [notifications, setNotifications] = React.useState<PersonalNotif[]>([]);
   const [catalogFeed, setCatalogFeed] = React.useState<CatalogFeedItem[]>([]);
+  const [personalTotal, setPersonalTotal] = React.useState(0);
+  const [unreadTotal, setUnreadTotal] = React.useState(0);
+  const [personalHasMore, setPersonalHasMore] = React.useState(false);
+  const [feedTotal, setFeedTotal] = React.useState(0);
+  const [feedHasMore, setFeedHasMore] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
+  const [loadingMorePersonal, setLoadingMorePersonal] = React.useState(false);
+  const [loadingMoreFeed, setLoadingMoreFeed] = React.useState(false);
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+
+  const personalSentinelRef = React.useRef<HTMLDivElement | null>(null);
+  const feedSentinelRef = React.useRef<HTMLDivElement | null>(null);
+  const personalOffsetRef = React.useRef(0);
+  const feedOffsetRef = React.useRef(0);
 
   const loadData = React.useCallback(async () => {
     setLoading(true);
+    personalOffsetRef.current = 0;
+    feedOffsetRef.current = 0;
     try {
-      const res = await fetchApi('/storefront-cms/my-notifications');
+      const res = await fetchApi('/storefront-cms/my-notifications?limit=10&offset=0&feedLimit=10&feedOffset=0');
       const d = res?.data || res;
-      setNotifications(d?.notifications || []);
-      setCatalogFeed(d?.catalogFeed || []);
+      const personalList: PersonalNotif[] = d?.notifications || [];
+      const feedList: CatalogFeedItem[] = d?.catalogFeed || [];
+      setNotifications(personalList);
+      setCatalogFeed(feedList);
+      personalOffsetRef.current = personalList.length;
+      feedOffsetRef.current = feedList.length;
+      setPersonalTotal(Number(d?.personalTotal ?? personalList.length));
+      setUnreadTotal(Number(d?.unreadCount ?? personalList.filter((n) => !n.isRead).length));
+      setPersonalHasMore(Boolean(d?.personalHasMore));
+      setFeedTotal(Number(d?.feedTotal ?? feedList.length));
+      setFeedHasMore(Boolean(d?.feedHasMore));
     } catch {
       setNotifications([]);
       setCatalogFeed([]);
+      setPersonalHasMore(false);
+      setFeedHasMore(false);
     } finally {
       setLoading(false);
     }
   }, []);
 
+  const loadMorePersonal = React.useCallback(async () => {
+    if (!personalHasMore || loadingMorePersonal || loading) return;
+    setLoadingMorePersonal(true);
+    try {
+      const off = personalOffsetRef.current;
+      const res = await fetchApi(`/storefront-cms/my-notifications?limit=10&offset=${off}&feedLimit=0&feedOffset=0`);
+      const d = res?.data || res;
+      const next: PersonalNotif[] = d?.notifications || [];
+      if (next.length > 0) {
+        setNotifications((prev) => {
+          const seen = new Set(prev.map((x) => x.id));
+          return [...prev, ...next.filter((x) => !seen.has(x.id))];
+        });
+        personalOffsetRef.current = off + next.length;
+      }
+      setPersonalHasMore(Boolean(d?.personalHasMore && next.length > 0));
+      if (d?.personalTotal !== undefined) setPersonalTotal(Number(d.personalTotal));
+    } finally {
+      setLoadingMorePersonal(false);
+    }
+  }, [personalHasMore, loadingMorePersonal, loading]);
+
+  const loadMoreFeed = React.useCallback(async () => {
+    if (!feedHasMore || loadingMoreFeed || loading) return;
+    setLoadingMoreFeed(true);
+    try {
+      const off = feedOffsetRef.current;
+      const res = await fetchApi(`/storefront-cms/my-notifications?limit=0&offset=0&feedLimit=10&feedOffset=${off}`);
+      const d = res?.data || res;
+      const next: CatalogFeedItem[] = d?.catalogFeed || [];
+      if (next.length > 0) {
+        setCatalogFeed((prev) => {
+          const seen = new Set(prev.map((x) => x.id));
+          return [...prev, ...next.filter((x) => !seen.has(x.id))];
+        });
+        feedOffsetRef.current = off + next.length;
+      }
+      setFeedHasMore(Boolean(d?.feedHasMore && next.length > 0));
+      if (d?.feedTotal !== undefined) setFeedTotal(Number(d.feedTotal));
+    } finally {
+      setLoadingMoreFeed(false);
+    }
+  }, [feedHasMore, loadingMoreFeed, loading]);
+
   React.useEffect(() => {
     loadData();
   }, [loadData]);
 
+  React.useEffect(() => {
+    const el = personalSentinelRef.current;
+    if (!el || !personalHasMore) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMorePersonal();
+      },
+      { rootMargin: '140px' },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [personalHasMore, loadMorePersonal]);
+
+  React.useEffect(() => {
+    const el = feedSentinelRef.current;
+    if (!el || !feedHasMore) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMoreFeed();
+      },
+      { rootMargin: '140px' },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [feedHasMore, loadMoreFeed]);
+
   const handleToggleRead = async (id: string) => {
+    const t = notifications.find((n) => n.id === id);
     await fetchApi(`/storefront-cms/my-notifications/${id}/read`, { method: 'PATCH' }).catch(() => null);
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: !n.isRead } : n)));
+    if (t) setUnreadTotal((c) => Math.max(0, c + (t.isRead ? 1 : -1)));
   };
 
   const handleMarkAllRead = async () => {
     await fetchApi('/storefront-cms/my-notifications/read-all', { method: 'PATCH' }).catch(() => null);
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setUnreadTotal(0);
   };
 
   const handleDelete = async (id: string) => {
     await fetchApi(`/storefront-cms/my-notifications/${id}`, { method: 'DELETE' }).catch(() => null);
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    setSelectedIds((prev) => prev.filter((x) => x !== id));
+    setPersonalTotal((c) => Math.max(0, c - 1));
   };
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const handleBulkAction = async (action: 'MARK_READ' | 'MARK_UNREAD' | 'DELETE') => {
+    if (selectedIds.length === 0) return;
+    const ids = [...selectedIds];
+    setSelectedIds([]);
+    await fetchApi('/storefront-cms/my-notifications/bulk-action', {
+      method: 'POST',
+      body: JSON.stringify({ ids, action }),
+    }).catch(() => null);
+    await loadData();
+  };
+
+  const unreadCount = unreadTotal;
 
   return (
     <div className="space-y-6 w-full max-w-[1600px] mx-auto">
@@ -132,16 +244,60 @@ export default function ClientNotificationsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Personal DB Alerts */}
         <div className="lg:col-span-6 bg-white p-6 rounded-2xl border border-neutral-200/80 shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 pb-3">
             <h2 className="text-sm font-bold text-neutral-900 uppercase tracking-wider">
-              Mes Alertes Personnelles ({notifications.length})
+              Mes Alertes Personnelles ({notifications.length}/{personalTotal})
             </h2>
-            {unreadCount > 0 && (
-              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
-                {unreadCount} non lue(s)
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {notifications.length > 0 && (
+                <label className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-neutral-600 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.length > 0 && selectedIds.length === notifications.length}
+                    onChange={(e) =>
+                      setSelectedIds(e.target.checked ? notifications.map((x) => x.id) : [])
+                    }
+                    className="rounded border-neutral-300 w-3.5 h-3.5"
+                  />
+                  <span>Tout</span>
+                </label>
+              )}
+              {unreadCount > 0 && (
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                  {unreadCount} non lue(s)
+                </span>
+              )}
+            </div>
           </div>
+
+          {selectedIds.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-[#FBF6E8] border border-[#E6D6A6] text-xs">
+              <span className="font-bold text-[#1D232E]">{selectedIds.length} sélectionnée(s)</span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleBulkAction('MARK_READ')}
+                  className="px-2.5 py-1 rounded-lg bg-white border border-emerald-200 text-emerald-700 font-bold text-[11px] cursor-pointer"
+                >
+                  Marquer lues
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBulkAction('MARK_UNREAD')}
+                  className="px-2.5 py-1 rounded-lg bg-white border border-amber-200 text-amber-800 font-bold text-[11px] cursor-pointer"
+                >
+                  Non lues
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBulkAction('DELETE')}
+                  className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-bold text-[11px] cursor-pointer"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          )}
 
           {loading ? (
             <div className="py-10 text-center text-xs text-neutral-500">Chargement...</div>
@@ -165,6 +321,16 @@ export default function ClientNotificationsPage() {
                   >
                     <div className="space-y-1.5 min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(n.id)}
+                          onChange={() =>
+                            setSelectedIds((prev) =>
+                              prev.includes(n.id) ? prev.filter((x) => x !== n.id) : [...prev, n.id],
+                            )
+                          }
+                          className="rounded border-neutral-300 w-3.5 h-3.5 cursor-pointer"
+                        />
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold ${meta.cls}`}
                         >
@@ -214,6 +380,20 @@ export default function ClientNotificationsPage() {
                   </div>
                 );
               })}
+              <div ref={personalSentinelRef} className="pt-2 flex flex-col items-center gap-2">
+                {loadingMorePersonal && (
+                  <span className="text-xs text-neutral-500">Chargement des 10 suivantes...</span>
+                )}
+                {!loadingMorePersonal && personalHasMore && (
+                  <button
+                    type="button"
+                    onClick={loadMorePersonal}
+                    className="px-4 py-1.5 rounded-full border border-neutral-200 bg-[#FBF9F4] text-xs font-bold text-neutral-700 hover:border-[var(--royal-primary)] cursor-pointer"
+                  >
+                    Charger les 10 plus anciennes ({notifications.length}/{personalTotal})
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -222,7 +402,7 @@ export default function ClientNotificationsPage() {
         <div className="lg:col-span-6 bg-white p-6 rounded-2xl border border-neutral-200/80 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
             <h2 className="text-sm font-bold text-neutral-900 uppercase tracking-wider">
-              Actualités Commandes, Promos, Nouveautés &amp; Tarifs ({catalogFeed.length})
+              Actualités Commandes, Promos, Nouveautés &amp; Tarifs ({catalogFeed.length}/{feedTotal})
             </h2>
           </div>
 
@@ -260,6 +440,20 @@ export default function ClientNotificationsPage() {
                   </Link>
                 );
               })}
+              <div ref={feedSentinelRef} className="pt-2 flex flex-col items-center gap-2">
+                {loadingMoreFeed && (
+                  <span className="text-xs text-neutral-500">Chargement des 10 suivantes...</span>
+                )}
+                {!loadingMoreFeed && feedHasMore && (
+                  <button
+                    type="button"
+                    onClick={loadMoreFeed}
+                    className="px-4 py-1.5 rounded-full border border-neutral-200 bg-[#FBF9F4] text-xs font-bold text-neutral-700 hover:border-[var(--royal-primary)] cursor-pointer"
+                  >
+                    Charger les 10 suivantes ({catalogFeed.length}/{feedTotal})
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>

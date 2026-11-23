@@ -416,30 +416,77 @@ export default function DashboardLogsPage() {
     showToast('success', `Rapport ${log.id}.json téléchargé avec succès`);
   };
 
-  // Dynamic Toolbar Filters
+  // Dynamic Toolbar & Server Pagination State
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(25);
+  const [totalCount, setTotalCount] = React.useState(0);
+  const [stats, setStats] = React.useState({
+    totalLogs: 0,
+    todayLogs: 0,
+    criticalActions: 0,
+    uniqueActorsCount: 0,
+    actions: [] as string[],
+    resourceTypes: [] as string[],
+  });
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [dateRange, setDateRange] = React.useState<{ startDate: string; endDate: string }>({
+    startDate: '',
+    endDate: '',
+  });
   const [filterAction, setFilterAction] = React.useState('ALL');
   const [filterResource, setFilterResource] = React.useState('ALL');
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
 
-  // Load backend logs
+  // Load backend logs with true server-side pagination + global DB stats
   const loadLogs = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetchApi('/audit-logs?limit=100').catch(() => null);
-      if (res && res.data && Array.isArray(res.data)) {
-        setLogs(res.data.length > 0 ? res.data : DEFAULT_AUDIT_LOGS);
+      const qs = new URLSearchParams();
+      qs.set('page', String(page));
+      qs.set('limit', String(pageSize));
+      if (searchQuery.trim()) qs.set('search', searchQuery.trim());
+      if (filterAction !== 'ALL') qs.set('action', filterAction);
+      if (filterResource !== 'ALL') qs.set('resourceType', filterResource);
+      if (dateRange.startDate) qs.set('startDate', dateRange.startDate);
+      if (dateRange.endDate) qs.set('endDate', dateRange.endDate);
+
+      const [res, statsRes] = await Promise.all([
+        fetchApi(`/audit-logs?${qs.toString()}`).catch(() => null),
+        fetchApi('/audit-logs/stats').catch(() => null),
+      ]);
+
+      if (res && Array.isArray(res.data)) {
+        setLogs(res.data);
+        setTotalCount(Number(res.meta?.total ?? res.data.length));
       } else {
         setLogs(DEFAULT_AUDIT_LOGS);
+        setTotalCount(DEFAULT_AUDIT_LOGS.length);
       }
-    } catch (err) {
+
+      if (statsRes) {
+        setStats({
+          totalLogs: Number(statsRes.totalLogs ?? 0),
+          todayLogs: Number(statsRes.todayLogs ?? 0),
+          criticalActions: Number(statsRes.criticalActions ?? 0),
+          uniqueActorsCount: Number(statsRes.uniqueActorsCount ?? 1),
+          actions: Array.isArray(statsRes.actions) ? statsRes.actions : [],
+          resourceTypes: Array.isArray(statsRes.resourceTypes) ? statsRes.resourceTypes : [],
+        });
+      }
+    } catch {
       setLogs(DEFAULT_AUDIT_LOGS);
+      setTotalCount(DEFAULT_AUDIT_LOGS.length);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [page, pageSize, searchQuery, filterAction, filterResource, dateRange.startDate, dateRange.endDate]);
 
   React.useEffect(() => {
     if (isInitialized && isRoot) {
-      loadLogs();
+      const timer = setTimeout(() => {
+        loadLogs();
+      }, 150);
+      return () => clearTimeout(timer);
     } else {
       setIsLoading(false);
     }
@@ -566,30 +613,42 @@ export default function DashboardLogsPage() {
     }
   };
 
-  // Filter Data
-  const filteredLogs = React.useMemo(() => {
-    return logs.filter((log) => {
-      if (filterAction !== 'ALL' && log.action !== filterAction) return false;
-      if (filterResource !== 'ALL' && log.resourceType !== filterResource) return false;
-      return true;
-    });
-  }, [logs, filterAction, filterResource]);
+  // Server-filtered rows already returned from /audit-logs
+  const filteredLogs = logs;
 
-  // Aggregate KPI counters
-  const totalEvents = logs.length;
-  const todayEvents = logs.filter((l) => {
-    const d = new Date(l.createdAt);
-    const today = new Date();
-    return (
-      d.getDate() === today.getDate() &&
-      d.getMonth() === today.getMonth() &&
-      d.getFullYear() === today.getFullYear()
-    );
-  }).length;
-  const criticalActions = logs.filter((l) =>
-    ['DELETE', 'BULK_DELETE', 'HARD_DELETE'].includes(l.action)
-  ).length;
-  const uniqueActors = new Set(logs.map((l) => l.actorEmail).filter(Boolean)).size;
+  // Aggregate KPI counters from backend stats (with client fallback if stats unavailable)
+  const totalEvents = stats.totalLogs || totalCount || logs.length;
+  const todayEvents =
+    stats.todayLogs ||
+    logs.filter((l) => {
+      const d = new Date(l.createdAt);
+      const today = new Date();
+      return (
+        d.getDate() === today.getDate() &&
+        d.getMonth() === today.getMonth() &&
+        d.getFullYear() === today.getFullYear()
+      );
+    }).length;
+  const criticalActions =
+    stats.criticalActions ||
+    logs.filter((l) => ['DELETE', 'BULK_DELETE', 'HARD_DELETE'].includes(l.action)).length;
+  const uniqueActors =
+    stats.uniqueActorsCount || new Set(logs.map((l) => l.actorEmail).filter(Boolean)).size;
+
+  const handleExportSelectedJson = () => {
+    const selected = logs.filter((l) => selectedIds.includes(l.id));
+    if (selected.length === 0) return;
+    const blob = new Blob([JSON.stringify(selected, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit_logs_selection_${selected.length}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('success', `${selected.length} événement(s) exporté(s) en JSON.`);
+  };
 
   // Table Columns Definition
   const columns: ColumnDef<AuditLogItem>[] = [
@@ -827,46 +886,94 @@ export default function DashboardLogsPage() {
         </div>
       </div>
 
-      {/* 3. Main Data Table with Isolated Filters Card */}
+      {/* 3. Main Data Table with Isolated Filters Card & True Server Pagination */}
       <DataTable<AuditLogItem>
         data={filteredLogs}
         columns={columns}
         keyExtractor={(item) => item.id}
+        isLoading={isLoading}
+        onRefresh={loadLogs}
         searchPlaceholder="Rechercher par acteur, description, ID ou table..."
         searchKeys={['description', 'actorEmail', 'actorName', 'resourceType', 'tableName', 'resourceId', 'action']}
         supportedModes={['table', 'list', 'matrix']}
         defaultMode="table"
         exportFileName="journal_audit_royal"
+        pageSizeOptions={[10, 25, 50, 100]}
+        enableMultiSelect={true}
+        selectedKeys={selectedIds}
+        onSelectionChange={setSelectedIds}
+        renderBulkActions={() => (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportSelectedJson}
+            className="text-xs bg-white border-[#E6D6A6] text-[#1D232E]"
+          >
+            <Download className="w-3.5 h-3.5 mr-1.5" />
+            Exporter JSON ({selectedIds.length})
+          </Button>
+        )}
+        disableClientFiltering={true}
+        onSearchChange={(q) => {
+          setSearchQuery(q);
+          setPage(1);
+        }}
+        onDateRangeChange={(r) => {
+          setDateRange(r);
+          setPage(1);
+        }}
+        serverPagination={{
+          page,
+          pageSize,
+          total: totalCount,
+          onPageChange: (p) => setPage(p),
+          onPageSizeChange: (sz) => {
+            setPageSize(sz);
+            setPage(1);
+          },
+        }}
         customFilters={[
           {
             key: 'action',
             label: 'Action',
             value: filterAction,
-            onChange: setFilterAction,
+            onChange: (val) => {
+              setFilterAction(val);
+              setPage(1);
+            },
             allLabel: 'Toutes les actions',
-            options: [
-              { value: 'CREATE', label: 'CREATE (Création)' },
-              { value: 'UPDATE', label: 'UPDATE (Modification)' },
-              { value: 'DELETE', label: 'DELETE (Suppression)' },
-              { value: 'TOGGLE_VISIBILITY', label: 'VISIBILITÉ (Activation/Désactivation)' },
-              { value: 'LOGIN', label: 'LOGIN (Authentification)' },
-            ],
+            options: Array.from(
+              new Set([
+                'CREATE',
+                'UPDATE',
+                'DELETE',
+                'TOGGLE_VISIBILITY',
+                'LOGIN',
+                ...stats.actions,
+              ]),
+            ).map((act) => ({ value: act, label: act })),
           },
           {
             key: 'resource',
             label: 'Table',
             value: filterResource,
-            onChange: setFilterResource,
+            onChange: (val) => {
+              setFilterResource(val);
+              setPage(1);
+            },
             allLabel: 'Toutes les tables',
-            options: [
-              { value: 'PRODUCT', label: 'Produits (products)' },
-              { value: 'CATEGORY', label: 'Catégories (categories)' },
-              { value: 'BRAND', label: 'Marques (brands)' },
-              { value: 'CHARACTERISTIC', label: 'Caractéristiques' },
-              { value: 'VARIANT_OPTION', label: 'Variantes & Nuances' },
-              { value: 'ORDER', label: 'Commandes (orders)' },
-              { value: 'USER', label: 'Utilisateurs (users)' },
-            ],
+            options: Array.from(
+              new Set([
+                'PRODUCT',
+                'CATEGORY',
+                'BRAND',
+                'CHARACTERISTIC',
+                'VARIANT_OPTION',
+                'ORDER',
+                'USER',
+                ...stats.resourceTypes,
+              ]),
+            ).map((res) => ({ value: res, label: res })),
           },
         ]}
       />

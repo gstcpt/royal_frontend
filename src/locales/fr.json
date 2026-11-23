@@ -86,6 +86,8 @@
   "actions": {
     "add_to_cart": "Ajouter au Panier",
     "buy_now": "Commander Immédiatement",
+    "buy_now_short": "Acheter maintenant",
+    "quick_order": "Commande rapide",
     "buy": "Acheter",
     "confirm_add_to_cart": "Confirmer l’ajout au panier",
     "added_to_cart": "Ajouté avec succès !",

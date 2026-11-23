@@ -17,7 +17,7 @@ import { Toast } from '@/components/ui/toast';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Select } from '@/components/ui/select';
 import { Printer } from 'lucide-react';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
 import { cn, formatTndCurrency } from '@/lib/utils';
 
 export interface StockRow {
@@ -234,17 +234,18 @@ export default function InventoryLedgerPage() {
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
   const [adjustItem, setAdjustItem] = useState<StockRow | null>(null);
+  const [selectedStockIds, setSelectedStockIds] = useState<string[]>([]);
+  const [selectedMovementIds, setSelectedMovementIds] = useState<string[]>([]);
   const [newPhysicalQty, setNewPhysicalQty] = useState<number>(0);
   const [adjustReason, setAdjustReason] = useState<string>('Comptage physique ponctuel');
 
   const loadInventory = useCallback(async () => {
     setLoading(true);
     try {
-      const [stkRes, movRes] = await Promise.all([
-        fetchApi('/inventory/stock?limit=1000').catch(() => null),
-        fetchApi('/inventory/movements?limit=120').catch(() => null),
+      const [rawStk, rawMov] = await Promise.all([
+        fetchAllPaginated<any>('/inventory/stock', 200).then((r) => r.items).catch(() => []),
+        fetchAllPaginated<any>('/inventory/movements', 200).then((r) => r.items).catch(() => []),
       ]);
-      const rawStk = stkRes?.data || stkRes?.items || (Array.isArray(stkRes) ? stkRes : []);
       const mappedStk: StockRow[] = (Array.isArray(rawStk) ? rawStk : []).map((s: any) => ({
         id: s.id,
         variantId: s.variantId,
@@ -269,7 +270,6 @@ export default function InventoryLedgerPage() {
       }));
       setStocks(mappedStk);
 
-      const rawMov = movRes?.data || movRes?.items || (Array.isArray(movRes) ? movRes : []);
       const mappedMov: StockMovementRow[] = (Array.isArray(rawMov) ? rawMov : []).map((m: any) => ({
         id: m.id,
         type: m.type,
@@ -307,6 +307,62 @@ export default function InventoryLedgerPage() {
     setAdjustItem(item);
     setNewPhysicalQty(item.physicalQty);
     setAdjustReason('Comptage physique ponctuel');
+  };
+
+  const handleBulkAdjustDelta = async (delta: number) => {
+    if (selectedStockIds.length === 0) return;
+    setSaving(true);
+    try {
+      const targets = stocks.filter((s) => selectedStockIds.includes(s.id));
+      await Promise.allSettled(
+        targets.map((row) =>
+          fetchApi('/inventory/adjust', {
+            method: 'POST',
+            body: JSON.stringify({
+              variantId: row.variantId,
+              warehouseId: row.warehouseId,
+              newPhysicalQty: Math.max(0, row.physicalQty + delta),
+              reason: `Ajustement groupé (${delta >= 0 ? `+${delta}` : delta} unités)`,
+            }),
+          })
+        )
+      );
+      setFeedbackMessage(
+        `Stock ajusté (${delta >= 0 ? `+${delta}` : delta}) pour ${targets.length} référence(s).`
+      );
+      setSelectedStockIds([]);
+      await loadInventory();
+    } catch {
+      setFeedbackMessage('Erreur lors de l’ajustement groupé des stocks.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleExportSelectedStocks = () => {
+    const selected = stocks.filter((s) => selectedStockIds.includes(s.id));
+    if (selected.length === 0) return;
+    const csv = [
+      ['SKU', 'Article', 'Entrepôt', 'Physique', 'Réservé', 'Disponible', 'Seuil'],
+      ...selected.map((s) => [
+        s.sku,
+        `"${s.productName.replace(/"/g, '""')}"`,
+        `"${s.warehouseName.replace(/"/g, '""')}"`,
+        s.physicalQty,
+        s.reservedQty,
+        s.availableQty,
+        s.reorderPoint,
+      ]),
+    ]
+      .map((r) => r.join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `stocks_selection_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleApplyAdjustment = async () => {
@@ -701,8 +757,39 @@ export default function InventoryLedgerPage() {
       {activeTab === 'stocks' ? (
         <DataTable<StockRow>
           data={stocks}
+          isLoading={loading}
           columns={stockColumns}
           keyExtractor={(item) => item.id}
+          enableMultiSelect={true}
+          selectedKeys={selectedStockIds}
+          onSelectionChange={setSelectedStockIds}
+          renderBulkActions={() => (
+            <>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => handleBulkAdjustDelta(1)}
+                className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+              >
+                +1 unité
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => handleBulkAdjustDelta(-1)}
+                className="px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+              >
+                -1 unité
+              </button>
+              <button
+                type="button"
+                onClick={handleExportSelectedStocks}
+                className="px-2.5 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200 border border-neutral-200 text-xs font-semibold transition cursor-pointer"
+              >
+                Exporter CSV sélection
+              </button>
+            </>
+          )}
           searchPlaceholder="Rechercher par article, SKU, marque, entrepôt..."
           searchKeys={['productName', 'sku', 'brand', 'category', 'warehouseName']}
           supportedModes={['table', 'list', 'matrix']}
@@ -716,6 +803,42 @@ export default function InventoryLedgerPage() {
           isLoading={loading}
           columns={movementColumns}
           keyExtractor={(item) => item.id}
+          enableMultiSelect={true}
+          selectedKeys={selectedMovementIds}
+          onSelectionChange={setSelectedMovementIds}
+          renderBulkActions={() => (
+            <button
+              type="button"
+              onClick={() => {
+                const selected = movements.filter((m) => selectedMovementIds.includes(m.id));
+                const csv = [
+                  ['Date', 'Type', 'SKU', 'Article', 'Entrepôt', 'Delta', 'Après', 'Motif'],
+                  ...selected.map((m) => [
+                    m.createdAt,
+                    m.type,
+                    m.sku,
+                    `"${m.articleName.replace(/"/g, '""')}"`,
+                    `"${m.warehouseName.replace(/"/g, '""')}"`,
+                    m.quantityDelta,
+                    m.quantityAfter,
+                    `"${(m.reason || '').replace(/"/g, '""')}"`,
+                  ]),
+                ]
+                  .map((r) => r.join(','))
+                  .join('\n');
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `mouvements_selection_${Date.now()}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200 border border-neutral-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Exporter CSV ({selectedMovementIds.length})
+            </button>
+          )}
           searchPlaceholder="Filtrer les mouvements de stock par article, SKU, motif..."
           searchKeys={['articleName', 'sku', 'type', 'reason', 'performedBy', 'warehouseName']}
           supportedModes={['table', 'list', 'matrix']}

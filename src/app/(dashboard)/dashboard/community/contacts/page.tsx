@@ -31,6 +31,7 @@ import {
   Badge,
   Toast,
   Breadcrumb,
+  Modal,
   DeleteConfirmModal,
   DateRangePicker,
   DateRange,
@@ -152,6 +153,15 @@ export default function ContactsPage() {
   const [toastType, setToastType] = React.useState<'success' | 'info' | 'error'>('success');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
   const [emailToDelete, setEmailToDelete] = React.useState<string | null>(null);
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)');
+    const sync = () => setIsMobile(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
 
   // Filters
   const [search, setSearch] = React.useState('');
@@ -420,6 +430,39 @@ export default function ContactsPage() {
     window.print();
   };
 
+  const handleBulkAction = async (
+    action: 'MARK_READ' | 'MARK_UNREAD' | 'TRASH' | 'RESTORE' | 'DELETE',
+  ) => {
+    if (selectedEmails.length === 0) return;
+    const targets = selectedEmails.map((e) => e.toLowerCase().trim());
+    const ids = contacts
+      .filter((c) => targets.includes(c.email.toLowerCase().trim()))
+      .map((c) => c.id);
+    if (ids.length === 0) return;
+    await fetchApi('/storefront-cms/contacts/bulk-action', {
+      method: 'POST',
+      body: JSON.stringify({ ids, action }),
+    }).catch(() => null);
+    setSelectedEmails([]);
+    if (
+      (action === 'DELETE' || action === 'TRASH') &&
+      activeDiscussionEmail &&
+      targets.includes(activeDiscussionEmail.toLowerCase().trim())
+    ) {
+      setActiveDiscussionEmail(null);
+    }
+    await loadContacts();
+    setToastType(action === 'DELETE' ? 'info' : 'success');
+    const labels: Record<string, string> = {
+      MARK_READ: 'Discussions marquées comme lues.',
+      MARK_UNREAD: 'Discussions marquées comme non lues.',
+      TRASH: 'Discussions déplacées vers la corbeille.',
+      RESTORE: 'Discussions restaurées dans la boîte de réception.',
+      DELETE: 'Discussions sélectionnées supprimées définitivement.',
+    };
+    setToastMessage(labels[action] || 'Action groupée effectuée.');
+  };
+
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
       {/* Toast Feedback */}
@@ -439,19 +482,12 @@ export default function ContactsPage() {
           setDeleteConfirmOpen(false);
           setEmailToDelete(null);
         }}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (emailToDelete) {
-            handleDeletePermanent(emailToDelete);
+            await handleDeletePermanent(emailToDelete);
           } else if (selectedEmails.length > 0) {
-            const targets = selectedEmails.map((e) => e.toLowerCase().trim());
-            setContacts((prev) => prev.filter((c) => !targets.includes(c.email.toLowerCase().trim())));
-            setSelectedEmails([]);
-            if (activeDiscussionEmail && targets.includes(activeDiscussionEmail.toLowerCase().trim())) {
-              setActiveDiscussionEmail(null);
-            }
+            await handleBulkAction('DELETE');
             setDeleteConfirmOpen(false);
-            setToastType('info');
-            setToastMessage('Les discussions sélectionnées ont été supprimées.');
           }
         }}
         title="Supprimer définitivement la discussion"
@@ -482,17 +518,57 @@ export default function ContactsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {selectedEmails.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDeleteConfirmOpen(true)}
-                className="text-xs font-semibold text-rose-600 border-rose-200 hover:bg-rose-50"
-              >
-                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                <span>Supprimer ({selectedEmails.length})</span>
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBulkAction('MARK_READ')}
+                  className="text-xs font-semibold text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                >
+                  <Check className="h-3.5 w-3.5 mr-1" />
+                  <span>Marquer lu</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBulkAction('MARK_UNREAD')}
+                  className="text-xs font-semibold text-amber-800 border-amber-200 hover:bg-amber-50"
+                >
+                  <span>Non lu</span>
+                </Button>
+                {currentTab === 'INBOX' ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleBulkAction('TRASH')}
+                    className="text-xs font-semibold text-neutral-700 border-neutral-200 hover:bg-neutral-50"
+                  >
+                    <Archive className="h-3.5 w-3.5 mr-1" />
+                    <span>Archiver</span>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleBulkAction('RESTORE')}
+                    className="text-xs font-semibold text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                    <span>Restaurer</span>
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  className="text-xs font-semibold text-rose-600 border-rose-200 hover:bg-rose-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                  <span>Supprimer ({selectedEmails.length})</span>
+                </Button>
+              </>
             )}
 
             <Button
@@ -760,7 +836,7 @@ export default function ContactsPage() {
                           <div
                             className={cn(
                               'text-[11px] truncate font-medium',
-                              isActive ? 'text-neutral-200' : 'text-neutral-600'
+                              isActive ? 'text-[#1D232E]' : 'text-neutral-600'
                             )}
                           >
                             {disc.latestMessage.subject}
@@ -769,7 +845,7 @@ export default function ContactsPage() {
                           <p
                             className={cn(
                               'text-[11px] line-clamp-1',
-                              isActive ? 'text-neutral-400' : 'text-neutral-400'
+                              isActive ? 'text-neutral-600' : 'text-neutral-400'
                             )}
                           >
                             {disc.latestMessage.message}
@@ -781,7 +857,7 @@ export default function ContactsPage() {
                                 className={cn(
                                   'text-[10px] font-bold px-2 py-0.5 rounded-full border',
                                   isActive
-                                    ? 'bg-white/20 text-white border-white/30'
+                                    ? 'bg-white text-[#9A7414] border-[#C59B27]/50'
                                     : disc.status === 'NEW'
                                     ? 'bg-amber-100 text-amber-800 border-amber-200'
                                     : disc.status === 'REPLIED'
@@ -801,7 +877,7 @@ export default function ContactsPage() {
                                   className={cn(
                                     'text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-1',
                                     isActive
-                                      ? 'bg-white/10 text-neutral-200'
+                                      ? 'bg-white text-[#1D232E] border border-[#E6D6A6]'
                                       : 'bg-neutral-100 text-neutral-500'
                                   )}
                                 >
@@ -823,11 +899,11 @@ export default function ContactsPage() {
               )}
             </div>
 
-            {/* RIGHT / DETAIL PANE: CONVERSATION SPLIT VIEW */}
+            {/* RIGHT / DETAIL PANE: CONVERSATION SPLIT VIEW (Desktop only) */}
             {activeDiscussion && (
               <div
                 id="royal-printable-thread"
-                className="w-full lg:w-7/12 xl:w-8/12 bg-white rounded-3xl border border-neutral-200 shadow-sm p-6 space-y-6 print-card-content animate-in fade-in zoom-in-95 duration-150"
+                className="hidden lg:block w-full lg:w-7/12 xl:w-8/12 bg-white rounded-3xl border border-neutral-200 shadow-sm p-6 space-y-6 print-card-content animate-in fade-in zoom-in-95 duration-150"
               >
                 {/* Print Header Letterhead (Visible ONLY on print) */}
                 <div className="hidden print:block pb-4 mb-4 border-b border-neutral-300">
@@ -1004,16 +1080,16 @@ export default function ContactsPage() {
                                 <span className="font-bold text-xs text-neutral-900">
                                   Direction Commerciale Royal
                                 </span>
-                                <span className="text-[10px] bg-white/20 text-white px-2 py-0.2 rounded-full font-bold">
+                                <span className="text-[10px] bg-[var(--royal-primary)] text-white px-2 py-0.5 rounded-full font-bold">
                                   Officiel
                                 </span>
                               </div>
-                              <span className="text-[10px] text-neutral-300 font-mono">
+                              <span className="text-[10px] text-neutral-500 font-mono">
                                 {msg.repliedAt ? new Date(msg.repliedAt).toLocaleString('fr-FR') : 'Envoyé'}
                               </span>
                             </div>
 
-                            <div className="text-xs text-neutral-200 leading-relaxed whitespace-pre-wrap border-t border-neutral-800 pt-2.5">
+                            <div className="text-xs text-neutral-800 leading-relaxed whitespace-pre-wrap border-t border-[#E6D6A6] pt-2.5">
                               {msg.replyContent}
                             </div>
                           </div>
@@ -1122,6 +1198,134 @@ export default function ContactsPage() {
           </div>
         </div>
       </div>
+
+      {/* Mobile Conversation Modal */}
+      {activeDiscussion && (
+        <Modal
+          isOpen={isMobile && Boolean(activeDiscussion)}
+          onClose={handleCloseSplit}
+          title={activeDiscussion.fullName}
+          subtitle={`${activeDiscussion.email}${activeDiscussion.phone ? ` • ${activeDiscussion.phone}` : ''}`}
+          size="3xl"
+        >
+          <div className="p-5 space-y-5">
+            <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-neutral-100">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrintDiscussion}
+                className="text-xs font-semibold"
+              >
+                <Printer className="w-3.5 h-3.5 mr-1.5 text-neutral-700" />
+                <span>Imprimer</span>
+              </Button>
+              {activeDiscussion.status !== 'ARCHIVED' ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleArchiveDiscussion(activeDiscussion.email)}
+                  className="text-xs font-semibold text-neutral-600"
+                >
+                  <Archive className="w-3.5 h-3.5 mr-1.5" />
+                  <span>Archiver</span>
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleRestoreDiscussion(activeDiscussion.email)}
+                  className="text-xs font-semibold text-emerald-700 border-emerald-200"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                  <span>Restaurer</span>
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setEmailToDelete(activeDiscussion.email);
+                  setDeleteConfirmOpen(true);
+                }}
+                className="text-xs font-semibold text-rose-600 border-rose-200 ml-auto"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1" />
+                <span>Supprimer</span>
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              {activeDiscussion.messages.map((msg, index) => (
+                <React.Fragment key={msg.id}>
+                  <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                      <span className="font-bold text-neutral-900">
+                        {msg.fullName} (#{index + 1})
+                      </span>
+                      <span className="text-neutral-400 font-mono">
+                        {new Date(msg.createdAt).toLocaleString('fr-FR')}
+                      </span>
+                    </div>
+                    <div className="font-bold text-xs text-neutral-800">{msg.subject}</div>
+                    <p className="text-xs text-neutral-700 leading-relaxed whitespace-pre-wrap">
+                      {msg.message}
+                    </p>
+                  </div>
+                  {msg.replyContent && (
+                    <div className="p-4 rounded-2xl bg-[#FBF6E8] border border-[#E6D6A6] space-y-2 ml-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-bold text-xs text-neutral-900">
+                          Direction Commerciale Royal
+                        </span>
+                        <span className="text-[10px] text-neutral-500 font-mono">
+                          {msg.repliedAt ? new Date(msg.repliedAt).toLocaleString('fr-FR') : 'Envoyé'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-800 leading-relaxed whitespace-pre-wrap border-t border-[#E6D6A6] pt-2">
+                        {msg.replyContent}
+                      </p>
+                    </div>
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+
+            <div className="pt-3 border-t border-neutral-200 space-y-3">
+              <div className="flex flex-wrap gap-1.5">
+                {ROOT_REPLY_TEMPLATES.map((tmpl, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleSelectTemplate(tmpl.text)}
+                    className="px-2.5 py-1 rounded-full border border-neutral-200 bg-white text-[11px] font-bold text-neutral-800 cursor-pointer"
+                  >
+                    + {tmpl.title}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                rows={4}
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder={`Écrivez votre réponse pour ${activeDiscussion.fullName}...`}
+                className="w-full p-3.5 rounded-2xl border border-neutral-200 bg-[#F8F9FA] text-xs text-neutral-900 focus:outline-none focus:border-[var(--royal-primary)]"
+              />
+              <div className="flex justify-end">
+                <Button
+                  variant="gold"
+                  size="sm"
+                  onClick={handleSendReply}
+                  disabled={isSendingReply || !replyText.trim()}
+                  className="text-xs font-bold px-5 py-2.5 rounded-xl cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5 mr-1.5" />
+                  <span>{isSendingReply ? 'Transmission...' : 'Envoyer la Réponse'}</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Print Isolation Stylesheet */}
       <style jsx global>{`

@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Modal } from '@/components/ui/modal';
+import { Modal, DeleteConfirmModal } from '@/components/ui/modal';
 import { Toast } from '@/components/ui/toast';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Select } from '@/components/ui/select';
@@ -202,6 +202,8 @@ export default function InventoryDocumentsPage() {
   const [selectedInventory, setSelectedInventory] = useState<InventoryDocumentItem | null>(null);
   const [editableLines, setEditableLines] = useState<InventoryLineItem[]>([]);
   const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
+  const [selectedInvIds, setSelectedInvIds] = useState<string[]>([]);
+  const [bulkDeleteInvIds, setBulkDeleteInvIds] = useState<string[]>([]);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newWarehouse, setNewWarehouse] = useState('');
@@ -309,6 +311,28 @@ export default function InventoryDocumentsPage() {
       next,
       `Session ${updatedInv.reference} clôturée en base avec préfixe INV.`
     );
+  };
+
+  const handleBulkInvPatch = async (
+    patch: Partial<InventoryDocumentItem>,
+    label: string
+  ) => {
+    if (selectedInvIds.length === 0) return;
+    const idSet = new Set(selectedInvIds);
+    const next = inventories.map((i) => (idSet.has(i.id) ? { ...i, ...patch } : i));
+    await persistDocs(next, `${selectedInvIds.length} document(s) d’inventaire ${label}.`);
+    setSelectedInvIds([]);
+  };
+
+  const confirmBulkDeleteInvs = async () => {
+    if (bulkDeleteInvIds.length === 0) return;
+    const idSet = new Set(bulkDeleteInvIds);
+    await persistDocs(
+      inventories.filter((i) => !idSet.has(i.id)),
+      `${bulkDeleteInvIds.length} document(s) d’inventaire supprimé(s).`
+    );
+    setBulkDeleteInvIds([]);
+    setSelectedInvIds([]);
   };
 
   const handleCreateSession = (e: React.FormEvent) => {
@@ -656,6 +680,51 @@ export default function InventoryDocumentsPage() {
         data={inventories}
         columns={columns}
         keyExtractor={(item) => item.id}
+        enableMultiSelect={true}
+        selectedKeys={selectedInvIds}
+        onSelectionChange={setSelectedInvIds}
+        onBulkDelete={(keys) => setBulkDeleteInvIds(keys)}
+        renderBulkActions={() => (
+          <>
+            <select
+              value=""
+              onChange={(e) => {
+                const st = e.target.value as InventoryDocumentItem['status'];
+                if (st) {
+                  handleBulkInvPatch(
+                    {
+                      status: st,
+                      closedAt: st === 'COMPLETED' ? new Date().toISOString() : undefined,
+                    },
+                    `passé(s) en « ${st} »`
+                  );
+                }
+              }}
+              aria-label="Changer statut inventaire"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">Statut session...</option>
+              <option value="DRAFT">Brouillon</option>
+              <option value="IN_REVIEW">En Validation</option>
+              <option value="COMPLETED">Clôturé</option>
+              <option value="CANCELLED">Annulé</option>
+            </select>
+            <select
+              value=""
+              onChange={(e) => {
+                const tp = e.target.value as InventoryDocumentItem['inventoryType'];
+                if (tp) handleBulkInvPatch({ inventoryType: tp }, `classé(s) (${tp})`);
+              }}
+              aria-label="Changer type inventaire"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">Type inventaire...</option>
+              <option value="ANNUAL">Annuel</option>
+              <option value="CYCLIC">Tournant / Cyclique</option>
+              <option value="SPOT">Ponctuel</option>
+            </select>
+          </>
+        )}
         searchPlaceholder="Rechercher par référence INV-2026-XXX, entrepôt, responsable..."
         searchKeys={['reference', 'warehouseName', 'scopeTarget', 'managerName']}
         supportedModes={['table', 'list', 'matrix']}
@@ -1010,6 +1079,13 @@ export default function InventoryDocumentsPage() {
           </form>
         </Modal>
       )}
+      <DeleteConfirmModal
+        isOpen={bulkDeleteInvIds.length > 0}
+        onClose={() => setBulkDeleteInvIds([])}
+        onConfirm={confirmBulkDeleteInvs}
+        title="Supprimer les feuilles d’inventaire sélectionnées"
+        description={`Confirmez-vous la suppression des ${bulkDeleteInvIds.length} document(s) d’inventaire sélectionné(s) ?`}
+      />
     </div>
   );
 }

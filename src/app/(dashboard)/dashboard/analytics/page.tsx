@@ -100,6 +100,7 @@ const INITIAL_TRAFFIC: TrafficRow[] = [
 
 export default function AnalyticsPage() {
   const [traffic, setTraffic] = useState<TrafficRow[]>([]);
+  const [selectedTrafficIds, setSelectedTrafficIds] = useState<string[]>([]);
   const [aiInsights, setAiInsights] = useState<{
     headline?: string;
     summary?: string;
@@ -476,6 +477,40 @@ export default function AnalyticsPage() {
         data={traffic}
         columns={columns}
         keyExtractor={(item) => item.id}
+        enableMultiSelect={true}
+        selectedKeys={selectedTrafficIds}
+        onSelectionChange={setSelectedTrafficIds}
+        renderBulkActions={() => (
+          <button
+            type="button"
+            onClick={() => {
+              const sel = traffic.filter((t) => selectedTrafficIds.includes(t.id));
+              const csv = [
+                ['URL', 'Titre', 'Vues', 'Visiteurs', 'Rebond %', 'Conversion %'],
+                ...sel.map((t) => [
+                  t.pagePath,
+                  `"${t.pageTitle.replace(/"/g, '""')}"`,
+                  t.viewsCount,
+                  t.uniqueVisitors,
+                  t.bounceRatePercent,
+                  t.conversionRatePercent,
+                ]),
+              ]
+                .map((r) => r.join(','))
+                .join('\n');
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `audience_selection_${Date.now()}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="px-2.5 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200 border border-neutral-200 text-xs font-semibold transition cursor-pointer"
+          >
+            Exporter CSV sélection ({selectedTrafficIds.length})
+          </button>
+        )}
         searchPlaceholder="Rechercher par URL, titre de page..."
         searchKeys={['pageTitle', 'pagePath']}
         supportedModes={['table', 'list', 'matrix']}

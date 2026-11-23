@@ -26,7 +26,7 @@ import {
   DeleteConfirmModal,
   Toggle,
 } from '@/components/ui';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
 
 export interface RoleUserItem {
   id: string;
@@ -85,18 +85,19 @@ export function RoleUsersDirectory({
   const [saving, setSaving] = React.useState(false);
 
   const [deleteItem, setDeleteItem] = React.useState<RoleUserItem | null>(null);
+  const [selectedKeys, setSelectedKeys] = React.useState<string[]>([]);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [toastType, setToastType] = React.useState<'success' | 'info' | 'error'>('success');
 
   const loadData = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [usersRes, rolesRes] = await Promise.all([
-        fetchApi(`/users?role=${encodeURIComponent(roleCode)}&limit=200`).catch(() => null),
+      const [usersList, rolesRes] = await Promise.all([
+        fetchAllPaginated<RoleUserItem>(`/users?role=${encodeURIComponent(roleCode)}`, 200)
+          .then((r) => r.items)
+          .catch(() => []),
         fetchApi('/roles').catch(() => []),
       ]);
-      const usersList =
-        usersRes?.data?.data || usersRes?.data || usersRes?.items || (Array.isArray(usersRes) ? usersRes : []);
       setItems(Array.isArray(usersList) ? usersList : []);
 
       const roleAliasMap: Record<string, string> = {
@@ -223,12 +224,36 @@ export function RoleUsersDirectory({
     if (keys.length === 0) return;
     try {
       await Promise.all(keys.map((id) => fetchApi(`/users/${id}`, { method: 'DELETE' })));
+      setSelectedKeys([]);
       setToastType('info');
       setToastMessage(`${keys.length} compte(s) supprimé(s).`);
       await loadData();
     } catch (err: any) {
       setToastType('error');
       setToastMessage(err?.message || 'Erreur lors de la suppression multiple.');
+    }
+  };
+
+  const handleBulkStatus = async (isActive: boolean) => {
+    if (selectedKeys.length === 0) return;
+    try {
+      await Promise.allSettled(
+        selectedKeys.map((id) =>
+          fetchApi(`/users/${id}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify({ isActive }),
+          })
+        )
+      );
+      setToastType('success');
+      setToastMessage(
+        `${selectedKeys.length} compte(s) ${isActive ? 'activé(s)' : 'suspendu(s)'}.`
+      );
+      setSelectedKeys([]);
+      await loadData();
+    } catch (err: any) {
+      setToastType('error');
+      setToastMessage(err?.message || 'Erreur lors de la modification groupée.');
     }
   };
 
@@ -421,7 +446,29 @@ export function RoleUsersDirectory({
         supportedModes={['table', 'list', 'matrix']}
         defaultMode="table"
         enableMultiSelect
+        selectedKeys={selectedKeys}
+        onSelectionChange={setSelectedKeys}
         onBulkDelete={handleBulkDelete}
+        renderBulkActions={() => (
+          <>
+            <button
+              type="button"
+              onClick={() => handleBulkStatus(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition cursor-pointer"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Activer</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkStatus(false)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-semibold transition cursor-pointer"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+              <span>Suspendre</span>
+            </button>
+          </>
+        )}
         onRefresh={loadData}
         renderMatrixCard={(item, isChecked, onToggle) => (
           <div className="bg-white rounded-2xl border border-[#E6E1D6] p-5 shadow-sm space-y-3 hover:border-[#C59B27] transition">

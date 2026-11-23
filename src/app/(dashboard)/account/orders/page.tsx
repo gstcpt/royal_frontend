@@ -12,7 +12,7 @@ import {
   RefreshCw,
   PackageCheck,
 } from 'lucide-react';
-import { fetchApi } from '@/lib/api';
+import { fetchAllPaginated } from '@/lib/api';
 import { formatTndCurrency } from '@/lib/utils';
 import { Button, Breadcrumb } from '@/components/ui';
 import { NINE_ORDER_STATUSES, ORDER_STATUS_LABEL_MAP } from '@/components/common/PrintableOrderSheet';
@@ -25,9 +25,8 @@ export default function AccountOrdersPage() {
   const loadOrders = async () => {
     setLoading(true);
     try {
-      const res = await fetchApi('/orders/my-orders?limit=50');
-      const list = Array.isArray(res) ? res : res?.data || [];
-      setOrders(list);
+      const { items: list } = await fetchAllPaginated<any>('/orders/my-orders', 100);
+      setOrders(Array.isArray(list) ? list : []);
     } catch {
       setOrders([]);
     } finally {

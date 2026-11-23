@@ -94,6 +94,19 @@ export interface DataTableProps<T = any> {
   selectedKeys?: string[];
   onSelectionChange?: (keys: string[]) => void;
   onBulkDelete?: (keys: string[]) => void;
+  renderBulkActions?: (selectedKeys: string[], clearSelection: () => void) => React.ReactNode;
+  // Server-side pagination / filtering (optional — used by large DB views like Audit Logs)
+  serverPagination?: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages?: number;
+    onPageChange: (page: number) => void;
+    onPageSizeChange: (pageSize: number) => void;
+  };
+  onSearchChange?: (query: string) => void;
+  onDateRangeChange?: (range: DateRange) => void;
+  disableClientFiltering?: boolean;
   // Printing customization
   printTitle?: string;
   exportFileName?: string;
@@ -291,6 +304,11 @@ export function DataTable<T extends object = any>({
   selectedKeys: controlledSelectedKeys,
   onSelectionChange,
   onBulkDelete,
+  renderBulkActions,
+  serverPagination,
+  onSearchChange,
+  onDateRangeChange,
+  disableClientFiltering = false,
   printTitle = 'Catalogue des Articles — Royal',
   exportFileName,
   extraActions,
@@ -414,6 +432,7 @@ export function DataTable<T extends object = any>({
 
   // Filter Data
   const filteredData = React.useMemo(() => {
+    if (disableClientFiltering) return data;
     return data.filter((item) => {
       const it = item as any;
       // 1. Text Search
@@ -483,7 +502,7 @@ export function DataTable<T extends object = any>({
 
       return true;
     });
-  }, [data, searchQuery, searchKeys, statusFilter, categoryFilter, typeFilter, dateRange]);
+  }, [data, disableClientFiltering, searchQuery, searchKeys, statusFilter, categoryFilter, typeFilter, dateRange]);
 
   // Enhanced Robust Sorting Data
   const sortedData = React.useMemo(() => {
@@ -544,11 +563,17 @@ export function DataTable<T extends object = any>({
   }, [filteredData, sortKey, sortOrder, columns]);
 
   // Pagination
-  const totalPages = Math.ceil(sortedData.length / rowsPerPage) || 1;
+  const effectivePage = serverPagination ? serverPagination.page : currentPage;
+  const effectivePageSize = serverPagination ? serverPagination.pageSize : rowsPerPage;
+  const effectiveTotal = serverPagination ? serverPagination.total : sortedData.length;
+  const totalPages = serverPagination
+    ? (serverPagination.totalPages ?? (Math.ceil(effectiveTotal / effectivePageSize) || 1))
+    : (Math.ceil(sortedData.length / rowsPerPage) || 1);
   const paginatedData = React.useMemo(() => {
+    if (serverPagination) return sortedData;
     const start = (currentPage - 1) * rowsPerPage;
     return sortedData.slice(start, start + rowsPerPage);
-  }, [sortedData, currentPage, rowsPerPage]);
+  }, [sortedData, currentPage, rowsPerPage, serverPagination]);
 
   const activeSelectedItem = React.useMemo(() => {
     if (!selectedItemKey && paginatedData.length > 0) {
@@ -684,8 +709,10 @@ export function DataTable<T extends object = any>({
               type="text"
               value={searchQuery}
               onChange={(e) => {
-                setSearchQuery(e.target.value);
+                const next = e.target.value;
+                setSearchQuery(next);
                 setCurrentPage(1);
+                onSearchChange?.(next);
               }}
               placeholder={effectiveSearchPlaceholder}
               className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-neutral-200 bg-white placeholder-neutral-400 focus:outline-none focus:border-[var(--royal-primary)] focus:ring-1 focus:ring-[var(--royal-primary)] transition"
@@ -698,8 +725,14 @@ export function DataTable<T extends object = any>({
             onChange={(r) => {
               setDateRange(r);
               setCurrentPage(1);
+              onDateRangeChange?.(r);
             }}
-            onClear={() => setDateRange({ startDate: '', endDate: '' })}
+            onClear={() => {
+              const cleared = { startDate: '', endDate: '' };
+              setDateRange(cleared);
+              setCurrentPage(1);
+              onDateRangeChange?.(cleared);
+            }}
           />
 
           {/* Status Filter Dropdown */}
@@ -877,24 +910,25 @@ export function DataTable<T extends object = any>({
       <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-sm overflow-hidden">
         {/* Bulk Selection Action Banner */}
         {enableMultiSelect && selectedKeys.length > 0 && (
-          <div className="bg-[#FBF6E8] text-[#1D232E] border-b border-[#E6D6A6] px-5 py-3 flex items-center justify-between text-xs transition-all animate-in fade-in no-print">
-            <div className="flex items-center gap-3">
+          <div className="bg-[#FBF6E8] text-[#1D232E] border-b border-[#E6D6A6] px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-2.5 text-xs transition-all animate-in fade-in no-print">
+            <div className="flex flex-wrap items-center gap-2.5">
               <span className="font-bold bg-[var(--royal-primary)] text-white px-2.5 py-0.5 rounded-md text-[11px]">
                 {selectedKeys.length} sélectionné(s)
               </span>
               <span className="text-slate-600 hidden sm:inline">
-                sur {sortedData.length} élément(s) au total
+                sur {effectiveTotal} élément(s) au total
               </span>
               <button
                 type="button"
                 onClick={handleClearSelection}
-                className="text-[#9A7414] hover:text-[#1D232E] underline text-[11px] ml-2 cursor-pointer"
+                className="text-[#9A7414] hover:text-[#1D232E] underline text-[11px] cursor-pointer"
               >
                 Désélectionner tout
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {renderBulkActions?.(selectedKeys, handleClearSelection)}
               {onBulkDelete && (
                 <Button
                   variant="danger"
@@ -925,6 +959,7 @@ export function DataTable<T extends object = any>({
                         onClick={handleToggleSelectAllPage}
                         className="text-neutral-500 hover:text-neutral-900 flex items-center justify-center"
                         title={isAllPageSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
+                        aria-label={isAllPageSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
                       >
                         {isAllPageSelected ? (
                           <CheckSquare className="w-4 h-4 text-neutral-950" />
@@ -1008,6 +1043,7 @@ export function DataTable<T extends object = any>({
                             <button
                               type="button"
                               onClick={(e) => handleToggleSelectRow(rowKey, e)}
+                              aria-label={isChecked ? 'Désélectionner la ligne' : 'Sélectionner la ligne'}
                               className="text-neutral-500 hover:text-neutral-900 flex items-center justify-center mx-auto"
                             >
                               {isChecked ? (
@@ -1036,6 +1072,25 @@ export function DataTable<T extends object = any>({
         {/* MODE B: LIST */}
         {displayMode === 'list' && (
           <div className="divide-y divide-neutral-100">
+            {enableMultiSelect && paginatedData.length > 0 && (
+              <div className="px-4 py-2.5 bg-neutral-50/80 border-b border-neutral-100 flex items-center justify-between text-[11px] text-neutral-600 font-semibold no-print">
+                <button
+                  type="button"
+                  onClick={handleToggleSelectAllPage}
+                  aria-label={isAllPageSelected ? 'Tout désélectionner' : 'Tout sélectionner sur cette page'}
+                  className="inline-flex items-center gap-2 text-neutral-700 hover:text-neutral-950 cursor-pointer"
+                >
+                  {isAllPageSelected ? (
+                    <CheckSquare className="w-4 h-4 text-[var(--royal-primary)]" />
+                  ) : isSomePageSelected ? (
+                    <MinusSquare className="w-4 h-4 text-amber-600" />
+                  ) : (
+                    <Square className="w-4 h-4 text-neutral-300" />
+                  )}
+                  <span>Tout sélectionner sur cette page ({currentPageKeys.length})</span>
+                </button>
+              </div>
+            )}
             {isLoading ? (
               <div className="p-12 text-center text-neutral-400">
                 <RefreshCw className="w-5 h-5 animate-spin mx-auto text-neutral-900 mb-2" />
@@ -1085,6 +1140,7 @@ export function DataTable<T extends object = any>({
                           <button
                             type="button"
                             onClick={(e) => handleToggleSelectRow(rowKey, e)}
+                            aria-label={isChecked ? 'Désélectionner la ligne' : 'Sélectionner la ligne'}
                             className="text-neutral-400 hover:text-neutral-900 no-print shrink-0 mt-0.5"
                           >
                             {isChecked ? (
@@ -1157,6 +1213,7 @@ export function DataTable<T extends object = any>({
                         <button
                           type="button"
                           onClick={(e) => handleToggleSelectRow(rowKey, e)}
+                          aria-label={isChecked ? 'Désélectionner la ligne' : 'Sélectionner la ligne'}
                           className="text-neutral-400 hover:text-neutral-900 no-print"
                         >
                           {isChecked ? (
@@ -1195,7 +1252,26 @@ export function DataTable<T extends object = any>({
 
         {/* MODE D: MATRIX GRID (E-COMMERCE) */}
         {displayMode === 'matrix' && (
-          <div className="p-4 sm:p-5">
+          <div className="p-3.5 sm:p-5 space-y-3">
+            {enableMultiSelect && paginatedData.length > 0 && (
+              <div className="px-3.5 py-2 rounded-xl bg-neutral-50 border border-neutral-200/80 flex items-center justify-between text-[11px] text-neutral-600 font-semibold no-print">
+                <button
+                  type="button"
+                  onClick={handleToggleSelectAllPage}
+                  aria-label={isAllPageSelected ? 'Tout désélectionner' : 'Tout sélectionner sur cette page'}
+                  className="inline-flex items-center gap-2 text-neutral-700 hover:text-neutral-950 cursor-pointer"
+                >
+                  {isAllPageSelected ? (
+                    <CheckSquare className="w-4 h-4 text-[var(--royal-primary)]" />
+                  ) : isSomePageSelected ? (
+                    <MinusSquare className="w-4 h-4 text-amber-600" />
+                  ) : (
+                    <Square className="w-4 h-4 text-neutral-300" />
+                  )}
+                  <span>Tout sélectionner sur cette page ({currentPageKeys.length})</span>
+                </button>
+              </div>
+            )}
             {isLoading ? (
               <div className="p-12 text-center text-neutral-400">{t('table.loading_grid')}</div>
             ) : paginatedData.length === 0 ? (
@@ -1226,27 +1302,28 @@ export function DataTable<T extends object = any>({
                     <div
                       key={rowKey}
                       className={cn(
-                        'bg-white rounded-2xl border border-neutral-200/90 p-4 sm:p-5 space-y-3 hover:shadow-md transition-all flex flex-col justify-between group',
+                        'bg-white rounded-2xl border border-neutral-200/90 p-4 sm:p-5 space-y-3 hover:shadow-md transition-all flex flex-col justify-between group overflow-hidden min-w-0',
                         isChecked && 'ring-2 ring-amber-500/50 bg-amber-50/20'
                       )}
                     >
                       <div className="space-y-3 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start justify-between gap-2 min-w-0">
                           <div className="min-w-0 flex-1">
                             {primaryCol ? (
                               primaryCol.render
                                 ? primaryCol.render(item, idx)
-                                : <span className="font-bold text-xs text-neutral-900 truncate block">{String((item as any)[primaryCol.key] ?? '—')}</span>
+                                : <span className="font-bold text-xs text-neutral-900 break-words block">{String((item as any)[primaryCol.key] ?? '—')}</span>
                             ) : null}
                           </div>
                           {enableMultiSelect && (
                             <button
                               type="button"
                               onClick={(e) => handleToggleSelectRow(rowKey, e)}
-                              className="text-neutral-400 hover:text-neutral-900 no-print shrink-0"
+                              aria-label={isChecked ? 'Désélectionner la ligne' : 'Sélectionner la ligne'}
+                              className="text-neutral-400 hover:text-neutral-900 no-print shrink-0 cursor-pointer"
                             >
                               {isChecked ? (
-                                <CheckSquare className="w-4 h-4 text-neutral-950" />
+                                <CheckSquare className="w-4 h-4 text-[var(--royal-primary)]" />
                               ) : (
                                 <Square className="w-4 h-4 text-neutral-300" />
                               )}
@@ -1255,11 +1332,11 @@ export function DataTable<T extends object = any>({
                         </div>
 
                         {detailCols.length > 0 && (
-                          <div className="space-y-1.5 text-[11px]">
+                          <div className="space-y-2 text-[11px] pt-2 border-t border-neutral-100">
                             {detailCols.map((col) => (
-                              <div key={col.key} className="flex items-center justify-between gap-2">
-                                <span className="text-[10px] font-bold uppercase text-neutral-400 shrink-0">{col.header}</span>
-                                <div className="min-w-0 truncate text-right">
+                              <div key={col.key} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 min-w-0">
+                                <span className="text-[10px] font-bold uppercase text-neutral-400 shrink-0 pt-0.5">{col.header}</span>
+                                <div className="min-w-0 flex-1 text-right break-words max-w-full">
                                   {col.render ? col.render(item, idx) : String((item as any)[col.key] ?? '—')}
                                 </div>
                               </div>
@@ -1269,7 +1346,7 @@ export function DataTable<T extends object = any>({
                       </div>
 
                       {controlCol?.render && (
-                        <div className="pt-3 border-t border-neutral-100 flex items-center justify-end text-xs" onClick={(e) => e.stopPropagation()}>
+                        <div className="pt-3 border-t border-neutral-100 flex flex-wrap items-center justify-end gap-1.5 text-xs" onClick={(e) => e.stopPropagation()}>
                           {controlCol.render(item, idx)}
                         </div>
                       )}
@@ -1294,10 +1371,15 @@ export function DataTable<T extends object = any>({
           <div className="flex items-center gap-2">
             <span>{t('table.show')}</span>
             <select
-              value={rowsPerPage}
+              value={effectivePageSize}
               onChange={(e) => {
-                setRowsPerPage(Number(e.target.value));
-                setCurrentPage(1);
+                const sz = Number(e.target.value);
+                if (serverPagination) {
+                  serverPagination.onPageSizeChange(sz);
+                } else {
+                  setRowsPerPage(sz);
+                  setCurrentPage(1);
+                }
               }}
               aria-label={t('table.rows_per_page')}
               className="py-1 px-2 border border-[#E6E1D6] rounded-lg text-xs font-semibold bg-white text-[#1D232E] focus:outline-none focus:border-[#C59B27] cursor-pointer"
@@ -1308,17 +1390,21 @@ export function DataTable<T extends object = any>({
                 </option>
               ))}
             </select>
-            <span>{t('table.of')} {sortedData.length} {t('table.of_total')}</span>
+            <span>{t('table.of')} {effectiveTotal} {t('table.of_total')}</span>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-1.5">
             <span className="text-[11px] text-neutral-400 mr-2">
-              {t('table.page')} {currentPage} {t('table.of')} {totalPages}
+              {t('table.page')} {effectivePage} {t('table.of')} {totalPages}
             </span>
             <button
               type="button"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
+              onClick={() => {
+                const next = Math.max(1, effectivePage - 1);
+                if (serverPagination) serverPagination.onPageChange(next);
+                else setCurrentPage(next);
+              }}
+              disabled={effectivePage <= 1}
               aria-label={t('table.prev_page')}
               className="p-1.5 rounded-lg border border-neutral-200 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
             >
@@ -1326,8 +1412,12 @@ export function DataTable<T extends object = any>({
             </button>
             <button
               type="button"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
+              onClick={() => {
+                const next = Math.min(totalPages, effectivePage + 1);
+                if (serverPagination) serverPagination.onPageChange(next);
+                else setCurrentPage(next);
+              }}
+              disabled={effectivePage >= totalPages}
               aria-label={t('table.next_page')}
               className="p-1.5 rounded-lg border border-neutral-200 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
             >

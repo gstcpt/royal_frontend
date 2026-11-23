@@ -44,7 +44,7 @@ import {
 } from 'lucide-react';
 import { Button, Input, Textarea, Toggle, Select, Breadcrumb, Toast } from '@/components/ui';
 import { ImageDropzoneCropper } from '@/components/ui/image-dropzone-cropper';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
 import { getSafeImageUrl } from '@/lib/cart-session';
 import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 
@@ -788,11 +788,13 @@ function StorefrontViewsContent() {
         fetchApi('/storefront-cms/pages/terms').catch(() => null),
         fetchApi('/storefront-cms/pages/privacy').catch(() => null),
         fetchApi('/categories?tree=false').catch(() => []),
-        fetchApi('/products/storefront?limit=150').catch(() => ({ data: [] })),
+        fetchAllPaginated<any>('/products/storefront', 200)
+          .then(({ items }) => ({ data: items }))
+          .catch(() => ({ data: [] })),
       ]);
       const rawCats = Array.isArray(catsRes) ? catsRes : catsRes?.data || [];
       setCmsCategories(rawCats);
-      const rawProds = Array.isArray(prodsRes) ? prodsRes : prodsRes?.data || prodsRes?.items || [];
+      const rawProds = Array.isArray(prodsRes) ? prodsRes : prodsRes?.data || [];
       setCmsProducts(rawProds);
       if (cfg?.views) {
         setViews((prev: any) => ({

@@ -241,6 +241,7 @@ export default function TvaRatesPage() {
       <DataTable
         data={rates}
         columns={columns}
+        keyExtractor={(item) => item.id}
         isLoading={loading}
         supportedModes={['table', 'list', 'matrix']}
         defaultMode="table"
@@ -249,6 +250,38 @@ export default function TvaRatesPage() {
         selectedKeys={selectedKeys}
         onSelectionChange={setSelectedKeys}
         onBulkDelete={handleBulkDelete}
+        renderBulkActions={() => (
+          <>
+            <button
+              type="button"
+              onClick={async () => {
+                const s = new Set(selectedKeys);
+                await persist(
+                  rates.map((r) => (s.has(r.id) ? { ...r, isActive: true } : r)),
+                  `${selectedKeys.length} taux TVA activé(s).`
+                );
+                setSelectedKeys([]);
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Activer
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                const s = new Set(selectedKeys);
+                await persist(
+                  rates.map((r) => (s.has(r.id) ? { ...r, isActive: false } : r)),
+                  `${selectedKeys.length} taux TVA désactivé(s).`
+                );
+                setSelectedKeys([]);
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Désactiver
+            </button>
+          </>
+        )}
         printTitle="Grille Fiscale TVA — Royal"
         exportFileName="tva-tunisie"
       />

@@ -25,6 +25,8 @@ import {
   Info,
   Sliders,
   Calendar,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 import { cn, formatTndCurrency } from '@/lib/utils';
 import {
@@ -42,7 +44,7 @@ import {
   Toast,
 } from '@/components/ui';
 import { ModalArticlesTable, RelatedArticlesModal } from '@/components/dashboard';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
 
 export type VariantVisualType = 'COLOR_SWATCH' | 'TEXT_PILL';
 
@@ -220,25 +222,23 @@ export default function DashboardVariantsPage() {
   const loadData = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const [varRes, prodsRes] = await Promise.all([
-        fetchApi('/variants').catch(() => null),
-        fetchApi('/products?limit=1000').catch(() => null),
-      ]);
+      const productsPromise = fetchAllPaginated('/products', 200)
+        .then((prodsRes) => {
+          if (prodsRes?.items) setProducts(prodsRes.items);
+        })
+        .catch(() => null);
 
-      if (prodsRes) {
-        const list = Array.isArray(prodsRes) ? prodsRes : prodsRes.data || [];
-        setProducts(list);
-      }
-
+      const varRes = await fetchApi('/variants').catch(() => null);
       if (varRes) {
         const vList = Array.isArray(varRes) ? varRes : varRes.data || [];
         setFamilies(vList);
       } else {
         setFamilies(defaultFamilies);
       }
+      setIsLoading(false);
+      await productsPromise;
     } catch {
       setFamilies(defaultFamilies);
-    } finally {
       setIsLoading(false);
     }
   }, []);
@@ -701,27 +701,107 @@ export default function DashboardVariantsPage() {
         selectedKeys={selectedFamilyIds}
         onSelectionChange={setSelectedFamilyIds}
         onBulkDelete={() => setIsBulkDeleteModalOpen(true)}
+        renderBulkActions={(keys, clearSel) => (
+          <>
+            <button
+              type="button"
+              onClick={async () => {
+                await Promise.all(
+                  keys.map((id) =>
+                    fetchApi(`/variants/${id}`, {
+                      method: 'PATCH',
+                      body: JSON.stringify({ isActive: true }),
+                    }).catch(() => null),
+                  ),
+                );
+                clearSel();
+                await loadData();
+                showToast('success', `${keys.length} famille(s) activée(s).`);
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-white border border-emerald-200 text-emerald-700 text-xs font-bold hover:bg-emerald-50 cursor-pointer"
+            >
+              Activer
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                await Promise.all(
+                  keys.map((id) =>
+                    fetchApi(`/variants/${id}`, {
+                      method: 'PATCH',
+                      body: JSON.stringify({ isActive: false }),
+                    }).catch(() => null),
+                  ),
+                );
+                clearSel();
+                await loadData();
+                showToast('success', `${keys.length} famille(s) désactivée(s).`);
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-white border border-neutral-200 text-neutral-700 text-xs font-bold hover:bg-neutral-50 cursor-pointer"
+            >
+              Désactiver
+            </button>
+            <select
+              aria-label="Changer type visuel"
+              defaultValue=""
+              onChange={async (e) => {
+                const vType = e.target.value;
+                if (!vType) return;
+                await Promise.all(
+                  keys.map((id) =>
+                    fetchApi(`/variants/${id}`, {
+                      method: 'PATCH',
+                      body: JSON.stringify({ visualType: vType }),
+                    }).catch(() => null),
+                  ),
+                );
+                clearSel();
+                await loadData();
+                showToast('success', `Type visuel mis à jour sur ${keys.length} famille(s).`);
+                e.target.value = '';
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-white border border-[#E6D6A6] text-xs font-bold text-[#1D232E] cursor-pointer"
+            >
+              <option value="">Type visuel...</option>
+              <option value="COLOR_SWATCH">Pastille Couleur</option>
+              <option value="TEXT_PILL">Bouton Texte</option>
+            </select>
+          </>
+        )}
         printTitle="Référentiel des Variantes et Déclinaisons — Royal"
         exportFileName="variantes"
         /* Mode Matrix (Grid Cards) */
-        renderMatrixCard={(item) => (
-          <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
-            <div className="p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center text-neutral-800">
-                  {item.visualType === 'COLOR_SWATCH' ? (
-                    <Palette className="w-5 h-5 text-purple-600" />
-                  ) : (
-                    <Boxes className="w-5 h-5 text-neutral-700" />
-                  )}
+        renderMatrixCard={(item, isChecked, onToggleCheck) => (
+          <div className={cn(
+            'bg-white rounded-2xl border overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between group',
+            isChecked ? 'border-[var(--royal-primary)] ring-2 ring-[var(--royal-primary)]/30 bg-[#FBF9F4]' : 'border-neutral-200'
+          )}>
+            <div className="p-4 sm:p-5 space-y-3.5 min-w-0">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={onToggleCheck}
+                    aria-label={`Sélectionner ${item.name}`}
+                    className="text-neutral-400 hover:text-[var(--royal-primary)] shrink-0 cursor-pointer"
+                  >
+                    {isChecked ? <CheckSquare className="w-4 h-4 text-[var(--royal-primary)]" /> : <Square className="w-4 h-4" />}
+                  </button>
+                  <div className="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center text-neutral-800 shrink-0">
+                    {item.visualType === 'COLOR_SWATCH' ? (
+                      <Palette className="w-5 h-5 text-purple-600" />
+                    ) : (
+                      <Boxes className="w-5 h-5 text-neutral-700" />
+                    )}
+                  </div>
                 </div>
                 <Badge variant={item.isActive !== false ? 'success' : 'neutral'} size="sm">
                   {item.isActive !== false ? 'Actif' : 'Désactivé'}
                 </Badge>
               </div>
 
-              <div>
-                <h3 className="font-bold text-neutral-900 text-sm">{item.name}</h3>
+              <div className="min-w-0">
+                <h3 className="font-bold text-neutral-900 text-sm break-words">{item.name}</h3>
                 <p className="text-xs text-neutral-500 mt-1 line-clamp-2">
                   {item.description || 'Attribut de déclinaison'}
                 </p>
@@ -755,21 +835,28 @@ export default function DashboardVariantsPage() {
               </div>
             </div>
 
-            <div className="p-3 bg-neutral-50/70 border-t border-neutral-100 flex items-center justify-between">
-              <span className="text-[11px] font-mono text-neutral-400">/{item.code}</span>
+            <div className="p-3 bg-neutral-50/70 border-t border-neutral-100 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[11px] font-mono text-neutral-400 truncate">/{item.code}</span>
               {renderActions(item)}
             </div>
           </div>
         )}
         /* Mode List (No Black Line) */
-        renderListItem={(item, isSelected, onSelect) => (
+        renderListItem={(item, isSelected, onSelect, isChecked, onToggleCheck) => (
           <div
             onClick={onSelect}
-            className={`p-3.5 flex items-center justify-between gap-4 transition-all ${
-              isSelected ? 'bg-neutral-100/70' : 'hover:bg-neutral-50/60'
+            className={`p-3.5 flex flex-wrap items-center justify-between gap-3 transition-all ${
+              isChecked ? 'bg-[#FBF6E8]/70' : isSelected ? 'bg-neutral-100/70' : 'hover:bg-neutral-50/60'
             }`}
           >
-            <div className="flex items-center gap-3.5 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={onToggleCheck}
+                className="text-neutral-400 hover:text-[var(--royal-primary)] shrink-0 cursor-pointer"
+              >
+                {isChecked ? <CheckSquare className="w-4 h-4 text-[var(--royal-primary)]" /> : <Square className="w-4 h-4" />}
+              </button>
               <div className="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center shrink-0 border border-neutral-200">
                 {item.visualType === 'COLOR_SWATCH' ? (
                   <Palette className="w-5 h-5 text-purple-600" />
@@ -777,7 +864,7 @@ export default function DashboardVariantsPage() {
                   <Boxes className="w-5 h-5 text-neutral-700" />
                 )}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="font-bold text-neutral-900 text-xs truncate">{item.name}</div>
                 <div className="text-[11px] text-neutral-400 truncate max-w-md">
                   {item.values.map((v) => v.label).join(', ')}
@@ -785,7 +872,7 @@ export default function DashboardVariantsPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 shrink-0">
               <button
                 type="button"
                 onClick={() => setOptionsModalFamily(item)}

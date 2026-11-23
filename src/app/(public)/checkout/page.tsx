@@ -8,6 +8,7 @@ import { useCartStore } from '@/stores/cart.store';
 import { useI18nStore } from '@/stores/i18n.store';
 import { getCartHeaders, getSafeImageUrl } from '@/lib/cart-session';
 import { trackMarketingEvent } from '@/components/storefront/MarketingPixelsTracker';
+import { TUNISIAN_GOVERNORATES } from '@/components/storefront/QuickOrderModal';
 import {
   ShieldCheck,
   Truck,
@@ -34,33 +35,6 @@ interface CartItem {
   quantity: number;
   lineTotal: number;
 }
-
-const TUNISIAN_GOVERNORATES = [
-  'Tunis',
-  'Ariana',
-  'Ben Arous',
-  'Manouba',
-  'Nabeul',
-  'Zaghouan',
-  'Bizerte',
-  'Béja',
-  'Jendouba',
-  'Le Kef',
-  'Siliana',
-  'Sousse',
-  'Monastir',
-  'Mahdia',
-  'Sfax',
-  'Kairouan',
-  'Kasserine',
-  'Sidi Bouzid',
-  'Gabès',
-  'Médenine',
-  'Tataouine',
-  'Gafsa',
-  'Tozeur',
-  'Kébili',
-];
 
 const EMPTY_CART_ITEMS: CartItem[] = [];
 

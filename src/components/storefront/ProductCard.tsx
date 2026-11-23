@@ -16,6 +16,7 @@ import {
   Minus,
   ThumbsUp,
   ThumbsDown,
+  Zap,
 } from 'lucide-react';
 import { useWishlistStore } from '@/stores/wishlist.store';
 import { useCartStore } from '@/stores/cart.store';
@@ -28,6 +29,7 @@ import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
 import { Modal } from '@/components/ui';
 import { trackMarketingEvent } from './MarketingPixelsTracker';
+import { QuickOrderModal } from './QuickOrderModal';
 
 export interface StorefrontVariant {
   id: string;
@@ -81,6 +83,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
   const articleFlags = config.views.articles;
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
+  const [isQuickOrderOpen, setIsQuickOrderOpen] = useState(false);
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
     product.variants?.[0]?.id || ''
   );
@@ -219,6 +222,16 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
     setIsQuickViewOpen(false);
     setAddedBanner(true);
     setTimeout(() => setAddedBanner(false), 3800);
+  };
+
+  const handleIconAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (product.variants && product.variants.length > 1) {
+      setIsBuyModalOpen(true);
+      return;
+    }
+    await handleConfirmAddToCart(e);
   };
 
   const gallery =
@@ -494,10 +507,22 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                 <button
                   type="button"
                   onClick={handleConfirmAddToCart}
-                  className="flex-1 py-3 px-4 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer"
+                  title={t('actions.add_to_cart')}
+                  aria-label={t('actions.add_to_cart')}
+                  className="w-11 h-11 rounded-full bg-white hover:bg-[var(--royal-gold-light)] border border-[var(--royal-primary)] text-[var(--royal-primary)] transition flex items-center justify-center shrink-0 cursor-pointer shadow-2xs"
                 >
                   <ShoppingBag className="w-4 h-4" />
-                  <span>Ajouter au panier</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsQuickViewOpen(false);
+                    setIsQuickOrderOpen(true);
+                  }}
+                  className="flex-1 py-3 px-4 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Zap className="w-4 h-4" />
+                  <span>{t('actions.buy_now_short')}</span>
                 </button>
               </div>
 
@@ -544,6 +569,14 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
           </div>
         </div>
       </Modal>
+
+      <QuickOrderModal
+        isOpen={isQuickOrderOpen}
+        onClose={() => setIsQuickOrderOpen(false)}
+        product={product}
+        initialVariantId={selectedVariant?.id}
+        initialQuantity={quantity}
+      />
     </>
   );
 
@@ -674,15 +707,24 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
               </button>
               <button
                 type="button"
+                onClick={handleIconAddToCart}
+                title={t('actions.add_to_cart')}
+                aria-label={t('actions.add_to_cart')}
+                className="w-9 h-9 rounded-full border border-[var(--royal-primary)] bg-white hover:bg-[var(--royal-gold-light)] text-[var(--royal-primary)] flex items-center justify-center cursor-pointer shrink-0 transition"
+              >
+                <ShoppingBag className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  setIsBuyModalOpen(true);
+                  setIsQuickOrderOpen(true);
                 }}
                 className="px-4 py-2 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold flex items-center gap-1.5 cursor-pointer"
               >
-                <ShoppingBag className="w-3.5 h-3.5" />
-                <span>{t('actions.buy')}</span>
+                <Zap className="w-3.5 h-3.5" />
+                <span>{t('actions.buy_now_short')}</span>
               </button>
             </div>
           </div>
@@ -772,21 +814,33 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
             />
           </Link>
 
-          {/* Bottom Action Pill: Buy Modal + Promo Old/New Prices */}
-          <div className="p-2.5 bg-[var(--royal-silver-light)] border-t border-[var(--royal-border)] flex items-center justify-between gap-2 z-20">
+          {/* Bottom Action Pill: Icon Cart + Quick Order + Promo Old/New Prices */}
+          <div className="p-2.5 bg-[var(--royal-silver-light)] border-t border-[var(--royal-border)] flex flex-wrap items-center justify-between gap-1.5 z-20">
             {articleFlags.showBuyButton ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsBuyModalOpen(true);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-[var(--royal-primary)] hover:text-[var(--royal-primary-text)] border border-[var(--royal-border)] text-xs font-bold text-[var(--royal-ink)] transition shadow-2xs cursor-pointer"
-              >
-                <ShoppingBag className="w-3.5 h-3.5" />
-                <span>{t('actions.buy')}</span>
-              </button>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <button
+                  type="button"
+                  onClick={handleIconAddToCart}
+                  title={t('actions.add_to_cart')}
+                  aria-label={t('actions.add_to_cart')}
+                  className="w-8 h-8 rounded-xl bg-white hover:bg-[var(--royal-gold-light)] border border-[var(--royal-border)] hover:border-[var(--royal-primary)] text-[var(--royal-ink)] hover:text-[var(--royal-primary)] flex items-center justify-center transition shadow-2xs shrink-0 cursor-pointer"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsQuickOrderOpen(true);
+                  }}
+                  title={t('actions.quick_order')}
+                  className="px-2.5 py-1.5 rounded-xl bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-[11px] font-bold transition shadow-2xs flex items-center gap-1 whitespace-nowrap cursor-pointer"
+                >
+                  <Zap className="w-3 h-3 shrink-0" />
+                  <span>{t('actions.buy_now_short')}</span>
+                </button>
+              </div>
             ) : <span />}
 
             <div className="text-right leading-tight">

@@ -219,6 +219,24 @@ export default function NewslettersPage() {
     setToastMessage('Les abonnés sélectionnés ont été supprimés.');
   };
 
+  const handleBulkNewsletterStatus = async (targetActive: boolean) => {
+    if (selectedIds.length === 0) return;
+    const toToggle = subscribers.filter(
+      (s) => selectedIds.includes(s.id) && s.isActive !== targetActive
+    );
+    await Promise.allSettled(
+      toToggle.map((s) => fetchApi(`/storefront-cms/newsletters/${s.id}`, { method: 'PATCH' }))
+    );
+    setSubscribers((prev) =>
+      prev.map((s) => (selectedIds.includes(s.id) ? { ...s, isActive: targetActive } : s))
+    );
+    setToastType('success');
+    setToastMessage(
+      `${selectedIds.length} abonné(s) ${targetActive ? 'activé(s)' : 'désabonné(s)'}.`
+    );
+    setSelectedIds([]);
+  };
+
   const handleConfirmSingleDelete = async () => {
     if (!singleDeleteId) return;
     const id = singleDeleteId;
@@ -284,17 +302,37 @@ export default function NewslettersPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {selectedIds.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDeleteConfirmOpen(true)}
-                className="text-xs font-semibold text-rose-600 border-rose-200 hover:bg-rose-50"
-              >
-                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                <span>Supprimer ({selectedIds.length})</span>
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBulkNewsletterStatus(true)}
+                  className="text-xs font-semibold text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                  <span>Activer ({selectedIds.length})</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBulkNewsletterStatus(false)}
+                  className="text-xs font-semibold text-amber-700 border-amber-200 hover:bg-amber-50"
+                >
+                  <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                  <span>Désabonner ({selectedIds.length})</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  className="text-xs font-semibold text-rose-600 border-rose-200 hover:bg-rose-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                  <span>Supprimer ({selectedIds.length})</span>
+                </Button>
+              </>
             )}
 
             <Button
@@ -435,17 +473,18 @@ export default function NewslettersPage() {
                 )}
               >
                 {/* Left Area: Checkbox + Email + Source + Campaigns + Date */}
-                <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1 w-full">
                   <input
                     type="checkbox"
                     checked={isSelected}
+                    onChange={() => {}}
                     onClick={(e) => handleSelectOne(item.id, e)}
-                    className="rounded border-neutral-300 text-neutral-900 focus:ring-neutral-950 w-4 h-4 cursor-pointer shrink-0"
+                    className="mt-0.5 sm:mt-0 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-950 w-4 h-4 cursor-pointer shrink-0"
                   />
 
                   <div className="space-y-1 min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-extrabold text-sm text-neutral-900 tracking-tight">
+                      <span className="font-extrabold text-sm text-neutral-900 tracking-tight break-all">
                         {item.email}
                       </span>
 

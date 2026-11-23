@@ -83,6 +83,8 @@ function PurchaseOrdersContent() {
   const [editingOrder, setEditingOrder] = React.useState<PurchaseOrderItem | null>(null);
   const [selectedOrder, setSelectedOrder] = React.useState<PurchaseOrderItem | null>(null);
   const [deleteItem, setDeleteItem] = React.useState<PurchaseOrderItem | null>(null);
+  const [selectedPoIds, setSelectedPoIds] = React.useState<string[]>([]);
+  const [bulkDeletePoIds, setBulkDeletePoIds] = React.useState<string[]>([]);
   const [toast, setToast] = React.useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   // Add/Edit form state
@@ -140,6 +142,27 @@ function PurchaseOrdersContent() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleBulkPoStatus = async (status: PurchaseOrderItem['status']) => {
+    if (selectedPoIds.length === 0) return;
+    const set = new Set(selectedPoIds);
+    await persistOrders(
+      orders.map((o) => (set.has(o.id) ? { ...o, status } : o)),
+      `${selectedPoIds.length} bon(s) de commande passé(s) en ${status}.`
+    );
+    setSelectedPoIds([]);
+  };
+
+  const confirmBulkDeletePos = async () => {
+    if (bulkDeletePoIds.length === 0) return;
+    const set = new Set(bulkDeletePoIds);
+    await persistOrders(
+      orders.filter((o) => !set.has(o.id)),
+      `${bulkDeletePoIds.length} bon(s) de commande supprimé(s).`
+    );
+    setBulkDeletePoIds([]);
+    setSelectedPoIds([]);
   };
 
   const openCreateModal = () => {
@@ -363,7 +386,31 @@ function PurchaseOrdersContent() {
       <DataTable
         data={orders}
         columns={columns}
+        keyExtractor={(item) => item.id}
         isLoading={loading}
+        enableMultiSelect={true}
+        selectedKeys={selectedPoIds}
+        onSelectionChange={setSelectedPoIds}
+        onBulkDelete={(keys) => setBulkDeletePoIds(keys)}
+        renderBulkActions={() => (
+          <select
+            value=""
+            disabled={saving}
+            onChange={(e) => {
+              const st = e.target.value as PurchaseOrderItem['status'];
+              if (st) handleBulkPoStatus(st);
+            }}
+            aria-label="Changer statut BC"
+            className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+          >
+            <option value="">Statut BC...</option>
+            <option value="DRAFT">Brouillon</option>
+            <option value="CONFIRMED">Confirmé Fournisseur</option>
+            <option value="PARTIALLY_RECEIVED">Réception Partielle</option>
+            <option value="COMPLETED">Réceptionné Total</option>
+            <option value="CANCELLED">Annulé</option>
+          </select>
+        )}
         supportedModes={['table', 'list', 'matrix']}
         defaultMode="table"
         searchKeys={['orderNumber', 'supplierName', 'status']}
@@ -776,6 +823,17 @@ function PurchaseOrdersContent() {
           }}
           title="Supprimer le bon de commande"
           message={`Êtes-vous certain de vouloir supprimer le bon de commande "${deleteItem.orderNumber}" ?`}
+        />
+      )}
+
+      {bulkDeletePoIds.length > 0 && (
+        <DeleteConfirmModal
+          isOpen={true}
+          onClose={() => setBulkDeletePoIds([])}
+          onConfirm={confirmBulkDeletePos}
+          isDeleting={saving}
+          title="Supprimer les bons de commande sélectionnés"
+          description={`Confirmez-vous la suppression des ${bulkDeletePoIds.length} bon(s) de commande sélectionné(s) ?`}
         />
       )}
 

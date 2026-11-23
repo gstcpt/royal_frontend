@@ -15,10 +15,10 @@ import {
 } from 'lucide-react';
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Modal } from '@/components/ui/modal';
+import { Modal, DeleteConfirmModal } from '@/components/ui/modal';
 import { Toast } from '@/components/ui/toast';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
 import { cn, formatTndCurrency } from '@/lib/utils';
 import { DocumentPrintHeader, DocumentPrintFooter } from '@/components/dashboard/DocumentPrintLayout';
 
@@ -132,6 +132,8 @@ export default function CustomersPage() {
   const [saving, setSaving] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerItem | null>(null);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
+  const [bulkDeleteCustomerIds, setBulkDeleteCustomerIds] = useState<string[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const [formType, setFormType] = useState<'INDIVIDUAL' | 'COMPANY'>('INDIVIDUAL');
@@ -146,8 +148,7 @@ export default function CustomersPage() {
   const loadCustomers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchApi('/customers?limit=200');
-      const list = Array.isArray(res) ? res : res?.items || res?.data || [];
+      const { items: list } = await fetchAllPaginated<CustomerItem>('/customers', 200);
       setCustomers(Array.isArray(list) ? list : []);
     } catch {
       setCustomers([]);
@@ -155,6 +156,49 @@ export default function CustomersPage() {
       setLoading(false);
     }
   }, []);
+
+  const handleBulkCustomerPatch = async (
+    patch: { isVip?: boolean; customerType?: 'INDIVIDUAL' | 'COMPANY' },
+    label: string
+  ) => {
+    if (selectedCustomerIds.length === 0) return;
+    setSaving(true);
+    try {
+      await Promise.allSettled(
+        selectedCustomerIds.map((id) =>
+          fetchApi(`/customers/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(patch),
+          })
+        )
+      );
+      setFeedbackMessage(`${selectedCustomerIds.length} client(s) ${label}.`);
+      setSelectedCustomerIds([]);
+      await loadCustomers();
+    } catch (err: any) {
+      setFeedbackMessage(err?.message || 'Erreur mise à jour clients.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmBulkDeleteCustomers = async () => {
+    if (bulkDeleteCustomerIds.length === 0) return;
+    setSaving(true);
+    try {
+      await Promise.allSettled(
+        bulkDeleteCustomerIds.map((id) => fetchApi(`/customers/${id}`, { method: 'DELETE' }))
+      );
+      setFeedbackMessage(`${bulkDeleteCustomerIds.length} fiche(s) client(s) archivée(s).`);
+      setBulkDeleteCustomerIds([]);
+      setSelectedCustomerIds([]);
+      await loadCustomers();
+    } catch (err: any) {
+      setFeedbackMessage(err?.message || 'Erreur lors de la suppression groupée.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     loadCustomers();
@@ -452,6 +496,46 @@ export default function CustomersPage() {
         isLoading={loading}
         columns={columns}
         keyExtractor={(item) => item.id}
+        enableMultiSelect={true}
+        selectedKeys={selectedCustomerIds}
+        onSelectionChange={setSelectedCustomerIds}
+        onBulkDelete={(keys) => setBulkDeleteCustomerIds(keys)}
+        renderBulkActions={() => (
+          <>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => handleBulkCustomerPatch({ isVip: true }, 'marqué(s) VIP')}
+              className="px-2.5 py-1.5 rounded-lg bg-[#FBF6E8] text-[#9A7414] hover:bg-[#F3E9C9] border border-[#E6D6A6] text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              Passer VIP
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => handleBulkCustomerPatch({ isVip: false }, 'passé(s) Standard')}
+              className="px-2.5 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200 border border-neutral-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              Standard
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => handleBulkCustomerPatch({ customerType: 'COMPANY' }, 'classé(s) B2B Société')}
+              className="px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              Type B2B
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => handleBulkCustomerPatch({ customerType: 'INDIVIDUAL' }, 'classé(s) B2C Particulier')}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              Type B2C
+            </button>
+          </>
+        )}
         searchPlaceholder="Rechercher par nom, email, téléphone, matricule..."
         searchKeys={['fullName', 'companyName', 'email', 'phone', 'city', 'taxId', 'cin']}
         supportedModes={['table', 'list', 'matrix']}
@@ -678,6 +762,14 @@ export default function CustomersPage() {
           </form>
         </Modal>
       )}
+      <DeleteConfirmModal
+        isOpen={bulkDeleteCustomerIds.length > 0}
+        onClose={() => setBulkDeleteCustomerIds([])}
+        onConfirm={confirmBulkDeleteCustomers}
+        isDeleting={saving}
+        title="Archiver les clients sélectionnés"
+        description={`Confirmez-vous la suppression / l’archivage des ${bulkDeleteCustomerIds.length} fiche(s) client(s) ?`}
+      />
     </div>
   );
 }

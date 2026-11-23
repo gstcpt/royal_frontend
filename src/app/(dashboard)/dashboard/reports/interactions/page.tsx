@@ -64,6 +64,7 @@ export default function InteractionsReportPage() {
     totalViews: 0,
   });
   const [loading, setLoading] = React.useState(true);
+  const [selectedMetricIds, setSelectedMetricIds] = React.useState<string[]>([]);
   const [toast, setToast] = React.useState<{ msg: string; type: 'error' | 'success' } | null>(null);
 
   const loadInteractions = React.useCallback(async () => {
@@ -320,7 +321,45 @@ export default function InteractionsReportPage() {
       <DataTable
         data={metrics}
         columns={columns}
+        keyExtractor={(item) => item.id}
         isLoading={loading}
+        enableMultiSelect={true}
+        selectedKeys={selectedMetricIds}
+        onSelectionChange={setSelectedMetricIds}
+        renderBulkActions={() => (
+          <button
+            type="button"
+            onClick={() => {
+              const sel = metrics.filter((m) => selectedMetricIds.includes(m.id));
+              const csv = [
+                ['SKU', 'Article', 'Catégorie', 'Vues', 'Favoris', 'Likes', 'Avis', 'Note', 'Conversion'],
+                ...sel.map((m) => [
+                  m.sku,
+                  `"${m.articleName.replace(/"/g, '""')}"`,
+                  `"${m.categoryName.replace(/"/g, '""')}"`,
+                  m.viewsCount,
+                  m.favoritesCount,
+                  m.likesCount,
+                  m.reviewsCount,
+                  m.averageRating,
+                  m.conversionRate,
+                ]),
+              ]
+                .map((r) => r.join(','))
+                .join('\n');
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `interactions_selection_${Date.now()}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="px-2.5 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200 border border-neutral-200 text-xs font-semibold transition cursor-pointer"
+          >
+            Exporter CSV sélection ({selectedMetricIds.length})
+          </button>
+        )}
         supportedModes={['table', 'list', 'matrix']}
         defaultMode="table"
         searchKeys={['articleName', 'categoryName', 'sku']}

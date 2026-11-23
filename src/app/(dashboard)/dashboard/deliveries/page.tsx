@@ -20,10 +20,10 @@ import {
 } from 'lucide-react';
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Modal } from '@/components/ui/modal';
+import { Modal, DeleteConfirmModal } from '@/components/ui/modal';
 import { Toast } from '@/components/ui/toast';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
 import { cn, formatTndCurrency } from '@/lib/utils';
 import { useSystemDocumentConfig } from '@/hooks/useSystemDocumentConfig';
 import { DocumentPrintHeader, DocumentPrintFooter } from '@/components/dashboard/DocumentPrintLayout';
@@ -160,6 +160,8 @@ export default function DeliveriesPage() {
   const [saving, setSaving] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [selectedDelivery, setSelectedDelivery] = useState<DeliveryItem | null>(null);
+  const [selectedDeliveryIds, setSelectedDeliveryIds] = useState<string[]>([]);
+  const [bulkDeleteDeliveryIds, setBulkDeleteDeliveryIds] = useState<string[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -183,11 +185,11 @@ export default function DeliveriesPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [cfgRes, ordRes, whRes, prodRes, cwRes, clRes] = await Promise.all([
+      const [cfgRes, ordList, whRes, rawProds, cwRes, clRes] = await Promise.all([
         fetchApi('/storefront-cms/sys-config/deliverySlips').catch(() => null),
-        fetchApi('/orders?limit=50').catch(() => null),
+        fetchAllPaginated<any>('/orders', 200).then((r) => r.items).catch(() => []),
         fetchApi('/warehouses').catch(() => []),
-        fetchApi('/products?limit=500&status=ACTIVE').catch(() => null),
+        fetchAllPaginated<any>('/products?status=ACTIVE', 200).then((r) => r.items).catch(() => []),
         fetchApi('/storefront-cms/sys-config/carrierWebhooks').catch(() => null),
         fetchApi('/storefront-cms/sys-config/carrierLogs').catch(() => null),
       ]);
@@ -202,14 +204,12 @@ export default function DeliveriesPage() {
         setSimTracking((prev) => prev || cfgList[0].trackingNumber || '');
       }
 
-      const ordList = ordRes?.data?.items || ordRes?.items || ordRes?.data || (Array.isArray(ordRes) ? ordRes : []);
       setOrders(Array.isArray(ordList) ? ordList : []);
 
       const whList = Array.isArray(whRes) ? whRes : whRes?.data || [];
       setWarehouses(whList);
       if (whList.length > 0) setFormWarehouseId((prev) => prev || whList[0].id);
 
-      const rawProds = prodRes?.data?.items || prodRes?.items || prodRes?.data || (Array.isArray(prodRes) ? prodRes : []);
       const flat: Array<{ variantId: string; productName: string; sku: string }> = [];
       for (const p of Array.isArray(rawProds) ? rawProds : []) {
         for (const v of p.variants || []) {
@@ -286,6 +286,56 @@ export default function DeliveriesPage() {
       body: JSON.stringify({ value: nextList }),
     });
     setDeliveries(nextList);
+  };
+
+  const handleBulkDeliveryPatch = async (
+    patch: Partial<DeliveryItem>,
+    label: string
+  ) => {
+    if (selectedDeliveryIds.length === 0) return;
+    setSaving(true);
+    try {
+      const idSet = new Set(selectedDeliveryIds);
+      const nextList = deliveries.map((d) =>
+        idSet.has(d.id)
+          ? {
+              ...d,
+              ...patch,
+              deliveredAt:
+                patch.status === 'DELIVERED' ? d.deliveredAt || new Date().toISOString() : d.deliveredAt,
+            }
+          : d
+      );
+      await persistDeliveries(nextList);
+      setFeedbackMessage({
+        text: `${selectedDeliveryIds.length} bon(s) de livraison ${label}.`,
+        type: 'success',
+      });
+      setSelectedDeliveryIds([]);
+    } catch (err: any) {
+      setFeedbackMessage({ text: err?.message || 'Erreur mise à jour groupée.', type: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmBulkDeleteDeliveries = async () => {
+    if (bulkDeleteDeliveryIds.length === 0) return;
+    setSaving(true);
+    try {
+      const idSet = new Set(bulkDeleteDeliveryIds);
+      await persistDeliveries(deliveries.filter((d) => !idSet.has(d.id)));
+      setFeedbackMessage({
+        text: `${bulkDeleteDeliveryIds.length} bon(s) de livraison supprimé(s).`,
+        type: 'success',
+      });
+      setBulkDeleteDeliveryIds([]);
+      setSelectedDeliveryIds([]);
+    } catch (err: any) {
+      setFeedbackMessage({ text: err?.message || 'Erreur lors de la suppression.', type: 'error' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleImportOrder = (orderId: string) => {
@@ -700,6 +750,60 @@ export default function DeliveriesPage() {
         isLoading={loading}
         columns={columns}
         keyExtractor={(item) => item.id}
+        enableMultiSelect={true}
+        selectedKeys={selectedDeliveryIds}
+        onSelectionChange={setSelectedDeliveryIds}
+        onBulkDelete={(keys) => setBulkDeleteDeliveryIds(keys)}
+        renderBulkActions={() => (
+          <>
+            <select
+              value=""
+              disabled={saving}
+              onChange={(e) => {
+                const st = e.target.value as DeliveryItem['status'];
+                if (st) handleBulkDeliveryPatch({ status: st }, `passé(s) en « ${st} »`);
+              }}
+              aria-label="Changer statut BL"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">Statut BL...</option>
+              <option value="PREPARING">En Préparation</option>
+              <option value="IN_TRANSIT">En Transit</option>
+              <option value="DELIVERED">Livré</option>
+              <option value="FAILED_RETURN">Échec / Retour</option>
+            </select>
+            <select
+              value=""
+              disabled={saving}
+              onChange={(e) => {
+                const ct = e.target.value as DeliveryItem['carrierType'];
+                if (ct) {
+                  handleBulkDeliveryPatch(
+                    {
+                      carrierType: ct,
+                      carrierName: ct === 'INTERNAL_FLEET' ? 'Flotte Interne Royal' : 'Transporteur Express Partenaire',
+                    },
+                    `assigné(s) (${ct})`
+                  );
+                }
+              }}
+              aria-label="Changer type transporteur"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">Transporteur...</option>
+              <option value="INTERNAL_FLEET">Flotte Interne</option>
+              <option value="PARTNER_EXPRESS">Express Partenaire</option>
+            </select>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => handleBulkDeliveryPatch({ isCodCollected: true }, 'marqué(s) COD encaissé')}
+              className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              COD Encaissé
+            </button>
+          </>
+        )}
         searchPlaceholder="Rechercher par N° LIV-2026-XXX, commande, client, ville..."
         searchKeys={['trackingNumber', 'orderReference', 'customerName', 'city', 'carrierName', 'driverName']}
         supportedModes={['table', 'list', 'matrix']}
@@ -1181,6 +1285,14 @@ export default function DeliveriesPage() {
           )}
         </div>
       </Modal>
+      <DeleteConfirmModal
+        isOpen={bulkDeleteDeliveryIds.length > 0}
+        onClose={() => setBulkDeleteDeliveryIds([])}
+        onConfirm={confirmBulkDeleteDeliveries}
+        isDeleting={saving}
+        title="Supprimer les bons de livraison sélectionnés"
+        description={`Confirmez-vous la suppression des ${bulkDeleteDeliveryIds.length} bon(s) de livraison sélectionné(s) ?`}
+      />
     </div>
   );
 }

@@ -254,6 +254,7 @@ export default function ReferencePrefixesPage() {
       <DataTable
         data={prefixes}
         columns={columns}
+        keyExtractor={(item) => item.id}
         isLoading={loading}
         supportedModes={['table', 'list', 'matrix']}
         defaultMode="table"
@@ -262,6 +263,38 @@ export default function ReferencePrefixesPage() {
         selectedKeys={selectedKeys}
         onSelectionChange={setSelectedKeys}
         onBulkDelete={(keys) => setBulkDeleteKeys(keys)}
+        renderBulkActions={() => (
+          <>
+            <button
+              type="button"
+              onClick={async () => {
+                const s = new Set(selectedKeys);
+                await persist(
+                  prefixes.map((p) => (s.has(p.id) ? { ...p, isActive: true } : p)),
+                  `${selectedKeys.length} préfixe(s) activé(s).`
+                );
+                setSelectedKeys([]);
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Activer
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                const s = new Set(selectedKeys);
+                await persist(
+                  prefixes.map((p) => (s.has(p.id) ? { ...p, isActive: false } : p)),
+                  `${selectedKeys.length} préfixe(s) désactivé(s).`
+                );
+                setSelectedKeys([]);
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Désactiver
+            </button>
+          </>
+        )}
         printTitle="Règles de Numérotation ERP — Royal"
         exportFileName="prefixes-codification"
       />

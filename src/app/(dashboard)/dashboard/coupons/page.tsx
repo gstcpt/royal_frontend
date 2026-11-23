@@ -24,7 +24,8 @@ import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Select } from '@/components/ui/select';
 import { Toggle } from '@/components/ui/toggle';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
-import { fetchApi } from '@/lib/api';
+import { DeleteConfirmModal } from '@/components/ui/modal';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
 import { cn, formatTndCurrency } from '@/lib/utils';
 
 export interface CouponItem {
@@ -65,6 +66,8 @@ export default function DashboardCouponsPage() {
   const [realCategories, setRealCategories] = useState<RealSimpleOption[]>([]);
   const [realBrands, setRealBrands] = useState<RealSimpleOption[]>([]);
   const [selectedTargetIds, setSelectedTargetIds] = useState<string[]>([]);
+  const [selectedCouponIds, setSelectedCouponIds] = useState<string[]>([]);
+  const [bulkDeleteCouponIds, setBulkDeleteCouponIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingCouponId, setEditingCouponId] = useState<string | null>(null);
@@ -110,14 +113,15 @@ export default function DashboardCouponsPage() {
   const fetchCoupons = async () => {
     try {
       setIsLoading(true);
-      const res = await fetchApi('/coupons?limit=1000');
-      const list = Array.isArray(res) ? res : res?.data || [];
-      setCoupons(list.map((c: any) => ({
-        ...c,
-        value: Number(c.value || 0),
-        minOrderAmount: c.minOrderAmount !== null && c.minOrderAmount !== undefined ? Number(c.minOrderAmount) : null,
-        maxDiscount: c.maxDiscount !== null && c.maxDiscount !== undefined ? Number(c.maxDiscount) : null,
-      })));
+      const { items: list } = await fetchAllPaginated<any>('/coupons', 200);
+      setCoupons(
+        (Array.isArray(list) ? list : []).map((c: any) => ({
+          ...c,
+          value: Number(c.value || 0),
+          minOrderAmount: c.minOrderAmount !== null && c.minOrderAmount !== undefined ? Number(c.minOrderAmount) : null,
+          maxDiscount: c.maxDiscount !== null && c.maxDiscount !== undefined ? Number(c.maxDiscount) : null,
+        }))
+      );
     } catch {
       // keep fallback if unauthorized/offline
     } finally {
@@ -134,9 +138,8 @@ export default function DashboardCouponsPage() {
         if (cfg?.standardShippingFee !== undefined) setStandardShippingFee(String(cfg.standardShippingFee));
       })
       .catch(() => null);
-    fetchApi('/products?limit=1000')
-      .then((res) => {
-        const list = res?.data?.data || res?.data || res || [];
+    fetchAllPaginated<any>('/products', 200)
+      .then(({ items: list }) => {
         if (Array.isArray(list)) {
           setRealArticles(
             list.map((p: any) => ({
@@ -315,6 +318,43 @@ export default function DashboardCouponsPage() {
       setFeedbackMessage(`Code promo "${code}" supprimé.`);
     } catch (err: any) {
       setFeedbackMessage(err?.message || 'Erreur lors de la suppression.');
+    }
+  };
+
+  const handleBulkCouponPatch = async (
+    patch: { isActive?: boolean; type?: CouponItem['type'] },
+    label: string
+  ) => {
+    if (selectedCouponIds.length === 0) return;
+    try {
+      await Promise.allSettled(
+        selectedCouponIds.map((id) =>
+          fetchApi(`/coupons/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(patch),
+          })
+        )
+      );
+      setFeedbackMessage(`${selectedCouponIds.length} code(s) promo ${label}.`);
+      setSelectedCouponIds([]);
+      await fetchCoupons();
+    } catch (err: any) {
+      setFeedbackMessage(err?.message || 'Erreur lors de la mise à jour groupée.');
+    }
+  };
+
+  const confirmBulkDeleteCoupons = async () => {
+    if (bulkDeleteCouponIds.length === 0) return;
+    try {
+      await Promise.allSettled(
+        bulkDeleteCouponIds.map((id) => fetchApi(`/coupons/${id}`, { method: 'DELETE' }))
+      );
+      setFeedbackMessage(`${bulkDeleteCouponIds.length} code(s) promo supprimé(s).`);
+      setBulkDeleteCouponIds([]);
+      setSelectedCouponIds([]);
+      await fetchCoupons();
+    } catch (err: any) {
+      setFeedbackMessage(err?.message || 'Erreur suppression codes promo.');
     }
   };
 
@@ -622,6 +662,28 @@ export default function DashboardCouponsPage() {
         data={coupons}
         columns={columns}
         keyExtractor={(item) => item.id}
+        enableMultiSelect={true}
+        selectedKeys={selectedCouponIds}
+        onSelectionChange={setSelectedCouponIds}
+        onBulkDelete={(keys) => setBulkDeleteCouponIds(keys)}
+        renderBulkActions={() => (
+          <>
+            <button
+              type="button"
+              onClick={() => handleBulkCouponPatch({ isActive: true }, 'activé(s)')}
+              className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Activer
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkCouponPatch({ isActive: false }, 'désactivé(s)')}
+              className="px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Désactiver
+            </button>
+          </>
+        )}
         searchPlaceholder="Rechercher par code promo, description..."
         searchKeys={['code', 'description', 'type']}
         supportedModes={['table', 'list', 'matrix']}
@@ -1031,6 +1093,13 @@ export default function DashboardCouponsPage() {
           </div>
         </Modal>
       )}
+      <DeleteConfirmModal
+        isOpen={bulkDeleteCouponIds.length > 0}
+        onClose={() => setBulkDeleteCouponIds([])}
+        onConfirm={confirmBulkDeleteCoupons}
+        title="Supprimer les codes promo sélectionnés"
+        description={`Confirmez-vous la suppression des ${bulkDeleteCouponIds.length} code(s) promotionnel(s) sélectionné(s) ?`}
+      />
     </div>
   );
 }

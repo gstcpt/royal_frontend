@@ -18,11 +18,11 @@ import {
 } from 'lucide-react';
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Modal } from '@/components/ui/modal';
+import { Modal, DeleteConfirmModal } from '@/components/ui/modal';
 import { Toast } from '@/components/ui/toast';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Select } from '@/components/ui/select';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
 import { cn, formatTndCurrency } from '@/lib/utils';
 
 export interface OrderItemProduct {
@@ -132,6 +132,8 @@ export default function DashboardOrdersPage() {
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [feedbackType, setFeedbackType] = useState<'success' | 'error'>('success');
   const [selectedOrder, setSelectedOrder] = useState<OrderMasterItem | null>(null);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [bulkDeleteOrderIds, setBulkDeleteOrderIds] = useState<string[]>([]);
   const [nextStatus, setNextStatus] = useState('');
   const [statusComment, setStatusComment] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -154,15 +156,56 @@ export default function DashboardOrdersPage() {
   const loadOrders = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetchApi('/orders?limit=100');
-      const rawList = Array.isArray(res) ? res : res?.data || [];
-      setOrders(rawList.map(mapOrderFromApi));
+      const { items: rawList } = await fetchAllPaginated<any>('/orders', 200);
+      setOrders((Array.isArray(rawList) ? rawList : []).map(mapOrderFromApi));
     } catch (err: any) {
       showFeedback('error', err?.message || 'Impossible de charger les commandes.');
     } finally {
       setIsLoading(false);
     }
   }, []);
+
+  const handleBulkOrderStatus = async (status: string) => {
+    if (selectedOrderIds.length === 0 || !status) return;
+    setIsUpdatingStatus(true);
+    try {
+      const res = await fetchApi('/orders/bulk-action', {
+        method: 'POST',
+        body: JSON.stringify({ ids: selectedOrderIds, action: 'STATUS', status }),
+      });
+      const updatedCount = res?.updatedCount ?? res?.data?.updatedCount ?? selectedOrderIds.length;
+      const failedCount = res?.failedCount ?? res?.data?.failedCount ?? 0;
+      showFeedback(
+        failedCount > 0 && updatedCount === 0 ? 'error' : 'success',
+        `${updatedCount} commande(s) passée(s) en ${status}${failedCount > 0 ? ` (${failedCount} transition non autorisée)` : ''}.`
+      );
+      setSelectedOrderIds([]);
+      await loadOrders();
+    } catch (err: any) {
+      showFeedback('error', err?.message || 'Erreur lors de la mise à jour groupée.');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const confirmBulkDeleteOrders = async () => {
+    if (bulkDeleteOrderIds.length === 0) return;
+    setIsUpdatingStatus(true);
+    try {
+      await fetchApi('/orders/bulk-action', {
+        method: 'POST',
+        body: JSON.stringify({ ids: bulkDeleteOrderIds, action: 'DELETE' }),
+      });
+      showFeedback('success', `${bulkDeleteOrderIds.length} commande(s) archivée(s) avec succès.`);
+      setBulkDeleteOrderIds([]);
+      setSelectedOrderIds([]);
+      await loadOrders();
+    } catch (err: any) {
+      showFeedback('error', err?.message || 'Erreur lors de la suppression multiple.');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   useEffect(() => {
     loadOrders();
@@ -548,6 +591,29 @@ export default function DashboardOrdersPage() {
         data={filteredOrders}
         columns={columns}
         keyExtractor={(item) => item.id}
+        enableMultiSelect={true}
+        selectedKeys={selectedOrderIds}
+        onSelectionChange={setSelectedOrderIds}
+        onBulkDelete={(keys) => setBulkDeleteOrderIds(keys)}
+        renderBulkActions={() => (
+          <select
+            value=""
+            disabled={isUpdatingStatus}
+            onChange={(e) => {
+              const st = e.target.value;
+              if (st) handleBulkOrderStatus(st);
+            }}
+            aria-label="Changer statut commande"
+            className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+          >
+            <option value="">Changer statut...</option>
+            <option value="CONFIRMED">CONFIRMED (Confirmée)</option>
+            <option value="PREPARING">PREPARING (En préparation)</option>
+            <option value="SHIPPED">SHIPPED (Expédiée)</option>
+            <option value="DELIVERED">DELIVERED (Livrée)</option>
+            <option value="CANCELLED">CANCELLED (Annulée)</option>
+          </select>
+        )}
         searchPlaceholder="Rechercher par référence CMD-..., client, ville, téléphone..."
         searchKeys={['reference', 'customerName', 'customerPhone', 'customerEmail', 'city', 'channel', 'paymentMethod']}
         supportedModes={['table', 'list', 'matrix']}
@@ -846,6 +912,14 @@ export default function DashboardOrdersPage() {
           </div>
         </form>
       </Modal>
+      <DeleteConfirmModal
+        isOpen={bulkDeleteOrderIds.length > 0}
+        onClose={() => setBulkDeleteOrderIds([])}
+        onConfirm={confirmBulkDeleteOrders}
+        isDeleting={isUpdatingStatus}
+        title="Archiver les commandes sélectionnées"
+        description={`Confirmez-vous la suppression / l’archivage des ${bulkDeleteOrderIds.length} commande(s) sélectionnée(s) ?`}
+      />
     </div>
   );
 }

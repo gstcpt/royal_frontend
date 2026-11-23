@@ -211,6 +211,30 @@ export default function TreasuryPage() {
 
   // Delete modal state
   const [accountToDelete, setAccountToDelete] = useState<TreasuryAccountItem | null>(null);
+  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
+  const [bulkDeleteAccountIds, setBulkDeleteAccountIds] = useState<string[]>([]);
+
+  const handleBulkTreasuryPatch = async (
+    patch: Partial<TreasuryAccountItem>,
+    label: string
+  ) => {
+    if (selectedAccountIds.length === 0) return;
+    const idSet = new Set(selectedAccountIds);
+    const next = accounts.map((a) => (idSet.has(a.id) ? { ...a, ...patch } : a));
+    await persistAccounts(next, `${selectedAccountIds.length} caisse(s)/compte(s) ${label}.`);
+    setSelectedAccountIds([]);
+  };
+
+  const confirmBulkDeleteAccounts = async () => {
+    if (bulkDeleteAccountIds.length === 0) return;
+    const idSet = new Set(bulkDeleteAccountIds);
+    await persistAccounts(
+      accounts.filter((a) => !idSet.has(a.id)),
+      `${bulkDeleteAccountIds.length} caisse(s)/compte(s) supprimé(s).`
+    );
+    setBulkDeleteAccountIds([]);
+    setSelectedAccountIds([]);
+  };
 
   // Open Create Modal
   const handleOpenCreateModal = () => {
@@ -704,6 +728,56 @@ export default function TreasuryPage() {
         data={filteredAccounts}
         columns={columns}
         keyExtractor={(item) => item.id}
+        enableMultiSelect={true}
+        selectedKeys={selectedAccountIds}
+        onSelectionChange={setSelectedAccountIds}
+        onBulkDelete={(keys) => setBulkDeleteAccountIds(keys)}
+        renderBulkActions={() => (
+          <>
+            <select
+              value=""
+              onChange={(e) => {
+                const st = e.target.value as TreasuryAccountItem['status'];
+                if (st) handleBulkTreasuryPatch({ status: st }, `passé(s) en ${st}`);
+              }}
+              aria-label="Changer statut caisse"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">Statut caisse...</option>
+              <option value="OPEN">Ouverte</option>
+              <option value="RECONCILED">Rapprochée</option>
+              <option value="LOCKED">Verrouillée</option>
+            </select>
+            <select
+              value=""
+              onChange={(e) => {
+                const tp = e.target.value as TreasuryAccountItem['accountType'];
+                if (tp) handleBulkTreasuryPatch({ accountType: tp }, `classé(s) (${tp})`);
+              }}
+              aria-label="Changer type compte"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">Type compte...</option>
+              <option value="CASH_REGISTER">Caisse Showroom</option>
+              <option value="BANK">Compte Bancaire</option>
+              <option value="SAFE_DEPOSIT">Coffre-Fort</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => handleBulkTreasuryPatch({ isActive: true }, 'activé(s)')}
+              className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Activer
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkTreasuryPatch({ isActive: false }, 'désactivé(s)')}
+              className="px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Désactiver
+            </button>
+          </>
+        )}
         searchPlaceholder="Rechercher une caisse, un showroom, une banque, un caissier..."
         searchKeys={['name', 'code', 'institution', 'accountNumber', 'managerName', 'showroomOrDepot']}
         supportedModes={['table', 'list', 'matrix']}
@@ -933,6 +1007,13 @@ export default function TreasuryPage() {
             ? `Êtes-vous certain de vouloir supprimer la caisse "${accountToDelete.name} (${accountToDelete.code})" ? Cette action supprimera définitivement la configuration de cette caisse.`
             : undefined
         }
+      />
+      <DeleteConfirmModal
+        isOpen={bulkDeleteAccountIds.length > 0}
+        onClose={() => setBulkDeleteAccountIds([])}
+        onConfirm={confirmBulkDeleteAccounts}
+        title="Supprimer les comptes sélectionnés"
+        description={`Confirmez-vous la suppression des ${bulkDeleteAccountIds.length} caisse(s) ou compte(s) de trésorerie ?`}
       />
     </div>
   );

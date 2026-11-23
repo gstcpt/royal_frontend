@@ -16,10 +16,10 @@ import {
 } from 'lucide-react';
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Modal } from '@/components/ui/modal';
+import { Modal, DeleteConfirmModal } from '@/components/ui/modal';
 import { Toast } from '@/components/ui/toast';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
 import { formatTndCurrency } from '@/lib/utils';
 import { useSystemDocumentConfig } from '@/hooks/useSystemDocumentConfig';
 import { DocumentPrintHeader, DocumentPrintFooter } from '@/components/dashboard/DocumentPrintLayout';
@@ -177,6 +177,8 @@ export default function InvoicesPage() {
   const [saving, setSaving] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceItem | null>(null);
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
+  const [bulkDeleteInvoiceIds, setBulkDeleteInvoiceIds] = useState<string[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -192,24 +194,22 @@ export default function InvoicesPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [cfgRes, ordRes, whRes, prodRes] = await Promise.all([
+      const [cfgRes, ordList, whRes, rawProds] = await Promise.all([
         fetchApi('/storefront-cms/sys-config/invoicesList').catch(() => null),
-        fetchApi('/orders?limit=50').catch(() => null),
+        fetchAllPaginated<any>('/orders', 200).then((r) => r.items).catch(() => []),
         fetchApi('/warehouses').catch(() => []),
-        fetchApi('/products?limit=500&status=ACTIVE').catch(() => null),
+        fetchAllPaginated<any>('/products?status=ACTIVE', 200).then((r) => r.items).catch(() => []),
       ]);
 
       const cfgList = cfgRes?.value || cfgRes?.data?.value || [];
       setInvoices(Array.isArray(cfgList) ? cfgList : []);
 
-      const ordList = ordRes?.data?.items || ordRes?.items || ordRes?.data || (Array.isArray(ordRes) ? ordRes : []);
       setOrders(Array.isArray(ordList) ? ordList : []);
 
       const whList = Array.isArray(whRes) ? whRes : whRes?.data || [];
       setWarehouses(whList);
       if (whList.length > 0) setFormWarehouseId((prev) => prev || whList[0].id);
 
-      const rawProds = prodRes?.data?.items || prodRes?.items || prodRes?.data || (Array.isArray(prodRes) ? prodRes : []);
       const flat: Array<{ variantId: string; productName: string; sku: string; priceTtc: number }> = [];
       for (const p of Array.isArray(rawProds) ? rawProds : []) {
         for (const v of p.variants || []) {
@@ -244,6 +244,52 @@ export default function InvoicesPage() {
       body: JSON.stringify({ value: nextList }),
     });
     setInvoices(nextList);
+  };
+
+  const handleBulkInvoicePatch = async (patch: Partial<InvoiceItem>, label: string) => {
+    if (selectedInvoiceIds.length === 0) return;
+    setSaving(true);
+    try {
+      const idSet = new Set(selectedInvoiceIds);
+      const nextList = invoices.map((inv) =>
+        idSet.has(inv.id)
+          ? {
+              ...inv,
+              ...patch,
+              paidAt: patch.status === 'PAID' ? inv.paidAt || new Date().toISOString() : inv.paidAt,
+            }
+          : inv
+      );
+      await persistInvoices(nextList);
+      setFeedbackMessage({
+        text: `${selectedInvoiceIds.length} facture(s) ${label}.`,
+        type: 'success',
+      });
+      setSelectedInvoiceIds([]);
+    } catch (err: any) {
+      setFeedbackMessage({ text: err?.message || 'Erreur mise à jour groupée.', type: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmBulkDeleteInvoices = async () => {
+    if (bulkDeleteInvoiceIds.length === 0) return;
+    setSaving(true);
+    try {
+      const idSet = new Set(bulkDeleteInvoiceIds);
+      await persistInvoices(invoices.filter((inv) => !idSet.has(inv.id)));
+      setFeedbackMessage({
+        text: `${bulkDeleteInvoiceIds.length} facture(s) supprimée(s).`,
+        type: 'success',
+      });
+      setBulkDeleteInvoiceIds([]);
+      setSelectedInvoiceIds([]);
+    } catch (err: any) {
+      setFeedbackMessage({ text: err?.message || 'Erreur suppression factures.', type: 'error' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleImportOrder = (orderId: string) => {
@@ -619,6 +665,45 @@ export default function InvoicesPage() {
         isLoading={loading}
         columns={columns}
         keyExtractor={(item) => item.id}
+        enableMultiSelect={true}
+        selectedKeys={selectedInvoiceIds}
+        onSelectionChange={setSelectedInvoiceIds}
+        onBulkDelete={(keys) => setBulkDeleteInvoiceIds(keys)}
+        renderBulkActions={() => (
+          <>
+            <select
+              value=""
+              disabled={saving}
+              onChange={(e) => {
+                const st = e.target.value as InvoiceItem['status'];
+                if (st) handleBulkInvoicePatch({ status: st }, `marquée(s) ${st}`);
+              }}
+              aria-label="Changer état facture"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">État facture...</option>
+              <option value="PAID">Payée / Soldée</option>
+              <option value="PARTIAL">Acompte Versé</option>
+              <option value="UNPAID">En Attente</option>
+              <option value="OVERDUE">En Retard</option>
+            </select>
+            <select
+              value=""
+              disabled={saving}
+              onChange={(e) => {
+                const tp = e.target.value as InvoiceItem['type'];
+                if (tp) handleBulkInvoicePatch({ type: tp }, `passée(s) en ${tp}`);
+              }}
+              aria-label="Changer type document"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">Type pièce...</option>
+              <option value="STANDARD">Facture Standard</option>
+              <option value="PROFORMA">Devis / Proforma</option>
+              <option value="CREDIT_NOTE">Avoir</option>
+            </select>
+          </>
+        )}
         searchPlaceholder="Rechercher par N° FACT-2026-XXX, commande, client, matricule..."
         searchKeys={['invoiceNumber', 'orderReference', 'customerName', 'customerTaxId', 'customerCin', 'customerCity']}
         supportedModes={['table', 'list', 'matrix']}
@@ -988,6 +1073,14 @@ export default function InvoicesPage() {
           </form>
         </Modal>
       )}
+      <DeleteConfirmModal
+        isOpen={bulkDeleteInvoiceIds.length > 0}
+        onClose={() => setBulkDeleteInvoiceIds([])}
+        onConfirm={confirmBulkDeleteInvoices}
+        isDeleting={saving}
+        title="Supprimer les factures sélectionnées"
+        description={`Confirmez-vous la suppression des ${bulkDeleteInvoiceIds.length} facture(s) sélectionnée(s) ?`}
+      />
     </div>
   );
 }

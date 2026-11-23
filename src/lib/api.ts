@@ -122,3 +122,49 @@ export async function fetchApi<T = any>(
   const json = await response.json();
   return json.data !== undefined ? json.data : json;
 }
+
+/**
+ * Fetches all pages sequentially/in-parallel from any paginated NestJS list endpoint
+ * (`{ data, meta: { totalPages, total } }` or `{ items, total }`) so UI tables, exports,
+ * and KPI totals never silently truncate at 50/100/200 rows.
+ */
+export async function fetchAllPaginated<T = any>(
+  endpoint: string,
+  pageSize = 200,
+): Promise<{ items: T[]; total: number }> {
+  const sep = endpoint.includes('?') ? '&' : '?';
+  const firstRes = await fetchApi<any>(`${endpoint}${sep}page=1&limit=${pageSize}`);
+  if (Array.isArray(firstRes)) {
+    return { items: firstRes, total: firstRes.length };
+  }
+  const firstItems: T[] = Array.isArray(firstRes?.data)
+    ? firstRes.data
+    : Array.isArray(firstRes?.items)
+    ? firstRes.items
+    : [];
+  const meta = firstRes?.meta;
+  const totalPages = Number(meta?.totalPages || 1);
+  const total = Number(meta?.total ?? firstItems.length);
+  if (totalPages <= 1) {
+    return { items: firstItems, total };
+  }
+  const restPromises: Array<Promise<any>> = [];
+  for (let p = 2; p <= totalPages; p++) {
+    restPromises.push(
+      fetchApi<any>(`${endpoint}${sep}page=${p}&limit=${pageSize}`).catch(() => null),
+    );
+  }
+  const restPages = await Promise.all(restPromises);
+  const combined = [...firstItems];
+  for (const res of restPages) {
+    const chunk: T[] = Array.isArray(res)
+      ? res
+      : Array.isArray(res?.data)
+      ? res.data
+      : Array.isArray(res?.items)
+      ? res.items
+      : [];
+    combined.push(...chunk);
+  }
+  return { items: combined, total: Math.max(total, combined.length) };
+}

@@ -82,6 +82,8 @@ export default function ReturnsPage() {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [selectedReturn, setSelectedReturn] = React.useState<ReturnOrderItem | null>(null);
   const [deleteItem, setDeleteItem] = React.useState<ReturnOrderItem | null>(null);
+  const [selectedReturnIds, setSelectedReturnIds] = React.useState<string[]>([]);
+  const [bulkDeleteIds, setBulkDeleteIds] = React.useState<string[]>([]);
 
   // New Return form
   const [newDeliveryRef, setNewDeliveryRef] = React.useState('LIV-2026-001');
@@ -150,6 +152,28 @@ export default function ReturnsPage() {
     const updated = { ...ret, status: 'RESTOCKED' as const, stockRestored: true };
     await persistReturns(returns.map((r) => (r.id === ret.id ? updated : r)));
     setSelectedReturn(updated);
+  };
+
+  const handleBulkReturnStatus = async (status: ReturnOrderItem['status']) => {
+    if (selectedReturnIds.length === 0) return;
+    const set = new Set(selectedReturnIds);
+    await persistReturns(returns.map((r) => (set.has(r.id) ? { ...r, status } : r)));
+    setSelectedReturnIds([]);
+  };
+
+  const handleBulkReturnAction = async (action: ReturnOrderItem['action']) => {
+    if (selectedReturnIds.length === 0) return;
+    const set = new Set(selectedReturnIds);
+    await persistReturns(returns.map((r) => (set.has(r.id) ? { ...r, action } : r)));
+    setSelectedReturnIds([]);
+  };
+
+  const handleConfirmBulkDeleteReturns = async () => {
+    if (bulkDeleteIds.length === 0) return;
+    const set = new Set(bulkDeleteIds);
+    await persistReturns(returns.filter((r) => !set.has(r.id)));
+    setBulkDeleteIds([]);
+    setSelectedReturnIds([]);
   };
 
   const columns: ColumnDef<ReturnOrderItem>[] = [
@@ -320,6 +344,45 @@ export default function ReturnsPage() {
         data={returns}
         isLoading={loading}
         columns={columns}
+        keyExtractor={(item) => item.id}
+        enableMultiSelect={true}
+        selectedKeys={selectedReturnIds}
+        onSelectionChange={setSelectedReturnIds}
+        onBulkDelete={(keys) => setBulkDeleteIds(keys)}
+        renderBulkActions={() => (
+          <>
+            <select
+              value=""
+              onChange={(e) => {
+                const st = e.target.value as ReturnOrderItem['status'];
+                if (st) handleBulkReturnStatus(st);
+              }}
+              aria-label="Changer statut SAV"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">Statut SAV...</option>
+              <option value="PENDING_APPROVAL">En attente d&apos;accord</option>
+              <option value="INSPECTED">Expertise Conforme</option>
+              <option value="RESTOCKED">Réintégré en Stock</option>
+              <option value="REJECTED">Rejeté</option>
+            </select>
+            <select
+              value=""
+              onChange={(e) => {
+                const act = e.target.value as ReturnOrderItem['action'];
+                if (act) handleBulkReturnAction(act);
+              }}
+              aria-label="Changer type compensation"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">Type action...</option>
+              <option value="VOUCHER">Bon d&apos;achat</option>
+              <option value="CREDIT_NOTE">Avoir</option>
+              <option value="EXCHANGE">Échange</option>
+              <option value="REFUND">Remboursement</option>
+            </select>
+          </>
+        )}
         supportedModes={['table', 'list', 'matrix']}
         defaultMode="table"
         searchKeys={['returnNumber', 'deliveryNumber', 'orderNumber', 'customerName']}
@@ -489,6 +552,15 @@ export default function ReturnsPage() {
           }}
           title="Supprimer le bon de retour"
           message={`Êtes-vous certain de vouloir supprimer le bon de retour "${deleteItem.returnNumber}" ?`}
+        />
+      )}
+      {bulkDeleteIds.length > 0 && (
+        <DeleteConfirmModal
+          isOpen={true}
+          onClose={() => setBulkDeleteIds([])}
+          onConfirm={handleConfirmBulkDeleteReturns}
+          title="Supprimer les bons de retour sélectionnés"
+          message={`Confirmez-vous la suppression des ${bulkDeleteIds.length} bon(s) de retour sélectionné(s) ?`}
         />
       )}
     </div>

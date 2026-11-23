@@ -1,8 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Sparkles, Plus, Trash2, Star, Save } from 'lucide-react';
-import { Button, Input, Textarea, Modal, Badge, Breadcrumb, Toast } from '@/components/ui';
+import { Sparkles, Plus, Trash2, Star, Save, Check } from 'lucide-react';
+import { Button, Input, Textarea, Modal, Badge, Breadcrumb, Toast, DeleteConfirmModal } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
 
 interface CuratedTestimonial {
@@ -18,6 +18,8 @@ interface CuratedTestimonial {
 
 export default function SeoTestimonialsPage() {
   const [items, setItems] = React.useState<CuratedTestimonial[]>([]);
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
   const [modalOpen, setModalOpen] = React.useState(false);
   const [form, setForm] = React.useState({ name: '', city: 'Tunis', dateLabel: "Aujourd'hui", stars: 5, comment: '' });
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
@@ -48,7 +50,20 @@ export default function SeoTestimonialsPage() {
   const handleDelete = async (id: string) => {
     await fetchApi(`/storefront-cms/cms/testimonials/${id}`, { method: 'DELETE' });
     if (typeof window !== 'undefined') window.dispatchEvent(new Event('royal-cms-updated'));
+    setSelectedIds((prev) => prev.filter((x) => x !== id));
     setToastMsg('Témoignage supprimé.');
+    await loadData();
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    await Promise.allSettled(
+      selectedIds.map((id) => fetchApi(`/storefront-cms/cms/testimonials/${id}`, { method: 'DELETE' }))
+    );
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('royal-cms-updated'));
+    setToastMsg(`${selectedIds.length} témoignage(s) supprimé(s).`);
+    setSelectedIds([]);
+    setBulkDeleteOpen(false);
     await loadData();
   };
 
@@ -84,14 +99,69 @@ export default function SeoTestimonialsPage() {
         </div>
       </div>
 
+      {items.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-white px-4 py-3 rounded-2xl border border-[#E6E1D6] shadow-xs">
+          <button
+            type="button"
+            onClick={() =>
+              setSelectedIds(selectedIds.length === items.length ? [] : items.map((t) => t.id))
+            }
+            className="text-xs font-bold text-[#1D232E] hover:text-[#C59B27] inline-flex items-center gap-2 cursor-pointer"
+          >
+            <span
+              className={`w-4 h-4 rounded border flex items-center justify-center ${
+                selectedIds.length === items.length && items.length > 0
+                  ? 'bg-[#C59B27] border-[#C59B27] text-white'
+                  : 'border-slate-300 bg-white'
+              }`}
+            >
+              {selectedIds.length === items.length && items.length > 0 && <Check className="w-3 h-3" />}
+            </span>
+            <span>
+              {selectedIds.length === items.length ? 'Tout désélectionner' : `Tout sélectionner (${items.length})`}
+            </span>
+          </button>
+
+          {selectedIds.length > 0 && (
+            <Button variant="danger" size="sm" onClick={() => setBulkDeleteOpen(true)}>
+              <Trash2 className="w-3.5 h-3.5 mr-1" />
+              <span>Supprimer la sélection ({selectedIds.length})</span>
+            </Button>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {items.map((t) => (
-          <div key={t.id} className="bg-white p-6 rounded-3xl border border-[#E6E1D6] shadow-sm space-y-3 flex flex-col justify-between">
+        {items.map((t) => {
+          const isChecked = selectedIds.includes(t.id);
+          return (
+          <div
+            key={t.id}
+            className={`bg-white p-6 rounded-3xl border shadow-sm space-y-3 flex flex-col justify-between transition ${
+              isChecked ? 'border-[#C59B27] ring-2 ring-[#C59B27]/20 bg-[#FBF9F4]/30' : 'border-[#E6E1D6]'
+            }`}
+          >
             <div className="space-y-2.5">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-sm font-heading font-bold text-[#1D232E]">{t.name}</h3>
-                  <p className="text-[11px] text-slate-500">{t.city} &bull; {t.dateLabel}</p>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedIds((prev) =>
+                        prev.includes(t.id) ? prev.filter((x) => x !== t.id) : [...prev, t.id]
+                      )
+                    }
+                    aria-label={`Sélectionner ${t.name}`}
+                    className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 cursor-pointer ${
+                      isChecked ? 'bg-[#C59B27] border-[#C59B27] text-white' : 'border-slate-300 bg-white'
+                    }`}
+                  >
+                    {isChecked && <Check className="w-3 h-3" />}
+                  </button>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-heading font-bold text-[#1D232E]">{t.name}</h3>
+                    <p className="text-[11px] text-slate-500">{t.city} &bull; {t.dateLabel}</p>
+                  </div>
                 </div>
                 <div className="flex text-[#C59B27]">
                   {[...Array(t.stars || 5)].map((_, i) => (
@@ -114,8 +184,17 @@ export default function SeoTestimonialsPage() {
               </button>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
+
+      <DeleteConfirmModal
+        isOpen={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        onConfirm={confirmBulkDelete}
+        title="Supprimer les témoignages sélectionnés"
+        description={`Confirmez-vous la suppression des ${selectedIds.length} témoignage(s) sélectionné(s) ?`}
+      />
 
       <Modal
         isOpen={modalOpen}

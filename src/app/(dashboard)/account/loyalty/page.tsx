@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Award, Crown, Sparkles, CheckCircle2, ShoppingBag, TrendingUp } from 'lucide-react';
 import { Breadcrumb, Badge } from '@/components/ui';
-import { fetchApi } from '@/lib/api';
+import { fetchAllPaginated } from '@/lib/api';
 import { formatTndCurrency } from '@/lib/utils';
 
 const TIERS = [
@@ -21,9 +21,8 @@ export default function AccountLoyaltyPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const res = await fetchApi('/orders/my-orders?limit=50');
-        const list = Array.isArray(res) ? res : res?.data || [];
-        setOrders(list);
+        const { items: list } = await fetchAllPaginated<any>('/orders/my-orders', 100);
+        setOrders(Array.isArray(list) ? list : []);
       } catch {
         setOrders([]);
       } finally {

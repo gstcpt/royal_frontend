@@ -312,6 +312,7 @@ function PrintTemplatesContent() {
       <DataTable
         data={templates}
         columns={columns}
+        keyExtractor={(item) => item.id}
         isLoading={loading}
         supportedModes={['table', 'list', 'matrix']}
         defaultMode="table"
@@ -320,6 +321,58 @@ function PrintTemplatesContent() {
         selectedKeys={selectedKeys}
         onSelectionChange={setSelectedKeys}
         onBulkDelete={(keys) => setBulkDeleteKeys(keys)}
+        renderBulkActions={() => (
+          <>
+            <button
+              type="button"
+              onClick={async () => {
+                const s = new Set(selectedKeys);
+                await persist(
+                  templates.map((t) => (s.has(t.id) ? { ...t, isActive: true } : t)),
+                  `${selectedKeys.length} modèle(s) activé(s).`
+                );
+                setSelectedKeys([]);
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Activer
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                const s = new Set(selectedKeys);
+                await persist(
+                  templates.map((t) => (s.has(t.id) ? { ...t, isActive: false } : t)),
+                  `${selectedKeys.length} modèle(s) désactivé(s).`
+                );
+                setSelectedKeys([]);
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Désactiver
+            </button>
+            <select
+              value=""
+              onChange={async (e) => {
+                const fmt = e.target.value as PrintTemplateItem['paperFormat'];
+                if (!fmt) return;
+                const s = new Set(selectedKeys);
+                await persist(
+                  templates.map((t) => (s.has(t.id) ? { ...t, paperFormat: fmt } : t)),
+                  `${selectedKeys.length} modèle(s) passé(s) en ${fmt}.`
+                );
+                setSelectedKeys([]);
+              }}
+              aria-label="Changer format papier"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">Format papier...</option>
+              <option value="A4">Format A4</option>
+              <option value="80MM_POS">Ticket 80mm POS</option>
+              <option value="A5">Format A5</option>
+            </select>
+          </>
+        )}
         printTitle="Modèles d'Impression ERP — Royal"
         exportFileName="modeles-impression"
       />

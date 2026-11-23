@@ -63,6 +63,9 @@ export default function TestimonialsPage() {
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [toastType, setToastType] = React.useState<'success' | 'info' | 'error'>('success');
   const [singleDeleteId, setSingleDeleteId] = React.useState<string | null>(null);
+  const [selectedReviewIds, setSelectedReviewIds] = React.useState<string[]>([]);
+  const [bulkDeleteReviewIds, setBulkDeleteReviewIds] = React.useState<string[]>([]);
+  const [bulkBusy, setBulkBusy] = React.useState(false);
 
   const loadReviews = React.useCallback(async () => {
     setLoading(true);
@@ -116,6 +119,47 @@ export default function TestimonialsPage() {
       setToastType('error');
       setToastMessage('Impossible de supprimer ce commentaire.');
       loadReviews();
+    }
+  };
+
+  const handleBulkReviewStatus = async (status: 'APPROVED' | 'REJECTED' | 'PENDING') => {
+    if (selectedReviewIds.length === 0) return;
+    setBulkBusy(true);
+    try {
+      await fetchApi('/storefront-cms/admin/reviews/bulk-action', {
+        method: 'POST',
+        body: JSON.stringify({ ids: selectedReviewIds, action: 'STATUS', status }),
+      });
+      setToastType('success');
+      setToastMessage(`${selectedReviewIds.length} avis passé(s) en « ${status} ».`);
+      setSelectedReviewIds([]);
+      await loadReviews();
+    } catch {
+      setToastType('error');
+      setToastMessage('Erreur lors de la mise à jour groupée.');
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const confirmBulkDeleteReviews = async () => {
+    if (bulkDeleteReviewIds.length === 0) return;
+    setBulkBusy(true);
+    try {
+      await fetchApi('/storefront-cms/admin/reviews/bulk-action', {
+        method: 'POST',
+        body: JSON.stringify({ ids: bulkDeleteReviewIds, action: 'DELETE' }),
+      });
+      setToastType('info');
+      setToastMessage(`${bulkDeleteReviewIds.length} avis supprimé(s).`);
+      setBulkDeleteReviewIds([]);
+      setSelectedReviewIds([]);
+      await loadReviews();
+    } catch {
+      setToastType('error');
+      setToastMessage('Erreur lors de la suppression multiple.');
+    } finally {
+      setBulkBusy(false);
     }
   };
 
@@ -337,6 +381,38 @@ export default function TestimonialsPage() {
         data={reviews}
         columns={columns}
         keyExtractor={(item) => item.id}
+        enableMultiSelect={true}
+        selectedKeys={selectedReviewIds}
+        onSelectionChange={setSelectedReviewIds}
+        onBulkDelete={(keys) => setBulkDeleteReviewIds(keys)}
+        renderBulkActions={() => (
+          <>
+            <button
+              type="button"
+              disabled={bulkBusy}
+              onClick={() => handleBulkReviewStatus('APPROVED')}
+              className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              Approuver
+            </button>
+            <button
+              type="button"
+              disabled={bulkBusy}
+              onClick={() => handleBulkReviewStatus('REJECTED')}
+              className="px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              Masquer
+            </button>
+            <button
+              type="button"
+              disabled={bulkBusy}
+              onClick={() => handleBulkReviewStatus('PENDING')}
+              className="px-2.5 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200 border border-neutral-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              En attente
+            </button>
+          </>
+        )}
         searchPlaceholder="Rechercher par auteur, commentaire ou article..."
         searchKeys={['authorName', 'comment', 'productName']}
         statusOptions={[
@@ -402,6 +478,14 @@ export default function TestimonialsPage() {
         onConfirm={handleConfirmSingleDelete}
         title="Supprimer ce commentaire ?"
         message="Cette action supprimera définitivement l'avis client de la base de données."
+      />
+      <DeleteConfirmModal
+        isOpen={bulkDeleteReviewIds.length > 0}
+        onClose={() => setBulkDeleteReviewIds([])}
+        onConfirm={confirmBulkDeleteReviews}
+        isDeleting={bulkBusy}
+        title="Supprimer les avis sélectionnés ?"
+        message={`Confirmez-vous la suppression définitive des ${bulkDeleteReviewIds.length} avis sélectionné(s) ?`}
       />
 
       <Toast

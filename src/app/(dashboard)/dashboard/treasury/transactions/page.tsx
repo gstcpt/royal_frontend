@@ -55,6 +55,8 @@ export default function TreasuryTransactionsPage() {
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
   const [previewItem, setPreviewItem] = React.useState<TreasuryTransaction | null>(null);
   const [deleteItem, setDeleteItem] = React.useState<TreasuryTransaction | null>(null);
+  const [selectedTxIds, setSelectedTxIds] = React.useState<string[]>([]);
+  const [bulkDeleteTxIds, setBulkDeleteTxIds] = React.useState<string[]>([]);
   const [toast, setToast] = React.useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const [newType, setNewType] = React.useState<'INFLOW' | 'OUTFLOW'>('INFLOW');
@@ -124,6 +126,23 @@ export default function TreasuryTransactionsPage() {
     const next = transactions.filter((t) => t.id !== deleteItem.id);
     setDeleteItem(null);
     await persistTransactions(next, 'Mouvement supprimé du journal.');
+  };
+
+  const handleBulkTxPatch = async (patch: Partial<TreasuryTransaction>, label: string) => {
+    if (selectedTxIds.length === 0) return;
+    const idSet = new Set(selectedTxIds);
+    const next = transactions.map((t) => (idSet.has(t.id) ? { ...t, ...patch } : t));
+    await persistTransactions(next, `${selectedTxIds.length} mouvement(s) ${label}.`);
+    setSelectedTxIds([]);
+  };
+
+  const confirmBulkDeleteTxs = async () => {
+    if (bulkDeleteTxIds.length === 0) return;
+    const idSet = new Set(bulkDeleteTxIds);
+    const next = transactions.filter((t) => !idSet.has(t.id));
+    setBulkDeleteTxIds([]);
+    setSelectedTxIds([]);
+    await persistTransactions(next, `${idSet.size} mouvement(s) supprimé(s) du journal.`);
   };
 
   const totalInflow = transactions
@@ -322,7 +341,47 @@ export default function TreasuryTransactionsPage() {
       <DataTable
         data={transactions}
         columns={columns}
+        keyExtractor={(item) => item.id}
         isLoading={loading}
+        enableMultiSelect={true}
+        selectedKeys={selectedTxIds}
+        onSelectionChange={setSelectedTxIds}
+        onBulkDelete={(keys) => setBulkDeleteTxIds(keys)}
+        renderBulkActions={() => (
+          <>
+            <select
+              value=""
+              disabled={saving}
+              onChange={(e) => {
+                const tp = e.target.value as TreasuryTransaction['type'];
+                if (tp) handleBulkTxPatch({ type: tp }, tp === 'INFLOW' ? 'passé(s) en Encaissement' : 'passé(s) en Décaissement');
+              }}
+              aria-label="Changer sens flux"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">Type flux...</option>
+              <option value="INFLOW">Encaissement (+ Entrée)</option>
+              <option value="OUTFLOW">Décaissement (- Sortie)</option>
+            </select>
+            <select
+              value=""
+              disabled={saving}
+              onChange={(e) => {
+                const m = e.target.value as TreasuryTransaction['method'];
+                if (m) handleBulkTxPatch({ method: m }, `passé(s) en mode ${METHOD_LABELS[m]}`);
+              }}
+              aria-label="Changer mode règlement"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">Mode règlement...</option>
+              <option value="CASH">Espèces</option>
+              <option value="CARD">Carte / TPE</option>
+              <option value="CHECK">Chèque</option>
+              <option value="TRANSFER">Virement</option>
+              <option value="BILL">Traite</option>
+            </select>
+          </>
+        )}
         supportedModes={['table', 'list', 'matrix']}
         defaultMode="table"
         searchKeys={['reference', 'label', 'account', 'operator']}
@@ -513,6 +572,16 @@ export default function TreasuryTransactionsPage() {
           onConfirm={handleDelete}
           title="Supprimer le mouvement"
           message={`Êtes-vous certain de vouloir supprimer le mouvement "${deleteItem.reference}" ?`}
+        />
+      )}
+      {bulkDeleteTxIds.length > 0 && (
+        <DeleteConfirmModal
+          isOpen={true}
+          onClose={() => setBulkDeleteTxIds([])}
+          onConfirm={confirmBulkDeleteTxs}
+          isDeleting={saving}
+          title="Supprimer les mouvements sélectionnés"
+          description={`Confirmez-vous la suppression des ${bulkDeleteTxIds.length} transaction(s) sélectionnée(s) ?`}
         />
       )}
     </div>

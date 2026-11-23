@@ -22,6 +22,7 @@ import {
   Headphones,
   ExternalLink,
   AlertCircle,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { fetchApi } from '@/lib/api';
@@ -31,6 +32,8 @@ import {
   Badge,
   Toast,
   Breadcrumb,
+  Modal,
+  DeleteConfirmModal,
   DateRangePicker,
   DateRange,
   FilterDropdown,
@@ -104,6 +107,18 @@ export default function SupportMessagesPage() {
   const [statusUpdating, setStatusUpdating] = React.useState(false);
   const [showPreview, setShowPreview] = React.useState(false);
   const [toast, setToast] = React.useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [selectedThreadIds, setSelectedThreadIds] = React.useState<string[]>([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
+  const [mobileModalThreadId, setMobileModalThreadId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)');
+    const sync = () => setIsMobile(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
 
   const loadThreads = React.useCallback(async () => {
     setLoading(true);
@@ -168,13 +183,39 @@ export default function SupportMessagesPage() {
   }, [threads, activeFolder, statusFilter, searchQuery, dateRange]);
 
   const activeThread = React.useMemo(() => {
+    const targetId = isMobile ? mobileModalThreadId : selectedThreadId;
+    if (isMobile) {
+      return threads.find((t) => t.id === targetId) || null;
+    }
     return (
-      filteredThreads.find((t) => t.id === selectedThreadId) ||
-      threads.find((t) => t.id === selectedThreadId) ||
+      filteredThreads.find((t) => t.id === targetId) ||
+      threads.find((t) => t.id === targetId) ||
       filteredThreads[0] ||
       null
     );
-  }, [filteredThreads, threads, selectedThreadId]);
+  }, [filteredThreads, threads, selectedThreadId, mobileModalThreadId, isMobile]);
+
+  const handleBulkThreadsAction = async (
+    action: 'STATUS' | 'DELETE',
+    status?: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED',
+  ) => {
+    if (selectedThreadIds.length === 0) return;
+    await fetchApi('/storefront-cms/support/admin/threads/bulk-action', {
+      method: 'POST',
+      body: JSON.stringify({ ids: selectedThreadIds, action, status }),
+    }).catch(() => null);
+    setSelectedThreadIds([]);
+    setBulkDeleteOpen(false);
+    setMobileModalThreadId(null);
+    await loadThreads();
+    setToast({
+      text:
+        action === 'DELETE'
+          ? 'Fils de discussion supprimés.'
+          : 'Statut mis à jour sur les fils sélectionnés.',
+      type: 'success',
+    });
+  };
 
   const handleReplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -389,14 +430,66 @@ export default function SupportMessagesPage() {
 
           {/* Tickets List */}
           <div className="bg-white rounded-3xl border border-[#E6E1D6] shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-[#FBF9F4]">
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#9A7414]">
-                Fils Support ({filteredThreads.length})
-              </span>
+            <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 bg-[#FBF9F4]">
+              <label className="inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wider text-[#9A7414] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={
+                    filteredThreads.length > 0 &&
+                    filteredThreads.every((t) => selectedThreadIds.includes(t.id))
+                  }
+                  onChange={(e) =>
+                    setSelectedThreadIds(
+                      e.target.checked ? filteredThreads.map((t) => t.id) : [],
+                    )
+                  }
+                  className="rounded border-neutral-300 w-3.5 h-3.5 cursor-pointer"
+                />
+                <span>Fils Support ({filteredThreads.length})</span>
+              </label>
               <span className="text-[10px] font-semibold text-slate-400">
                 Authentifiés · Multi-tours
               </span>
             </div>
+
+            {selectedThreadIds.length > 0 && (
+              <div className="px-4 py-2.5 bg-[#FBF6E8] border-b border-[#E6D6A6] flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="font-bold text-[#1D232E]">
+                  {selectedThreadIds.length} sélectionné(s)
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleBulkThreadsAction('STATUS', 'IN_PROGRESS')}
+                    className="px-2 py-1 rounded-lg bg-white border border-blue-200 text-blue-700 text-[11px] font-bold cursor-pointer"
+                  >
+                    En cours
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleBulkThreadsAction('STATUS', 'RESOLVED')}
+                    className="px-2 py-1 rounded-lg bg-white border border-emerald-200 text-emerald-700 text-[11px] font-bold cursor-pointer"
+                  >
+                    Résolus
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleBulkThreadsAction('STATUS', 'OPEN')}
+                    className="px-2 py-1 rounded-lg bg-white border border-amber-200 text-amber-800 text-[11px] font-bold cursor-pointer"
+                  >
+                    Rouvrir
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBulkDeleteOpen(true)}
+                    className="px-2 py-1 rounded-lg bg-rose-600 text-white text-[11px] font-bold cursor-pointer"
+                  >
+                    <Trash2 className="w-3 h-3 inline mr-1" />
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="divide-y divide-slate-100 max-h-[620px] overflow-y-auto">
               {loading && (
@@ -417,6 +510,7 @@ export default function SupportMessagesPage() {
               {!loading &&
                 filteredThreads.map((t) => {
                   const isSelected = activeThread?.id === t.id;
+                  const isChecked = selectedThreadIds.includes(t.id);
                   const cName = t.customer
                     ? `${t.customer.firstName} ${t.customer.lastName}`.trim()
                     : 'Client Royal';
@@ -424,17 +518,31 @@ export default function SupportMessagesPage() {
                   const meta = STATUS_META[t.status] || STATUS_META.OPEN;
 
                   return (
-                    <button
+                    <div
                       key={t.id}
-                      type="button"
-                      onClick={() => setSelectedThreadId(t.id)}
+                      onClick={() => {
+                        setSelectedThreadId(t.id);
+                        if (isMobile) setMobileModalThreadId(t.id);
+                      }}
                       className={cn(
-                        'w-full text-left p-4 transition cursor-pointer block border-l-4',
+                        'w-full text-left p-4 transition cursor-pointer flex items-start gap-2.5 border-l-4',
                         isSelected
                           ? 'bg-[#FBF6E8]/70 border-l-[#C59B27]'
                           : 'bg-white border-l-transparent hover:bg-[#FBF9F4]'
                       )}
                     >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={() =>
+                          setSelectedThreadIds((prev) =>
+                            prev.includes(t.id) ? prev.filter((x) => x !== t.id) : [...prev, t.id],
+                          )
+                        }
+                        className="mt-2 rounded border-neutral-300 w-3.5 h-3.5 cursor-pointer shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div className="w-9 h-9 rounded-full bg-[#FBF6E8] border border-[#E6D6A6] text-[#9A7414] flex items-center justify-center font-black text-xs shrink-0">
@@ -479,15 +587,16 @@ export default function SupportMessagesPage() {
                           })}
                         </span>
                       </div>
-                    </button>
+                      </div>
+                    </div>
                   );
                 })}
             </div>
           </div>
         </div>
 
-        {/* Right: Active Conversation & Staff Support Reply */}
-        <div className="lg:col-span-7 xl:col-span-8">
+        {/* Right: Active Conversation & Staff Support Reply (Desktop only) */}
+        <div className="hidden lg:block lg:col-span-7 xl:col-span-8">
           {!activeThread ? (
             <div className="bg-white rounded-3xl border border-[#E6E1D6] shadow-sm p-12 text-center space-y-3">
               <div className="w-14 h-14 rounded-2xl bg-[#FBF6E8] border border-[#E6D6A6] text-[#C59B27] flex items-center justify-center mx-auto">
@@ -701,6 +810,135 @@ export default function SupportMessagesPage() {
           )}
         </div>
       </div>
+
+      {/* Mobile Support Thread Modal */}
+      {activeThread && (
+        <Modal
+          isOpen={isMobile && Boolean(mobileModalThreadId)}
+          onClose={() => setMobileModalThreadId(null)}
+          title={activeThread.subject}
+          subtitle={`${customerDisplay}${activeThread.customer?.email ? ` • ${activeThread.customer.email}` : ''}`}
+          size="3xl"
+        >
+          <div className="flex flex-col">
+            <div className="p-4 border-b border-slate-100 bg-[#FBF9F4] flex flex-wrap items-center justify-between gap-2">
+              <Badge
+                variant={(STATUS_META[activeThread.status] || STATUS_META.OPEN).badgeVariant}
+                size="sm"
+              >
+                {(STATUS_META[activeThread.status] || STATUS_META.OPEN).label}
+              </Badge>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {activeThread.status !== 'IN_PROGRESS' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={statusUpdating}
+                    onClick={() => handleStatusChange(activeThread.id, 'IN_PROGRESS')}
+                    className="text-xs px-3 py-1"
+                  >
+                    En cours
+                  </Button>
+                )}
+                {activeThread.status !== 'RESOLVED' ? (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={statusUpdating}
+                    onClick={() => handleStatusChange(activeThread.id, 'RESOLVED')}
+                    className="text-xs px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white"
+                  >
+                    Clôturer
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={statusUpdating}
+                    onClick={() => handleStatusChange(activeThread.id, 'OPEN')}
+                    className="text-xs px-3 py-1"
+                  >
+                    Rouvrir
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 space-y-3 bg-white max-h-[360px] overflow-y-auto">
+              {(activeThread.messages || []).map((msg) => {
+                const isClient = msg.senderRole === 'CLIENT';
+                return (
+                  <div
+                    key={msg.id}
+                    className={cn(
+                      'flex flex-col max-w-[90%] rounded-2xl p-3.5 text-xs border',
+                      isClient
+                        ? 'mr-auto bg-slate-50 border-slate-200 text-[#1D232E]'
+                        : 'ml-auto bg-[#FBF6E8] border-[#E6D6A6] text-[#1D232E]',
+                    )}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                      <span className="font-extrabold">{msg.senderName}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {new Date(msg.createdAt).toLocaleString('fr-FR', {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+                    <p className="whitespace-pre-wrap leading-relaxed text-slate-700">{msg.body}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <form
+              onSubmit={handleReplySubmit}
+              className="p-4 border-t border-slate-100 bg-[#FBF9F4] space-y-3"
+            >
+              <div className="flex flex-wrap gap-1.5">
+                {SUPPORT_QUICK_TEMPLATES.map((tpl) => (
+                  <button
+                    key={tpl.label}
+                    type="button"
+                    onClick={() => setReplyText(tpl.text)}
+                    className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-white border border-[#E6E1D6] text-[#1D232E] cursor-pointer"
+                  >
+                    + {tpl.label}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                rows={3}
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Rédigez votre réponse officielle au client..."
+                className="w-full p-3 rounded-xl border border-[#E6E1D6] bg-white text-xs text-[#1D232E] focus:outline-none focus:border-[#C59B27]"
+              />
+              <div className="flex justify-end">
+                <Button
+                  type="submit"
+                  variant="gold"
+                  disabled={submitting || !replyText.trim()}
+                  className="text-xs px-5 py-2 flex items-center gap-2"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{submitting ? 'Envoi...' : 'Envoyer Réponse'}</span>
+                </Button>
+              </div>
+            </form>
+          </div>
+        </Modal>
+      )}
+
+      <DeleteConfirmModal
+        isOpen={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        onConfirm={() => handleBulkThreadsAction('DELETE')}
+        itemName={`${selectedThreadIds.length} discussion(s) support`}
+      />
     </div>
   );
 }

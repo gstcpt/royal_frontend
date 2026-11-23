@@ -45,9 +45,10 @@ import {
   Breadcrumb,
   Toast,
   Textarea,
+  DeleteConfirmModal,
 } from '@/components/ui';
 import { RelatedArticlesModal, ModalProductItem } from '@/components/dashboard/modal-articles-table';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 export interface SupplierItem {
@@ -253,6 +254,9 @@ export default function DashboardSuppliersPage() {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [editingSupplier, setEditingSupplier] = React.useState<SupplierItem | null>(null);
   const [supplierToDelete, setSupplierToDelete] = React.useState<SupplierItem | null>(null);
+  const [selectedSupplierIds, setSelectedSupplierIds] = React.useState<string[]>([]);
+  const [bulkDeleteSupplierIds, setBulkDeleteSupplierIds] = React.useState<string[]>([]);
+  const [isBulkUpdating, setIsBulkUpdating] = React.useState(false);
   const [articlesModalSupplier, setArticlesModalSupplier] = React.useState<SupplierItem | null>(null);
   const [supplierArticles, setSupplierArticles] = React.useState<ModalProductItem[]>([]);
   const [isArticlesModalLoading, setIsArticlesModalLoading] = React.useState(false);
@@ -285,6 +289,56 @@ export default function DashboardSuppliersPage() {
     setTimeout(() => setFeedbackMessage(null), 3500);
   };
 
+  const handleBulkSupplierPatch = async (
+    patch: { isActive?: boolean; supplierType?: 'COMPANY' | 'INDIVIDUAL' },
+    label: string
+  ) => {
+    if (selectedSupplierIds.length === 0) return;
+    setIsBulkUpdating(true);
+    try {
+      await Promise.allSettled(
+        selectedSupplierIds.map((id) =>
+          fetchApi(`/suppliers/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(patch),
+          })
+        )
+      );
+      const idSet = new Set(selectedSupplierIds);
+      setSuppliers((prev) => prev.map((s) => (idSet.has(s.id) ? { ...s, ...patch } : s)));
+      showToast('success', `${selectedSupplierIds.length} fournisseur(s) ${label}.`);
+      setSelectedSupplierIds([]);
+    } catch {
+      showToast('error', 'Erreur lors de la mise à jour groupée.');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const confirmBulkDeleteSuppliers = async () => {
+    if (bulkDeleteSupplierIds.length === 0) return;
+    setIsBulkUpdating(true);
+    try {
+      const idSet = new Set(bulkDeleteSupplierIds);
+      const linked = suppliers.filter((s) => idSet.has(s.id) && (s.productsCount || 0) > 0);
+      const deletable = suppliers.filter((s) => idSet.has(s.id) && (s.productsCount || 0) === 0);
+      await Promise.allSettled(
+        deletable.map((s) => fetchApi(`/suppliers/${s.id}`, { method: 'DELETE' }))
+      );
+      const delSet = new Set(deletable.map((s) => s.id));
+      setSuppliers((prev) => prev.filter((s) => !delSet.has(s.id)));
+      setBulkDeleteSupplierIds([]);
+      setSelectedSupplierIds([]);
+      if (linked.length > 0) {
+        showToast('error', `${deletable.length} supprimé(s), ${linked.length} ignoré(s) car liés à des articles.`);
+      } else {
+        showToast('success', `${deletable.length} fournisseur(s) supprimé(s).`);
+      }
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
   // Monogram initials fallback
   const getInitials = (text: string) => {
     if (!text) return 'FR';
@@ -297,10 +351,11 @@ export default function DashboardSuppliersPage() {
   const loadData = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const [suppliersRes, productsRes] = await Promise.all([
+      const [suppliersRes, productsList] = await Promise.all([
         fetchApi('/suppliers').catch(() => null),
-        fetchApi('/products/storefront?limit=100').catch(() => null),
+        fetchAllPaginated<any>('/products/storefront', 200).then((r) => r.items).catch(() => []),
       ]);
+      const productsRes = { data: productsList };
 
       if (suppliersRes && Array.isArray(suppliersRes) && suppliersRes.length > 0) {
         setSuppliers(suppliersRes);
@@ -524,8 +579,7 @@ export default function DashboardSuppliersPage() {
     setIsArticlesModalLoading(true);
     setSupplierArticles([]);
     try {
-      const res = await fetchApi(`/products?supplierId=${supplier.id}&limit=100`);
-      const raw = res?.data && Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : [];
+      const { items: raw } = await fetchAllPaginated<any>(`/products?supplierId=${supplier.id}`, 200).catch(() => ({ items: [] }));
       if (raw.length > 0) {
         const mapped: ModalProductItem[] = raw.map((p: any) => ({
           id: p.id,
@@ -890,6 +944,46 @@ export default function DashboardSuppliersPage() {
         data={filteredSuppliers}
         columns={columns}
         keyExtractor={(item) => item.id}
+        enableMultiSelect={true}
+        selectedKeys={selectedSupplierIds}
+        onSelectionChange={setSelectedSupplierIds}
+        onBulkDelete={(keys) => setBulkDeleteSupplierIds(keys)}
+        renderBulkActions={() => (
+          <>
+            <button
+              type="button"
+              disabled={isBulkUpdating}
+              onClick={() => handleBulkSupplierPatch({ isActive: true }, 'activé(s)')}
+              className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              Activer
+            </button>
+            <button
+              type="button"
+              disabled={isBulkUpdating}
+              onClick={() => handleBulkSupplierPatch({ isActive: false }, 'suspendu(s)')}
+              className="px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              Suspendre
+            </button>
+            <button
+              type="button"
+              disabled={isBulkUpdating}
+              onClick={() => handleBulkSupplierPatch({ supplierType: 'COMPANY' }, 'classé(s) Société')}
+              className="px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              Type Société
+            </button>
+            <button
+              type="button"
+              disabled={isBulkUpdating}
+              onClick={() => handleBulkSupplierPatch({ supplierType: 'INDIVIDUAL' }, 'classé(s) Particulier')}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              Type Particulier
+            </button>
+          </>
+        )}
         searchPlaceholder="Rechercher par nom, code, email, matricule fiscal ou ville..."
         searchKeys={['name', 'code', 'email', 'phone', 'city', 'country', 'taxId']}
         supportedModes={['table', 'list', 'matrix']}
@@ -1238,6 +1332,14 @@ export default function DashboardSuppliersPage() {
           </div>
         </Modal>
       )}
+      <DeleteConfirmModal
+        isOpen={bulkDeleteSupplierIds.length > 0}
+        onClose={() => setBulkDeleteSupplierIds([])}
+        onConfirm={confirmBulkDeleteSuppliers}
+        isDeleting={isBulkUpdating}
+        title="Supprimer les fournisseurs sélectionnés"
+        description={`Confirmez-vous la suppression des ${bulkDeleteSupplierIds.length} fournisseur(s) sélectionné(s) ? Ceux rattachés à des articles actifs seront protégés.`}
+      />
     </div>
   );
 }

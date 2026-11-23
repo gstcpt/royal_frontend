@@ -54,6 +54,7 @@ export default function TranslationsManagerPage() {
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [editModalItem, setEditModalItem] = useState<TranslationItem | null>(null);
+  const [selectedTranslationKeys, setSelectedTranslationKeys] = useState<string[]>([]);
   const [modalFr, setModalFr] = useState('');
   const [modalAr, setModalAr] = useState('');
 
@@ -448,6 +449,37 @@ export default function TranslationsManagerPage() {
         data={filteredItems}
         columns={columns}
         keyExtractor={(item) => item.key}
+        enableMultiSelect={true}
+        selectedKeys={selectedTranslationKeys}
+        onSelectionChange={setSelectedTranslationKeys}
+        renderBulkActions={() => (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                const sel = filteredItems.filter((it) => selectedTranslationKeys.includes(it.key));
+                const jsonPayload = sel.reduce(
+                  (acc, it) => {
+                    acc.fr[it.key] = editableFr[it.key] ?? it.fr;
+                    acc.ar[it.key] = editableAr[it.key] ?? it.ar;
+                    return acc;
+                  },
+                  { fr: {} as Record<string, string>, ar: {} as Record<string, string> }
+                );
+                const blob = new Blob([JSON.stringify(jsonPayload, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `traductions_selection_${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200 border border-neutral-200 text-xs font-semibold transition cursor-pointer"
+            >
+              Exporter JSON ({selectedTranslationKeys.length})
+            </button>
+          </>
+        )}
         searchPlaceholder="Rechercher par clé, texte français ou arabe..."
         searchKeys={['key', 'fr', 'ar', 'category']}
         supportedModes={['table', 'list', 'matrix']}

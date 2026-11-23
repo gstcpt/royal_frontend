@@ -62,7 +62,8 @@ import {
   Toast,
 } from '@/components/ui';
 import { formatTndCurrency, cn } from '@/lib/utils';
-import { API_BASE_URL, fetchApi } from '@/lib/api';
+import { API_BASE_URL, fetchApi, fetchAllPaginated } from '@/lib/api';
+import { Eye as _ArtEye, EyeOff as _ArtEyeOff, FileEdit as _ArtDraft, Sparkles as _ArtStar, FolderTree as _ArtCat } from 'lucide-react';
 import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 
 interface ProductItem {
@@ -506,6 +507,7 @@ export default function DashboardArticlesPage() {
 
   // Multi-selection state
   const [selectedProductIds, setSelectedProductIds] = React.useState<string[]>([]);
+  const [bulkCategoryId, setBulkCategoryId] = React.useState<string>('');
 
   // Auto-play slideshow state for split & matrix modes
   const [autoPlayImages, setAutoPlayImages] = React.useState(false);
@@ -687,7 +689,9 @@ export default function DashboardArticlesPage() {
     setIsLoading(true);
     try {
       const [prodsRes, catsRes, brandsRes, charsRes, varsRes] = await Promise.all([
-        fetchApi('/products?limit=1000').catch(() => null),
+        fetchAllPaginated<any>('/products', 200)
+          .then(({ items }) => ({ data: items }))
+          .catch(() => null),
         fetchApi('/categories?tree=false').catch(() => null),
         fetchApi('/brands').catch(() => null),
         fetchApi('/characteristics').catch(() => null),
@@ -1149,6 +1153,31 @@ export default function DashboardArticlesPage() {
     }
   };
 
+  const handleBulkProductPatch = async (
+    patch: { status?: 'ACTIVE' | 'INACTIVE' | 'DRAFT'; isFeatured?: boolean; categoryId?: string },
+    successLabel: string
+  ) => {
+    if (selectedProductIds.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      await Promise.allSettled(
+        selectedProductIds.map((id) =>
+          fetchApi(`/products/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(patch),
+          })
+        )
+      );
+      showToast('success', `${selectedProductIds.length} article(s) ${successLabel}.`);
+      setSelectedProductIds([]);
+      await loadData();
+    } catch (err: any) {
+      showToast('error', err?.message || 'Erreur lors de la mise à jour groupée.');
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   // Reusable action buttons with colors and hover popup tooltip
   const renderActionButtons = (item: ProductItem) => {
     const isLive = item.status === 'ACTIVE' || !item.status;
@@ -1602,6 +1631,69 @@ export default function DashboardArticlesPage() {
         selectedKeys={selectedProductIds}
         onSelectionChange={setSelectedProductIds}
         onBulkDelete={() => setIsBulkDeleteModalOpen(true)}
+        renderBulkActions={() => (
+          <>
+            <button
+              type="button"
+              disabled={isBulkDeleting}
+              onClick={() => handleBulkProductPatch({ status: 'ACTIVE' }, 'publié(s) en ligne')}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              <_ArtEye className="w-3.5 h-3.5" />
+              <span>Publier</span>
+            </button>
+            <button
+              type="button"
+              disabled={isBulkDeleting}
+              onClick={() => handleBulkProductPatch({ status: 'INACTIVE' }, 'masqué(s) du site')}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              <_ArtEyeOff className="w-3.5 h-3.5" />
+              <span>Masquer</span>
+            </button>
+            <button
+              type="button"
+              disabled={isBulkDeleting}
+              onClick={() => handleBulkProductPatch({ status: 'DRAFT' }, 'placé(s) en brouillon')}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200 border border-neutral-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              <_ArtDraft className="w-3.5 h-3.5" />
+              <span>Brouillon</span>
+            </button>
+            <button
+              type="button"
+              disabled={isBulkDeleting}
+              onClick={() => handleBulkProductPatch({ isFeatured: true }, 'mis en vedette')}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#FBF6E8] text-[#9A7414] hover:bg-[#F3E9C9] border border-[#E6D6A6] text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              <_ArtStar className="w-3.5 h-3.5" />
+              <span>Vedette</span>
+            </button>
+            {categories.length > 0 && (
+              <div className="inline-flex items-center gap-1">
+                <select
+                  value={bulkCategoryId}
+                  onChange={(e) => {
+                    const catId = e.target.value;
+                    setBulkCategoryId('');
+                    if (catId) {
+                      handleBulkProductPatch({ categoryId: catId }, 'réaffecté(s) de rayon');
+                    }
+                  }}
+                  aria-label="Changer la catégorie"
+                  className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700 max-w-[160px]"
+                >
+                  <option value="">Changer rayon...</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </>
+        )}
         exportFileName="articles"
         printTitle="Catalogue des Articles Royal — Document d’Inventaire"
         extraActions={

@@ -15,6 +15,7 @@ import { BottomPromoFloatingCard } from '@/components/storefront/BottomPromoFloa
 import { StorefrontProduct } from '@/components/storefront/ProductCard';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
+import { fetchAllPaginated } from '@/lib/api';
 import { Sparkles, Star, Percent } from 'lucide-react';
 
 export function HomePageSections({
@@ -55,12 +56,9 @@ export function HomePageSections({
   React.useEffect(() => {
     if (!needsDynamicPool) return;
     let cancelled = false;
-    fetch('/api/v1/products/storefront?limit=150')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((json) => {
-        if (cancelled || !json) return;
-        const list = json?.data?.data || json?.data || json?.products || [];
-        if (Array.isArray(list)) setDynamicPool(list);
+    fetchAllPaginated<StorefrontProduct>('/products/storefront', 200)
+      .then(({ items: list }) => {
+        if (!cancelled && Array.isArray(list)) setDynamicPool(list);
       })
       .catch(() => {});
     return () => {

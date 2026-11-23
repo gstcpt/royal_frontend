@@ -15,10 +15,10 @@ import {
 } from 'lucide-react';
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Modal } from '@/components/ui/modal';
+import { Modal, DeleteConfirmModal } from '@/components/ui/modal';
 import { Toast } from '@/components/ui/toast';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
 import { useSystemDocumentConfig } from '@/hooks/useSystemDocumentConfig';
 import { DocumentPrintHeader, DocumentPrintFooter } from '@/components/dashboard/DocumentPrintLayout';
 
@@ -57,6 +57,8 @@ export default function StockOutPage() {
   const [saving, setSaving] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [selectedStockOut, setSelectedStockOut] = useState<StockOutItem | null>(null);
+  const [selectedStockOutIds, setSelectedStockOutIds] = useState<string[]>([]);
+  const [bulkDeleteStockOutIds, setBulkDeleteStockOutIds] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   // Create modal state
@@ -73,10 +75,10 @@ export default function StockOutPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [cfgRes, whRes, prodRes] = await Promise.all([
+      const [cfgRes, whRes, rawProds] = await Promise.all([
         fetchApi('/storefront-cms/sys-config/stockOuts').catch(() => null),
         fetchApi('/warehouses').catch(() => []),
-        fetchApi('/products?limit=500&status=ACTIVE').catch(() => null),
+        fetchAllPaginated<any>('/products?status=ACTIVE', 200).then((r) => r.items).catch(() => []),
       ]);
 
       const cfgList = cfgRes?.value || cfgRes?.data?.value || [];
@@ -88,7 +90,6 @@ export default function StockOutPage() {
         setFormWarehouseId((prev) => prev || whList[0].id);
       }
 
-      const rawProds = prodRes?.data?.items || prodRes?.items || prodRes?.data || (Array.isArray(prodRes) ? prodRes : []);
       const flat: Array<{ variantId: string; productName: string; sku: string; totalQty: number }> = [];
       for (const p of Array.isArray(rawProds) ? rawProds : []) {
         for (const v of p.variants || []) {
@@ -125,6 +126,46 @@ export default function StockOutPage() {
       body: JSON.stringify({ value: nextList }),
     });
     setStockOuts(nextList);
+  };
+
+  const handleBulkStockOutPatch = async (patch: Partial<StockOutItem>, label: string) => {
+    if (selectedStockOutIds.length === 0) return;
+    setSaving(true);
+    try {
+      const idSet = new Set(selectedStockOutIds);
+      const nextList = stockOuts.map((s) =>
+        idSet.has(s.id)
+          ? {
+              ...s,
+              ...patch,
+              dispatchedAt: patch.status === 'DISPATCHED' ? s.dispatchedAt || new Date().toISOString() : s.dispatchedAt,
+            }
+          : s
+      );
+      await persistStockOuts(nextList);
+      setFeedbackMessage({ text: `${selectedStockOutIds.length} bon(s) de sortie ${label}.`, type: 'success' });
+      setSelectedStockOutIds([]);
+    } catch (err: any) {
+      setFeedbackMessage({ text: err?.message || 'Erreur mise à jour groupée.', type: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmBulkDeleteStockOuts = async () => {
+    if (bulkDeleteStockOutIds.length === 0) return;
+    setSaving(true);
+    try {
+      const idSet = new Set(bulkDeleteStockOutIds);
+      await persistStockOuts(stockOuts.filter((s) => !idSet.has(s.id)));
+      setFeedbackMessage({ text: `${bulkDeleteStockOutIds.length} bon(s) de sortie supprimé(s).`, type: 'success' });
+      setBulkDeleteStockOutIds([]);
+      setSelectedStockOutIds([]);
+    } catch (err: any) {
+      setFeedbackMessage({ text: err?.message || 'Erreur suppression bons de sortie.', type: 'error' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const filteredStockOuts = useMemo(() => {
@@ -514,6 +555,45 @@ export default function StockOutPage() {
         isLoading={loading}
         columns={columns}
         keyExtractor={(item) => item.id}
+        enableMultiSelect={true}
+        selectedKeys={selectedStockOutIds}
+        onSelectionChange={setSelectedStockOutIds}
+        onBulkDelete={(keys) => setBulkDeleteStockOutIds(keys)}
+        renderBulkActions={() => (
+          <>
+            <select
+              value=""
+              disabled={saving}
+              onChange={(e) => {
+                const st = e.target.value as StockOutItem['status'];
+                if (st) handleBulkStockOutPatch({ status: st }, `passé(s) en ${st}`);
+              }}
+              aria-label="Changer statut bon de sortie"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">Statut sortie...</option>
+              <option value="PICKING">PICKING (En picking)</option>
+              <option value="PACKED">PACKED (Colisé quai)</option>
+              <option value="DISPATCHED">DISPATCHED (Expédié)</option>
+              <option value="CANCELLED">CANCELLED (Annulé)</option>
+            </select>
+            <select
+              value=""
+              disabled={saving}
+              onChange={(e) => {
+                const dt = e.target.value as StockOutItem['destinationType'];
+                if (dt) handleBulkStockOutPatch({ destinationType: dt }, `classé(s) (${dt})`);
+              }}
+              aria-label="Changer type destination"
+              className="h-7 px-2 rounded-lg border border-[#E6E1D6] bg-white text-[11px] font-semibold text-neutral-700"
+            >
+              <option value="">Type destination...</option>
+              <option value="CUSTOMER_DELIVERY">Livraison Client</option>
+              <option value="INTER_WAREHOUSE_TRANSFER">Transfert Inter-Dépôt</option>
+              <option value="DAMAGED_SCRAP">Rebut / Avarie</option>
+            </select>
+          </>
+        )}
         searchPlaceholder="Rechercher par référence BS, commande, destinataire, entrepôt..."
         searchKeys={['reference', 'destinationRecipient', 'destinationReference', 'warehouseName', 'operatorName']}
         supportedModes={['table', 'list', 'matrix']}
@@ -810,6 +890,14 @@ export default function StockOutPage() {
           </form>
         </Modal>
       )}
+      <DeleteConfirmModal
+        isOpen={bulkDeleteStockOutIds.length > 0}
+        onClose={() => setBulkDeleteStockOutIds([])}
+        onConfirm={confirmBulkDeleteStockOuts}
+        isDeleting={saving}
+        title="Supprimer les bons de sortie sélectionnés"
+        description={`Confirmez-vous la suppression des ${bulkDeleteStockOutIds.length} bon(s) de sortie sélectionné(s) ?`}
+      />
     </div>
   );
 }

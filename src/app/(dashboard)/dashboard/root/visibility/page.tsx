@@ -514,6 +514,28 @@ export default function ViewsVisibilityPage() {
         keyExtractor={(item) => item.key}
         isLoading={loading}
         onRefresh={loadConfig}
+        renderBulkActions={() => (
+          <>
+            <button
+              type="button"
+              disabled={savingKey === '__bulk__'}
+              onClick={() => handleBulkVisibility('PUBLIC')}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>Passer PUBLIC</span>
+            </button>
+            <button
+              type="button"
+              disabled={savingKey === '__bulk__'}
+              onClick={() => handleBulkVisibility('PRIVATE')}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#FBF6E8] text-[#9A7414] hover:bg-[#F3E9C9] border border-[#E6D6A6] text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              <EyeOff className="w-3.5 h-3.5" />
+              <span>Passer PRIVATE (DEV)</span>
+            </button>
+          </>
+        )}
         searchPlaceholder="Rechercher une vue ou une URL..."
         searchKeys={['label', 'section', 'key']}
         customFilters={[

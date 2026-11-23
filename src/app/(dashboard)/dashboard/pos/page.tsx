@@ -38,7 +38,7 @@ import {
   Toast,
 } from '@/components/ui';
 import { FilterDropdown } from '@/components/ui/data-table';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
 import { formatTndCurrency } from '@/lib/utils';
 import { getSafeImageUrl } from '@/lib/cart-session';
 import { useAuthStore } from '@/stores/auth.store';
@@ -170,12 +170,14 @@ export default function PosTerminalPage() {
   const loadPosData = useCallback(async () => {
     setLoading(true);
     try {
-      const [posRes, prodRes, custRes, prtRes] = await Promise.all([
+      const [posRes, rawProdsList, rawCustsList, prtRes] = await Promise.all([
         fetchApi('/pos').catch(() => null),
-        fetchApi('/products?limit=500&status=ACTIVE').catch(() => null),
-        fetchApi('/customers?limit=150').catch(() => null),
+        fetchAllPaginated<any>('/products?status=ACTIVE', 200).then((r) => r.items).catch(() => []),
+        fetchAllPaginated<any>('/customers', 200).then((r) => r.items).catch(() => []),
         fetchApi('/storefront-cms/pos-printers').catch(() => []),
       ]);
+      const prodRes = rawProdsList.length > 0 ? { data: rawProdsList } : null;
+      const custRes = rawCustsList.length > 0 ? { data: rawCustsList } : null;
 
       if (!posRes && !prodRes && typeof window !== 'undefined') {
         const snap = JSON.parse(localStorage.getItem(OFFLINE_SNAPSHOT_KEY) || 'null');
@@ -212,7 +214,7 @@ export default function PosTerminalPage() {
         if (regs.length > 0) setSelectedRegisterId(regs[0].id);
       }
 
-      const rawProds = prodRes?.data?.items || prodRes?.data || prodRes?.items || (Array.isArray(prodRes) ? prodRes : []);
+      const rawProds = rawProdsList;
       const normalized: CatalogProduct[] = (Array.isArray(rawProds) ? rawProds : [])
         .map((p: any) => {
           const variants = (p.variants || []).map((v: any) => {
@@ -256,7 +258,7 @@ export default function PosTerminalPage() {
         .filter((p) => p.variants.length > 0 && p.stockQty > 0);
       setProducts(normalized);
 
-      const rawCusts = custRes?.data?.items || custRes?.data || custRes?.items || (Array.isArray(custRes) ? custRes : []);
+      const rawCusts = rawCustsList;
       const mappedCusts = (Array.isArray(rawCusts) ? rawCusts : []).map((c: any) => ({
         id: c.id,
         label: `${c.firstName} ${c.lastName}${c.phone ? ` (${c.phone})` : ''}`,

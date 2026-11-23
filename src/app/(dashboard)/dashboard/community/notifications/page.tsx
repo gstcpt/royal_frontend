@@ -96,6 +96,12 @@ export default function NotificationsPage() {
   const isRootOrSuperAdmin = hasRole(SystemRole.ROOT) || hasRole(SystemRole.SUPER_ADMIN);
 
   const [notifications, setNotifications] = React.useState<NotificationItem[]>([]);
+  const [totalFiltered, setTotalFiltered] = React.useState(0);
+  const [totalAll, setTotalAll] = React.useState(0);
+  const [unreadTotal, setUnreadTotal] = React.useState(0);
+  const [hasMore, setHasMore] = React.useState(false);
+  const [loadingInitial, setLoadingInitial] = React.useState(true);
+  const [loadingMore, setLoadingMore] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [toastType, setToastType] = React.useState<'success' | 'info' | 'error'>('success');
@@ -109,27 +115,113 @@ export default function NotificationsPage() {
   const [channelFilter, setChannelFilter] = React.useState<string>('ALL');
   const [dateRange, setDateRange] = React.useState<DateRange>({ startDate: '', endDate: '' });
 
+  const sentinelRef = React.useRef<HTMLDivElement | null>(null);
+  const offsetRef = React.useRef(0);
+  const loadingMoreRef = React.useRef(false);
+
+  const buildQueryString = React.useCallback(
+    (offsetVal: number) => {
+      const qs = new URLSearchParams();
+      qs.set('limit', '10');
+      qs.set('offset', String(offsetVal));
+      if (search.trim()) qs.set('search', search.trim());
+      if (statusFilter !== 'ALL') qs.set('status', statusFilter);
+      if (gravityFilter !== 'ALL') qs.set('type', gravityFilter);
+      if (channelFilter !== 'ALL') qs.set('channel', channelFilter);
+      if (dateRange.startDate) qs.set('startDate', dateRange.startDate);
+      if (dateRange.endDate) qs.set('endDate', dateRange.endDate);
+      return qs.toString();
+    },
+    [search, statusFilter, gravityFilter, channelFilter, dateRange],
+  );
+
   const loadNotifications = React.useCallback(async () => {
+    setLoadingInitial(true);
+    offsetRef.current = 0;
     try {
-      const res = await fetchApi('/storefront-cms/notifications');
-      const list = Array.isArray(res) ? res : res?.data || [];
-      if (Array.isArray(list)) {
-        setNotifications(list);
+      const res = await fetchApi(`/storefront-cms/notifications?${buildQueryString(0)}`);
+      const list: NotificationItem[] = Array.isArray(res)
+        ? res
+        : res?.items || res?.data || [];
+      setNotifications(list);
+      offsetRef.current = list.length;
+      if (Array.isArray(res)) {
+        setTotalFiltered(list.length);
+        setTotalAll(list.length);
+        setUnreadTotal(list.filter((n) => !n.isRead).length);
+        setHasMore(false);
+      } else {
+        setTotalFiltered(Number(res?.total ?? list.length));
+        setTotalAll(Number(res?.totalAll ?? res?.total ?? list.length));
+        setUnreadTotal(Number(res?.unreadCount ?? list.filter((n) => !n.isRead).length));
+        setHasMore(Boolean(res?.hasMore));
       }
     } catch {
-      // ignore if offline
+      setNotifications([]);
+      setHasMore(false);
+    } finally {
+      setLoadingInitial(false);
     }
-  }, []);
+  }, [buildQueryString]);
+
+  const loadOlderBatch = React.useCallback(async () => {
+    if (!hasMore || loadingMoreRef.current || loadingInitial) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      const currentOffset = offsetRef.current;
+      const res = await fetchApi(`/storefront-cms/notifications?${buildQueryString(currentOffset)}`);
+      const nextList: NotificationItem[] = Array.isArray(res)
+        ? res
+        : res?.items || res?.data || [];
+      if (nextList.length > 0) {
+        setNotifications((prev) => {
+          const seen = new Set(prev.map((x) => x.id));
+          return [...prev, ...nextList.filter((x) => !seen.has(x.id))];
+        });
+        offsetRef.current = currentOffset + nextList.length;
+      }
+      setHasMore(Boolean(!Array.isArray(res) && res?.hasMore && nextList.length > 0));
+      if (!Array.isArray(res)) {
+        if (res?.total !== undefined) setTotalFiltered(Number(res.total));
+        if (res?.unreadCount !== undefined) setUnreadTotal(Number(res.unreadCount));
+      }
+    } catch {
+      // ignore transient batch load error
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [hasMore, loadingInitial, buildQueryString]);
 
   React.useEffect(() => {
-    loadNotifications();
+    const t = setTimeout(() => {
+      loadNotifications();
+    }, 150);
+    return () => clearTimeout(t);
   }, [loadNotifications]);
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  React.useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadOlderBatch();
+        }
+      },
+      { rootMargin: '160px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, loadOlderBatch]);
+
+  const unreadCount = unreadTotal;
 
   const handleMarkAllAsRead = async () => {
     if (unreadCount === 0) return;
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setUnreadTotal(0);
     try {
       await fetchApi('/storefront-cms/notifications/read-all', { method: 'PATCH' });
     } catch {
@@ -141,9 +233,14 @@ export default function NotificationsPage() {
 
   const handleToggleRead = async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
+    const target = notifications.find((n) => n.id === id);
+    const wasUnread = target && !target.isRead;
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: !n.isRead } : n))
+      prev.map((n) => (n.id === id ? { ...n, isRead: !n.isRead } : n)),
     );
+    if (target) {
+      setUnreadTotal((c) => Math.max(0, c + (wasUnread ? -1 : 1)));
+    }
     try {
       await fetchApi(`/storefront-cms/notifications/${id}/read`, { method: 'PATCH' });
     } catch {
@@ -151,9 +248,30 @@ export default function NotificationsPage() {
     }
   };
 
+  const handleBulkStatusChange = async (action: 'MARK_READ' | 'MARK_UNREAD') => {
+    if (selectedIds.length === 0) return;
+    const toUpdate = [...selectedIds];
+    const markRead = action === 'MARK_READ';
+    setNotifications((prev) =>
+      prev.map((n) => (toUpdate.includes(n.id) ? { ...n, isRead: markRead } : n)),
+    );
+    setSelectedIds([]);
+    await fetchApi('/storefront-cms/notifications/bulk-action', {
+      method: 'POST',
+      body: JSON.stringify({ ids: toUpdate, action }),
+    }).catch(() => null);
+    await loadNotifications();
+    setToastType('success');
+    setToastMessage(
+      markRead
+        ? `${toUpdate.length} notification(s) marquée(s) comme lue(s).`
+        : `${toUpdate.length} notification(s) marquée(s) comme non lue(s).`,
+    );
+  };
+
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedIds(filteredNotifications.map((n) => n.id));
+      setSelectedIds(notifications.map((n) => n.id));
     } else {
       setSelectedIds([]);
     }
@@ -161,7 +279,7 @@ export default function NotificationsPage() {
 
   const handleSelectOne = (id: string) => {
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   };
 
@@ -171,9 +289,17 @@ export default function NotificationsPage() {
     setNotifications((prev) => prev.filter((n) => !toDelete.includes(n.id)));
     setSelectedIds([]);
     setDeleteConfirmOpen(false);
-    await Promise.all(
-      toDelete.map((id) => fetchApi(`/storefront-cms/notifications/${id}`, { method: 'DELETE' }).catch(() => null))
-    );
+    await fetchApi('/storefront-cms/notifications/bulk-action', {
+      method: 'POST',
+      body: JSON.stringify({ ids: toDelete, action: 'DELETE' }),
+    }).catch(async () => {
+      await Promise.all(
+        toDelete.map((id) =>
+          fetchApi(`/storefront-cms/notifications/${id}`, { method: 'DELETE' }).catch(() => null),
+        ),
+      );
+    });
+    await loadNotifications();
     setToastType('info');
     setToastMessage('Les notifications sélectionnées ont été supprimées.');
   };
@@ -185,43 +311,13 @@ export default function NotificationsPage() {
     setSelectedIds((prev) => prev.filter((item) => item !== id));
     setSingleDeleteId(null);
     await fetchApi(`/storefront-cms/notifications/${id}`, { method: 'DELETE' }).catch(() => null);
+    setTotalFiltered((c) => Math.max(0, c - 1));
+    setTotalAll((c) => Math.max(0, c - 1));
     setToastType('info');
     setToastMessage('La notification a été supprimée.');
   };
 
-  // Filtered notifications
-  const filteredNotifications = React.useMemo(() => {
-    return notifications.filter((item) => {
-      // Search
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        const matches =
-          item.title.toLowerCase().includes(q) ||
-          item.message.toLowerCase().includes(q) ||
-          item.channel.toLowerCase().includes(q);
-        if (!matches) return false;
-      }
-      // Status
-      if (statusFilter === 'UNREAD' && item.isRead) return false;
-      if (statusFilter === 'READ' && !item.isRead) return false;
-      // Gravity
-      if (gravityFilter !== 'ALL' && item.type !== gravityFilter) return false;
-      // Channel
-      if (channelFilter !== 'ALL' && item.channel !== channelFilter) return false;
-      // Date & Time range
-      if (dateRange.startDate) {
-        const start = new Date(dateRange.startDate);
-        if (!dateRange.startDate.includes('T')) start.setHours(0, 0, 0, 0);
-        if (new Date(item.createdAt) < start) return false;
-      }
-      if (dateRange.endDate) {
-        const end = new Date(dateRange.endDate);
-        if (!dateRange.endDate.includes('T')) end.setHours(23, 59, 59, 999);
-        if (new Date(item.createdAt) > end) return false;
-      }
-      return true;
-    });
-  }, [notifications, search, statusFilter, gravityFilter, channelFilter, dateRange]);
+  const filteredNotifications = notifications;
 
   const renderGravityBadge = (type: NotificationItem['type']) => {
     switch (type) {
@@ -282,18 +378,37 @@ export default function NotificationsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {selectedIds.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDeleteConfirmOpen(true)}
-                className="text-xs font-semibold text-rose-600 border-rose-200 hover:bg-rose-50"
-                title="Supprimer la sélection"
-              >
-                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                <span>Supprimer ({selectedIds.length})</span>
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBulkStatusChange('MARK_READ')}
+                  className="text-xs font-semibold text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                >
+                  <Check className="h-3.5 w-3.5 mr-1" />
+                  <span>Marquer lues ({selectedIds.length})</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBulkStatusChange('MARK_UNREAD')}
+                  className="text-xs font-semibold text-amber-700 border-amber-200 hover:bg-amber-50"
+                >
+                  <span>Non lues</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  className="text-xs font-semibold text-rose-600 border-rose-200 hover:bg-rose-50"
+                  title="Supprimer la sélection"
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                  <span>Supprimer ({selectedIds.length})</span>
+                </Button>
+              </>
             )}
 
             <Button
@@ -432,13 +547,17 @@ export default function NotificationsPage() {
               Sélectionner tout ({selectedIds.length}/{filteredNotifications.length})
             </span>
           </label>
-          <span className="text-[11px] text-neutral-400">
-            {filteredNotifications.length} notification{filteredNotifications.length > 1 ? 's' : ''} trouvée{filteredNotifications.length > 1 ? 's' : ''}
+          <span className="text-[11px] text-neutral-500">
+            Affichées : <strong>{filteredNotifications.length}</strong> / <strong>{totalFiltered || totalAll}</strong> notification{(totalFiltered || totalAll) > 1 ? 's' : ''}
           </span>
         </div>
 
         {/* List of Notification Cards */}
-        {filteredNotifications.length === 0 ? (
+        {loadingInitial && filteredNotifications.length === 0 ? (
+          <div className="bg-white rounded-3xl border border-neutral-200 p-12 text-center text-xs text-neutral-500">
+            Chargement des notifications...
+          </div>
+        ) : filteredNotifications.length === 0 ? (
           <div className="bg-white rounded-3xl border border-neutral-200 p-12 text-center space-y-3">
             <div className="w-12 h-12 rounded-2xl bg-neutral-100 flex items-center justify-center text-neutral-400 mx-auto">
               <Bell className="w-6 h-6" />
@@ -572,6 +691,30 @@ export default function NotificationsPage() {
             );
           })
         )}
+
+        {/* Infinite Scroll Bottom Sentinel (10 by 10 older batch loader) */}
+        <div ref={sentinelRef} className="pt-2 flex flex-col items-center justify-center gap-2">
+          {loadingMore && (
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-neutral-200 text-xs font-semibold text-neutral-600 shadow-2xs">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin text-[var(--royal-primary)]" />
+              <span>Chargement des 10 notifications plus anciennes...</span>
+            </div>
+          )}
+          {!loadingMore && hasMore && (
+            <button
+              type="button"
+              onClick={loadOlderBatch}
+              className="px-4 py-2 rounded-full bg-white border border-neutral-200 hover:border-[var(--royal-primary)] text-xs font-bold text-neutral-700 hover:text-[var(--royal-primary)] transition cursor-pointer"
+            >
+              Charger les 10 plus anciennes ({filteredNotifications.length}/{totalFiltered})
+            </button>
+          )}
+          {!hasMore && filteredNotifications.length > 0 && (
+            <span className="text-[11px] text-neutral-400 py-2">
+              Toutes les notifications sont affichées ({filteredNotifications.length}/{totalFiltered || filteredNotifications.length})
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Confirmation Modal Multiple Delete */}

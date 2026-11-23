@@ -80,6 +80,7 @@ const INITIAL_SALES_METRICS: SalesMetricItem[] = [
 
 export default function SalesReportPage() {
   const [sales, setSales] = React.useState<SalesMetricItem[]>([]);
+  const [selectedSaleIds, setSelectedSaleIds] = React.useState<string[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -301,6 +302,43 @@ export default function SalesReportPage() {
       <DataTable
         data={sales}
         columns={columns}
+        keyExtractor={(item) => item.id}
+        isLoading={isLoading}
+        enableMultiSelect={true}
+        selectedKeys={selectedSaleIds}
+        onSelectionChange={setSelectedSaleIds}
+        renderBulkActions={() => (
+          <button
+            type="button"
+            onClick={() => {
+              const sel = sales.filter((s) => selectedSaleIds.includes(s.id));
+              const csv = [
+                ['Article', 'Catégorie', 'Unités', 'CA Net HT', 'CA TTC', 'Marge TND', 'Marge %'],
+                ...sel.map((s) => [
+                  `"${s.articleName.replace(/"/g, '""')}"`,
+                  `"${s.categoryName.replace(/"/g, '""')}"`,
+                  s.unitsSold,
+                  s.totalNetSales,
+                  s.totalTtcSales,
+                  s.marginAmount,
+                  s.marginPercentage,
+                ]),
+              ]
+                .map((r) => r.join(','))
+                .join('\n');
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `ventes_selection_${Date.now()}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="px-2.5 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200 border border-neutral-200 text-xs font-semibold transition cursor-pointer"
+          >
+            Exporter CSV sélection ({selectedSaleIds.length})
+          </button>
+        )}
         supportedModes={['table', 'list', 'matrix']}
         defaultMode="table"
         searchKeys={['articleName', 'categoryName']}

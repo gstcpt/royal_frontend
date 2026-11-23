@@ -43,7 +43,9 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
 
   const loadFeeds = useCallback(async () => {
     try {
-      const notifUrl = isClientOnly ? '/storefront-cms/my-notifications' : '/storefront-cms/notifications';
+      const notifUrl = isClientOnly
+        ? '/storefront-cms/my-notifications?limit=10&offset=0'
+        : '/storefront-cms/notifications?limit=10&offset=0';
       const [notifRes, contactRes] = await Promise.all([
         canShowNotifications ? fetchApi(notifUrl).catch(() => null) : Promise.resolve(null),
         canShowContacts ? fetchApi('/storefront-cms/contacts').catch(() => null) : Promise.resolve(null),
@@ -51,7 +53,7 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
 
       const rawNotifs = Array.isArray(notifRes)
         ? notifRes
-        : notifRes?.data || notifRes?.items || [];
+        : notifRes?.notifications || notifRes?.data || notifRes?.items || [];
       setNotifications(Array.isArray(rawNotifs) ? rawNotifs.slice(0, 5) : []);
 
       if (canShowContacts && contactRes) {

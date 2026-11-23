@@ -28,7 +28,7 @@ import { Modal } from '@/components/ui/modal';
 import { Toast } from '@/components/ui/toast';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Select } from '@/components/ui/select';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
 import { cn, formatTndCurrency } from '@/lib/utils';
 import { useSystemDocumentConfig } from '@/hooks/useSystemDocumentConfig';
 import { DocumentPrintHeader, DocumentPrintFooter } from '@/components/dashboard/DocumentPrintLayout';
@@ -125,6 +125,7 @@ export default function StockTransfersPage() {
   const [saving, setSaving] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [selectedTransfer, setSelectedTransfer] = useState<StockTransferMasterItem | null>(null);
+  const [selectedTransferIds, setSelectedTransferIds] = useState<string[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [fromWhId, setFromWhId] = useState('');
   const [toWhId, setToWhId] = useState('');
@@ -136,10 +137,10 @@ export default function StockTransfersPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [trfRes, whRes, prodRes] = await Promise.all([
+      const [trfRes, whRes, rawProds] = await Promise.all([
         fetchApi('/transfers').catch(() => []),
         fetchApi('/warehouses').catch(() => []),
-        fetchApi('/products?limit=500&status=ACTIVE').catch(() => null),
+        fetchAllPaginated<any>('/products?status=ACTIVE', 200).then((r) => r.items).catch(() => []),
       ]);
       const whList = Array.isArray(whRes) ? whRes : whRes?.data || [];
       setWarehouses(whList);
@@ -147,7 +148,6 @@ export default function StockTransfersPage() {
         setFromWhId((prev) => prev || whList[0].id);
         setToWhId((prev) => prev || whList[1].id);
       }
-      const rawProds = prodRes?.data?.data || prodRes?.data?.items || prodRes?.items || prodRes?.data || (Array.isArray(prodRes) ? prodRes : []);
       const variantMap = new Map<string, { id: string; sku: string; name: string }>();
       const variantsArr: Array<{ id: string; sku: string; name: string }> = [];
       for (const p of Array.isArray(rawProds) ? rawProds : []) {
@@ -214,6 +214,29 @@ export default function StockTransfersPage() {
       await loadData();
     } catch (err: any) {
       setFeedbackMessage(err?.message || 'Erreur lors de la création du transfert.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleBulkTransferAction = async (
+    action: 'approve' | 'dispatch' | 'receive' | 'cancel',
+    label: string
+  ) => {
+    if (selectedTransferIds.length === 0) return;
+    setSaving(true);
+    try {
+      const results = await Promise.allSettled(
+        selectedTransferIds.map((id) => fetchApi(`/transfers/${id}/${action}`, { method: 'POST' }))
+      );
+      const ok = results.filter((r) => r.status === 'fulfilled').length;
+      setFeedbackMessage(
+        `${ok}/${selectedTransferIds.length} transfert(s) ${label}.`
+      );
+      setSelectedTransferIds([]);
+      await loadData();
+    } catch (err: any) {
+      setFeedbackMessage(err?.message || 'Erreur lors de l’action groupée.');
     } finally {
       setSaving(false);
     }
@@ -495,6 +518,45 @@ export default function StockTransfersPage() {
         isLoading={loading}
         columns={columns}
         keyExtractor={(item) => item.id}
+        enableMultiSelect={true}
+        selectedKeys={selectedTransferIds}
+        onSelectionChange={setSelectedTransferIds}
+        renderBulkActions={() => (
+          <>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => handleBulkTransferAction('approve', 'approuvé(s)')}
+              className="px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              Approuver
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => handleBulkTransferAction('dispatch', 'expédié(s)')}
+              className="px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              Expédier
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => handleBulkTransferAction('receive', 'réceptionné(s)')}
+              className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              Réceptionner
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => handleBulkTransferAction('cancel', 'annulé(s)')}
+              className="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              Annuler
+            </button>
+          </>
+        )}
         searchPlaceholder="Rechercher par N° TRF-2026-XXX, entrepôt source, cible, transporteur..."
         searchKeys={['reference', 'sourceWarehouseName', 'targetWarehouseName', 'carrierName', 'requestedBy']}
         supportedModes={['table', 'list', 'matrix']}

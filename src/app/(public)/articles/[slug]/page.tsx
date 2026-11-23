@@ -10,8 +10,10 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useReactionStore } from '@/stores/reaction.store';
 import { getSafeImageUrl, getCartHeaders } from '@/lib/cart-session';
 import { formatCurrency, formatPriceAdjustment } from '@/lib/utils';
+import { fetchAllPaginated } from '@/lib/api';
 import { ProductMediaViewer } from '@/components/storefront/ProductMediaViewer';
 import { ProductCard, StorefrontProduct } from '@/components/storefront/ProductCard';
+import { QuickOrderModal } from '@/components/storefront/QuickOrderModal';
 import { trackMarketingEvent } from '@/components/storefront/MarketingPixelsTracker';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
@@ -32,6 +34,7 @@ import {
   Minus,
   ThumbsUp,
   ThumbsDown,
+  Zap,
 } from 'lucide-react';
 
 interface ProductVariantData {
@@ -135,12 +138,9 @@ export default function ArticleDetailPage() {
       return;
     }
     let cancelled = false;
-    fetch('/api/v1/products/storefront?limit=120')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((json) => {
-        if (cancelled || !json) return;
-        const list = json?.data?.data || json?.data || json?.products || [];
-        if (Array.isArray(list)) setCandidateRecommended(list);
+    fetchAllPaginated<StorefrontProduct>('/products/storefront', 200)
+      .then(({ items: list }) => {
+        if (!cancelled && Array.isArray(list)) setCandidateRecommended(list);
       })
       .catch(() => {});
     return () => {
@@ -148,6 +148,7 @@ export default function ArticleDetailPage() {
     };
   }, [product?.id, detailCfg.showRelatedProducts, detailCfg.extraRecommendedBlocks]);
   const [addedToCartToast, setAddedToCartToast] = useState(false);
+  const [isQuickOrderOpen, setIsQuickOrderOpen] = useState(false);
 
   const [reviewsData, setReviewsData] = useState<{
     averageRating: number;
@@ -572,7 +573,7 @@ export default function ArticleDetailPage() {
 
             {/* Quantity & Action Row */}
             <div className="pt-2 space-y-3">
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-3 bg-[#F4F5F7] border border-neutral-200 rounded-full px-3.5 py-2.5">
                   <button
                     type="button"
@@ -594,10 +595,20 @@ export default function ArticleDetailPage() {
                 <button
                   type="button"
                   onClick={handleAddToCart}
-                  className="flex-1 py-4 px-6 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs uppercase tracking-widest font-bold shadow-lg flex items-center justify-center gap-2 transition cursor-pointer"
+                  title={locale === 'ar' ? t('product.add_to_cart') : (detailCfg.addToCartText || t('product.add_to_cart'))}
+                  aria-label={locale === 'ar' ? t('product.add_to_cart') : (detailCfg.addToCartText || t('product.add_to_cart'))}
+                  className="h-12 w-12 rounded-full bg-white hover:bg-[var(--royal-gold-light)] border-2 border-[var(--royal-primary)] text-[var(--royal-primary)] shadow-sm flex items-center justify-center shrink-0 transition cursor-pointer"
                 >
-                  <ShoppingCart className="w-4 h-4" />
-                  <span>{locale === 'ar' ? t('product.add_to_cart') : (detailCfg.addToCartText || t('product.add_to_cart'))}</span>
+                  <ShoppingCart className="w-5 h-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsQuickOrderOpen(true)}
+                  className="flex-1 min-w-[180px] py-3.5 px-6 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs uppercase tracking-widest font-bold shadow-lg flex items-center justify-center gap-2 transition cursor-pointer"
+                >
+                  <Zap className="w-4 h-4" />
+                  <span>{t('actions.buy_now_short')}</span>
                 </button>
               </div>
 
@@ -1134,6 +1145,37 @@ export default function ArticleDetailPage() {
           ));
         })()}
       </div>
+      {product && (
+        <QuickOrderModal
+          isOpen={isQuickOrderOpen}
+          onClose={() => setIsQuickOrderOpen(false)}
+          product={{
+            id: product.id,
+            sku: product.sku,
+            name: product.name,
+            slug: product.slug,
+            shortDescription: product.shortDescription,
+            description: product.description,
+            sellingPrice: Number(product.sellingPrice),
+            discountPrice: product.discountPrice ? Number(product.discountPrice) : null,
+            discountPercentage: product.discountPercentage,
+            primaryImage:
+              product.images?.find((im) => im.isPrimary)?.url || product.images?.[0]?.url || '',
+            images: product.images?.map((im) => im.url) || [],
+            category: product.category ? { name: product.category.name, slug: product.category.slug } : null,
+            brand: product.brand ? { name: product.brand.name, slug: product.brand.slug } : null,
+            variants: (product.variants || []).map((v) => ({
+              id: v.id,
+              sku: v.sku,
+              name: v.name,
+              sellingPrice: v.sellingPrice ? Number(v.sellingPrice) : undefined,
+              attributesJson: v.attributesJson || v.attributes || null,
+            })),
+          }}
+          initialVariantId={selectedVariantId}
+          initialQuantity={quantity}
+        />
+      )}
     </div>
   );
 }

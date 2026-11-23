@@ -44,7 +44,8 @@ import {
   Toast,
 } from '@/components/ui';
 import { ModalArticlesTable, RelatedArticlesModal } from '@/components/dashboard';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
+import { Check as _BrandCheckIcon, Eye as _BrandEyeIcon, EyeOff as _BrandEyeOffIcon } from 'lucide-react';
 
 export interface BrandItem {
   id: string;
@@ -287,29 +288,25 @@ export default function DashboardBrandsPage() {
     setTimeout(() => setFeedbackMessage(null), 3500);
   };
 
-  // Load brands and products
+  // Load brands immediately and stream product counts without blocking UI
   const loadBrands = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const [brandsRes, prodsRes] = await Promise.all([
-        fetchApi('/brands').catch(() => null),
-        fetchApi('/products?limit=1000').catch(() => null),
-      ]);
+      const productsPromise = fetchAllPaginated<any>('/products', 200)
+        .then(({ items }) => setProducts(Array.isArray(items) ? items : []))
+        .catch(() => null);
 
+      const brandsRes = await fetchApi('/brands').catch(() => null);
       if (brandsRes) {
         const list = Array.isArray(brandsRes) ? brandsRes : brandsRes.data || [];
         setBrands(list);
       } else {
         setBrands(defaultBrands);
       }
-
-      if (prodsRes) {
-        const list = Array.isArray(prodsRes) ? prodsRes : prodsRes.data || [];
-        setProducts(list);
-      }
+      setIsLoading(false);
+      await productsPromise;
     } catch {
       setBrands(defaultBrands);
-    } finally {
       setIsLoading(false);
     }
   }, []);
@@ -442,6 +439,31 @@ export default function DashboardBrandsPage() {
         const firstErr = (results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined)?.reason;
         showToast('error', `${deletedCount} supprimée(s), ${failedCount} refusée(s) : ${firstErr?.message || 'articles actifs liés.'}`);
       }
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const handleBulkBrandStatus = async (isActive: boolean) => {
+    if (selectedBrandIds.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      await Promise.allSettled(
+        selectedBrandIds.map((id) =>
+          fetchApi(`/brands/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ isActive }),
+          })
+        )
+      );
+      showToast(
+        'success',
+        `${selectedBrandIds.length} marque(s) ${isActive ? 'activée(s) en ligne' : 'masquée(s) du catalogue'}.`
+      );
+      setSelectedBrandIds([]);
+      await loadBrands();
+    } catch (err: any) {
+      showToast('error', err?.message || 'Erreur lors de la mise à jour groupée.');
     } finally {
       setIsBulkDeleting(false);
     }
@@ -850,14 +872,56 @@ export default function DashboardBrandsPage() {
         selectedKeys={selectedBrandIds}
         onSelectionChange={setSelectedBrandIds}
         onBulkDelete={() => setIsBulkDeleteModalOpen(true)}
+        renderBulkActions={() => (
+          <>
+            <button
+              type="button"
+              disabled={isBulkDeleting}
+              onClick={() => handleBulkBrandStatus(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              <_BrandEyeIcon className="w-3.5 h-3.5" />
+              <span>Activer</span>
+            </button>
+            <button
+              type="button"
+              disabled={isBulkDeleting}
+              onClick={() => handleBulkBrandStatus(false)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              <_BrandEyeOffIcon className="w-3.5 h-3.5" />
+              <span>Masquer</span>
+            </button>
+          </>
+        )}
         exportFileName="marques"
         printTitle="Catalogue des Marques et Constructeurs Royal"
         /* Mode Matrix (Grid Cards) */
         renderMatrixCard={(item, isChecked, onToggleCheck) => (
-          <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
-            <div className="p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="w-12 h-12 rounded-xl bg-neutral-50 border border-neutral-200 p-1 flex items-center justify-center relative overflow-hidden">
+          <div
+            className={`bg-white rounded-2xl border overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between group ${
+              isChecked ? 'border-[#C59B27] ring-2 ring-[#C59B27]/20 bg-[#FBF9F4]/30' : 'border-neutral-200'
+            }`}
+          >
+            <div className="p-4 sm:p-5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleCheck?.(e);
+                    }}
+                    aria-label={`Sélectionner ${item.name}`}
+                    className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition cursor-pointer ${
+                      isChecked
+                        ? 'bg-[#C59B27] border-[#C59B27] text-white shadow-xs'
+                        : 'border-neutral-300 bg-white hover:border-[#C59B27]'
+                    }`}
+                  >
+                    {isChecked && <_BrandCheckIcon className="w-3 h-3" />}
+                  </button>
+                  <div className="w-12 h-12 rounded-xl bg-neutral-50 border border-neutral-200 p-1 flex items-center justify-center relative overflow-hidden shrink-0">
                   {item.logoUrl ? (
                     <Image
                       src={item.logoUrl}
@@ -871,6 +935,7 @@ export default function DashboardBrandsPage() {
                       {getInitials(item.name)}
                     </div>
                   )}
+                </div>
                 </div>
                 <Badge variant={item.isActive ? 'success' : 'neutral'} size="sm">
                   {item.isActive ? 'Actif' : 'Masqué'}
@@ -910,11 +975,26 @@ export default function DashboardBrandsPage() {
         renderListItem={(item, isSelected, onSelect, isChecked, onToggleCheck) => (
           <div
             onClick={onSelect}
-            className={`p-3.5 flex items-center justify-between gap-4 transition-all ${
-              isSelected ? 'bg-neutral-100/70' : 'hover:bg-neutral-50/60'
+            className={`p-3.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 transition-all ${
+              isSelected || isChecked ? 'bg-neutral-100/70' : 'hover:bg-neutral-50/60'
             }`}
           >
-            <div className="flex items-center gap-3.5 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleCheck?.(e);
+                }}
+                aria-label={`Sélectionner ${item.name}`}
+                className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition cursor-pointer ${
+                  isChecked
+                    ? 'bg-[#C59B27] border-[#C59B27] text-white'
+                    : 'border-neutral-300 bg-white hover:border-[#C59B27]'
+                }`}
+              >
+                {isChecked && <_BrandCheckIcon className="w-3 h-3" />}
+              </button>
               <div className="w-10 h-10 rounded-xl bg-white border border-neutral-200 p-1 flex items-center justify-center shrink-0 relative overflow-hidden">
                 {item.logoUrl ? (
                   <Image src={item.logoUrl} alt={item.name} fill className="object-contain p-1" unoptimized />
@@ -932,7 +1012,7 @@ export default function DashboardBrandsPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 shrink-0">
+            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-neutral-100 shrink-0">
               <button
                 type="button"
                 onClick={() => {
