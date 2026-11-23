@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { ShieldCheck, ArrowLeft } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
+import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHeader';
 
 export default function PrivacyPage() {
   const { config } = useCmsConfig();
@@ -26,24 +26,18 @@ export default function PrivacyPage() {
 
   const blocks: Record<string, React.ReactNode> = {
     header: (
-      <div key="header" className="mb-6">
-        {privCfg.showBackLink !== false && (
-          <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-[var(--royal-primary)] mb-6 transition">
-            <ArrowLeft className="w-4 h-4" />
-            <span>{t('common.back_home')}</span>
-          </Link>
-        )}
-        <div>
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] mb-4">
-            <ShieldCheck className="w-4 h-4 text-[var(--royal-primary)]" />
+      <StorefrontPageHeader
+        key="header"
+        title={locale === 'ar' ? t('legal.privacy_title') : (page?.title || t('legal.privacy_title'))}
+        breadcrumbLabel={t('footer.privacy')}
+        subtitle={page?.subtitle}
+        badge={
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)]">
+            <ShieldCheck className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
             <span>{locale === 'ar' ? t('legal.privacy_badge') : (privCfg.badgeText || t('legal.privacy_badge'))}</span>
           </div>
-          <h1 className="font-heading text-3xl sm:text-4xl font-black text-[var(--royal-ink)] tracking-tight">
-            {locale === 'ar' ? t('legal.privacy_title') : (page?.title || t('legal.privacy_title'))}
-          </h1>
-          {page?.subtitle && <p className="mt-2 text-sm text-neutral-500">{page.subtitle}</p>}
-        </div>
-      </div>
+        }
+      />
     ),
     document: loading ? (
       <div key="document" className="h-64 bg-neutral-100 rounded-3xl animate-pulse" />
@@ -72,7 +66,7 @@ export default function PrivacyPage() {
   };
 
   return (
-    <div className="bg-[var(--royal-bg)] min-h-screen py-14 md:py-20">
+    <div className="bg-[var(--royal-bg)] min-h-screen py-10 sm:py-12">
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
         {order.map((sec) => blocks[sec] || null)}
       </div>

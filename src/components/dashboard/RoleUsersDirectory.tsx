@@ -117,6 +117,7 @@ const ROLE_ALIAS_MAP: Record<string, string> = {
   WEBSITE_MANAGER: 'WEBSITE_MANAGER',
   ADMIN: 'ADMIN',
   COMMERCIAL: 'COMMERCIAL',
+  MARKETING: 'MARKETING',
   DELIVERY_MANAGER: 'DELIVERY_MANAGER',
   DELIVERY_AGENT: 'DELIVERY_AGENT',
   CLIENT: 'CLIENT',
@@ -649,6 +650,41 @@ export function RoleUsersDirectory({
     }
   };
 
+  const handleToggleEmailVerified = async (item: RoleUserItem, targetState?: boolean) => {
+    const nextVal = targetState !== undefined ? targetState : !item.isEmailVerified;
+    try {
+      const res: any = await fetchApi(`/users/${item.id}/email-verification`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isEmailVerified: nextVal }),
+      });
+      const payload = res?.data && !res?.message ? res.data : res;
+      setItems((prev) =>
+        prev.map((u) => (u.id === item.id ? { ...u, isEmailVerified: nextVal } : u)),
+      );
+      if (inspectItem?.id === item.id) {
+        setInspectItem((prev) => (prev ? { ...prev, isEmailVerified: nextVal } : prev));
+      }
+      if (editingItem?.id === item.id) {
+        setEditingItem((prev) => (prev ? { ...prev, isEmailVerified: nextVal } : prev));
+      }
+      showToast('success', payload?.message || (nextVal ? 'E-mail marqué vérifié.' : 'E-mail marqué non vérifié.'));
+    } catch (err: any) {
+      showToast('error', err?.message || 'Impossible de modifier la vérification e-mail.');
+    }
+  };
+
+  const handleSendVerificationCode = async (item: RoleUserItem) => {
+    try {
+      const res: any = await fetchApi(`/users/${item.id}/send-verification-code`, {
+        method: 'POST',
+      });
+      const payload = res?.data && !res?.message ? res.data : res;
+      showToast('success', payload?.message || `Code OTP envoyé à ${item.email}.`);
+    } catch (err: any) {
+      showToast('error', err?.message || "Impossible d'envoyer le code de vérification.");
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteItem) return;
     try {
@@ -837,9 +873,18 @@ export function RoleUsersDirectory({
             <div className="font-bold text-[#1D232E] text-xs truncate">
               {item.firstName} {item.lastName}
             </div>
-            <div className="text-[11px] text-slate-500 flex items-center gap-1 truncate">
+            <div className="text-[11px] text-slate-500 flex items-center gap-1.5 truncate">
               <Mail className="w-3 h-3 text-[#C59B27] shrink-0" />
               <span className="truncate">{item.email}</span>
+              <span
+                className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold border shrink-0 ${
+                  item.isEmailVerified !== false
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-amber-50 text-amber-800 border-amber-200'
+                }`}
+              >
+                {item.isEmailVerified !== false ? 'E-mail vérifié' : 'À vérifier'}
+              </span>
             </div>
           </div>
         </div>
@@ -1164,6 +1209,11 @@ export function RoleUsersDirectory({
                   {item.isActive ? 'Actif' : 'Suspendu'}
                 </Badge>
               </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge variant={item.isEmailVerified !== false ? 'success' : 'warning'} size="sm">
+                  {item.isEmailVerified !== false ? 'E-mail vérifié' : 'E-mail non vérifié'}
+                </Badge>
+              </div>
               {(item.assignedWarehouses?.length ||
                 item.assignedCashRegisters?.length ||
                 item.assignedShowrooms?.length) ? (
@@ -1304,6 +1354,34 @@ export function RoleUsersDirectory({
               </div>
               <div className="p-3 rounded-xl bg-[#F8F9FA] border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                  Vérification E-mail
+                </span>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <Badge variant={inspectItem.isEmailVerified !== false ? 'success' : 'warning'} size="sm">
+                    {inspectItem.isEmailVerified !== false ? 'Vérifié' : 'Non vérifié'}
+                  </Badge>
+                  {getPrimaryRoleName(inspectItem, roleCode).toUpperCase() !== 'ROOT' && (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleEmailVerified(inspectItem, inspectItem.isEmailVerified === false)}
+                      className="text-[11px] font-bold text-[#9A7414] hover:underline cursor-pointer"
+                    >
+                      {inspectItem.isEmailVerified !== false ? 'Révoquer' : 'Marquer vérifié'}
+                    </button>
+                  )}
+                  {inspectItem.isEmailVerified === false && (
+                    <button
+                      type="button"
+                      onClick={() => handleSendVerificationCode(inspectItem)}
+                      className="text-[11px] font-bold text-[#1D232E] hover:underline cursor-pointer"
+                    >
+                      Envoyer code OTP
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-[#F8F9FA] border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">
                   Créé le
                 </span>
                 <span className="font-mono font-bold text-[#1D232E] inline-flex items-center gap-1">
@@ -1415,6 +1493,37 @@ export function RoleUsersDirectory({
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D6] text-xs bg-white text-[#1D232E]"
               />
+              {editingItem && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
+                  <span
+                    className={`px-2 py-0.5 rounded-full font-bold border ${
+                      editingItem.isEmailVerified !== false
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-amber-50 text-amber-800 border-amber-200'
+                    }`}
+                  >
+                    {editingItem.isEmailVerified !== false ? 'E-mail vérifié' : 'E-mail non vérifié'}
+                  </span>
+                  {!editingIsRoot && (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleEmailVerified(editingItem, editingItem.isEmailVerified === false)}
+                      className="font-bold text-[#9A7414] hover:underline cursor-pointer"
+                    >
+                      {editingItem.isEmailVerified !== false ? 'Révoquer' : 'Marquer vérifié'}
+                    </button>
+                  )}
+                  {editingItem.isEmailVerified === false && (
+                    <button
+                      type="button"
+                      onClick={() => handleSendVerificationCode(editingItem)}
+                      className="font-bold text-[#1D232E] hover:underline cursor-pointer"
+                    >
+                      Envoyer OTP
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Téléphone</label>

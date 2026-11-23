@@ -131,6 +131,8 @@ function DashboardLayoutInner({
     '/dashboard/users': 'PRIVATE',
     '/dashboard/root/superadmins': 'PRIVATE',
     '/dashboard/users/admins': 'PRIVATE',
+    '/dashboard/users/commercials': 'PUBLIC',
+    '/dashboard/users/marketing': 'PRIVATE',
     '/dashboard/users/delivery-managers': 'PRIVATE',
     '/dashboard/users/delivery-agents': 'PRIVATE',
     '/dashboard/users/clients': 'PRIVATE',
@@ -478,6 +480,7 @@ function DashboardLayoutInner({
     userRoles.includes('FINANCIER') ||
     hasRole(SystemRole.ACCOUNTANT);
   const isCommercial = userRoles.includes('COMMERCIAL');
+  const isMarketing = userRoles.includes('MARKETING');
   const isStaff =
     isRoot ||
     isSuperAdmin ||
@@ -486,7 +489,8 @@ function DashboardLayoutInner({
     isCaissier ||
     isVendeur ||
     isFinancier ||
-    isCommercial;
+    isCommercial ||
+    isMarketing;
   const isClient = !isStaff;
 
   const primaryRole = userRoles[0] || 'CLIENT';
@@ -648,6 +652,12 @@ function DashboardLayoutInner({
           label: 'Commercials',
           href: '/dashboard/users/commercials',
           icon: <Briefcase className="h-4 w-4" />,
+        },
+        {
+          id: 'users-marketing',
+          label: 'Marketing',
+          href: '/dashboard/users/marketing',
+          icon: <Sparkles className="h-4 w-4" />,
         },
         {
           id: 'users-deliv-mgr',

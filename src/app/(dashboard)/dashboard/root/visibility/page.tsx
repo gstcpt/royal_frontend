@@ -47,6 +47,7 @@ const REGISTRY_VIEWS: ViewRouteItem[] = [
   { key: '/dashboard/users/vendeurs', label: 'Vendeurs', section: 'Gestion des utilisateurs', visibility: 'PUBLIC' },
   { key: '/dashboard/users/financiers', label: 'Financiers', section: 'Gestion des utilisateurs', visibility: 'PUBLIC' },
   { key: '/dashboard/users/commercials', label: 'Commercials', section: 'Gestion des utilisateurs', visibility: 'PUBLIC' },
+  { key: '/dashboard/users/marketing', label: 'Marketing', section: 'Gestion des utilisateurs', visibility: 'PRIVATE' },
   { key: '/dashboard/users/delivery-managers', label: 'Responsables Livraison', section: 'Gestion des utilisateurs', visibility: 'PRIVATE' },
   { key: '/dashboard/users/delivery-agents', label: 'Livreurs', section: 'Gestion des utilisateurs', visibility: 'PRIVATE' },
   { key: '/dashboard/users/clients', label: 'Clients (Comptes RBAC)', section: 'Gestion des utilisateurs', visibility: 'PRIVATE' },

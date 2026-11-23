@@ -11,6 +11,9 @@ import {
   MapPin,
   Receipt,
   Calendar,
+  KeyRound,
+  RefreshCw,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { Breadcrumb, Button, Input } from '@/components/ui';
@@ -84,10 +87,14 @@ function resizeImageToDataUrl(file: File, maxSize = 256): Promise<string> {
 }
 
 export default function AccountProfilePage() {
-  const { user, fetchMe } = useAuthStore();
+  const { user, fetchMe, verifyEmail, resendVerification } = useAuthStore();
   const [firstName, setFirstName] = React.useState(user?.firstName || '');
   const [lastName, setLastName] = React.useState(user?.lastName || '');
   const [email, setEmail] = React.useState(user?.email || '');
+  const [isEmailVerified, setIsEmailVerified] = React.useState<boolean>(user?.isEmailVerified ?? true);
+  const [otpCode, setOtpCode] = React.useState('');
+  const [sendingOtp, setSendingOtp] = React.useState(false);
+  const [verifyingOtp, setVerifyingOtp] = React.useState(false);
   const [phone, setPhone] = React.useState('');
   const [avatar, setAvatar] = React.useState<string>('');
   const [birthDate, setBirthDate] = React.useState<string>('');
@@ -110,6 +117,7 @@ export default function AccountProfilePage() {
           setFirstName(p.firstName || user?.firstName || '');
           setLastName(p.lastName || user?.lastName || '');
           setEmail(p.email || user?.email || '');
+          setIsEmailVerified(p.isEmailVerified ?? user?.isEmailVerified ?? true);
           setPhone(p.phone || '');
           setAvatar(p.avatar || '');
           setBirthDate(p.birthDate ? String(p.birthDate).slice(0, 10) : '');
@@ -358,7 +366,86 @@ export default function AccountProfilePage() {
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                 />
-                <Input label="Adresse Email" type="email" value={email} disabled />
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-xs font-bold text-neutral-700">Adresse Email</span>
+                    {isEmailVerified ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
+                        <ShieldCheck className="w-3 h-3" />
+                        <span>Vérifié</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold">
+                        <AlertCircle className="w-3 h-3" />
+                        <span>Non vérifié</span>
+                      </span>
+                    )}
+                  </div>
+                  <Input type="email" value={email} disabled />
+                  {!isEmailVerified && (
+                    <div className="mt-2 p-3 rounded-xl bg-[#FBF6E8] border border-[#E6D6A6] space-y-2">
+                      <div className="flex items-center justify-between gap-2 text-[11px]">
+                        <span className="font-bold text-[#9A7414] flex items-center gap-1">
+                          <KeyRound className="w-3.5 h-3.5" />
+                          <span>Confirmer cette adresse par code OTP</span>
+                        </span>
+                        <button
+                          type="button"
+                          disabled={sendingOtp || !email}
+                          onClick={async () => {
+                            setSendingOtp(true);
+                            setStatusMsg(null);
+                            try {
+                              const r = await resendVerification(email);
+                              setStatusMsg({ type: 'success', text: r?.message || `Code envoyé à ${email}.` });
+                            } catch (err: any) {
+                              setStatusMsg({ type: 'error', text: err?.message || "Échec d'envoi du code." });
+                            } finally {
+                              setSendingOtp(false);
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 font-bold text-[#1D232E] hover:underline cursor-pointer disabled:opacity-50"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${sendingOtp ? 'animate-spin' : ''}`} />
+                          <span>Envoyer le code</span>
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          placeholder="Code 6 chiffres"
+                          value={otpCode}
+                          onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          className="flex-1 min-w-0 px-3 py-1.5 rounded-lg border border-[#E6D6A6] bg-white font-mono text-xs text-center tracking-widest"
+                        />
+                        <button
+                          type="button"
+                          disabled={verifyingOtp || otpCode.length !== 6}
+                          onClick={async () => {
+                            setVerifyingOtp(true);
+                            setStatusMsg(null);
+                            try {
+                              await verifyEmail(email, otpCode);
+                              setIsEmailVerified(true);
+                              setOtpCode('');
+                              await fetchMe();
+                              setStatusMsg({ type: 'success', text: 'Adresse e-mail vérifiée avec succès.' });
+                            } catch (err: any) {
+                              setStatusMsg({ type: 'error', text: err?.message || 'Code invalide ou expiré.' });
+                            } finally {
+                              setVerifyingOtp(false);
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-[var(--royal-primary)] text-white text-xs font-bold cursor-pointer disabled:opacity-50"
+                        >
+                          {verifyingOtp ? '...' : 'Valider'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <Input
                   label="Téléphone Mobile"
                   placeholder="+216 XX XXX XXX"

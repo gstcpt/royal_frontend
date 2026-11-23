@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useTransition, useMemo, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ProductCard, StorefrontProduct } from '@/components/storefront/ProductCard';
+import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHeader';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
 import { getSafeImageUrl } from '@/lib/cart-session';
@@ -133,20 +134,20 @@ function ArticlesContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(articlesCfg.showSidebarFiltersByDefault !== false);
   const [displayMode, setDisplayMode] = useState<'grid' | 'list'>(articlesCfg.defaultColumns === 'list' ? 'list' : 'grid');
   const [gridCols, setGridCols] = useState<3 | 4>(
-    articlesCfg.defaultColumns === '3' ? 3 : 4
+    articlesCfg.defaultColumns === '4' ? 4 : 3
   );
 
   useEffect(() => {
     const isSmall = typeof window !== 'undefined' && window.innerWidth < 1024;
     setIsSidebarOpen(!isSmall && articlesCfg.showFiltersSection !== false && articlesCfg.showSidebarFiltersByDefault !== false);
-    if (isSmall || articlesCfg.defaultColumns === 'list') {
+    if (articlesCfg.defaultColumns === 'list') {
       setDisplayMode('list');
-    } else if (articlesCfg.defaultColumns === '3') {
-      setDisplayMode('grid');
-      setGridCols(3);
-    } else {
+    } else if (articlesCfg.defaultColumns === '4') {
       setDisplayMode('grid');
       setGridCols(4);
+    } else {
+      setDisplayMode('grid');
+      setGridCols(3);
     }
   }, [articlesCfg.defaultColumns, articlesCfg.showSidebarFiltersByDefault, articlesCfg.showFiltersSection]);
 
@@ -156,17 +157,15 @@ function ArticlesContent() {
     const onResize = (ev: MediaQueryListEvent) => {
       if (ev.matches) {
         setIsSidebarOpen(false);
-        setDisplayMode('list');
       } else {
         setIsSidebarOpen(articlesCfg.showFiltersSection !== false && articlesCfg.showSidebarFiltersByDefault !== false);
-        setDisplayMode(articlesCfg.defaultColumns === 'list' ? 'list' : 'grid');
       }
     };
     if (mq.addEventListener) mq.addEventListener('change', onResize);
     return () => {
       if (mq.removeEventListener) mq.removeEventListener('change', onResize);
     };
-  }, [articlesCfg.defaultColumns, articlesCfg.showSidebarFiltersByDefault, articlesCfg.showFiltersSection]);
+  }, [articlesCfg.showSidebarFiltersByDefault, articlesCfg.showFiltersSection]);
   const [expandedCatIds, setExpandedCatIds] = useState<Record<string, boolean>>({});
   const [openCharCodes, setOpenCharCodes] = useState<Record<string, boolean>>({
     puissance: true,
@@ -520,39 +519,21 @@ function ArticlesContent() {
       : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
 
   return (
-    <div className="py-8 md:py-12 w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
+    <div className="py-10 sm:py-12 w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
       {/* Page Title */}
       {articlesCfg.showHeaderBanner !== false && (
-        <div
-          className={`mb-6 ${
-            articlesCfg.headerImageUrl
-              ? 'relative rounded-3xl overflow-hidden border border-[#E6E1D6] bg-white p-6 sm:p-10 shadow-xs'
-              : ''
-          }`}
-        >
-          {articlesCfg.headerImageUrl && (
-            <>
-              <img
-                src={getSafeImageUrl(articlesCfg.headerImageUrl)}
-                alt={articlesCfg.headerTitle || 'Catalogue Royal'}
-                className="absolute inset-0 w-full h-full object-cover opacity-20"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/85 to-white/70" />
-            </>
-          )}
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)] mb-3">
+        <StorefrontPageHeader
+          title={locale === 'ar' ? t('catalog.title') : (articlesCfg.headerTitle || t('catalog.title'))}
+          breadcrumbLabel={t('nav.articles')}
+          subtitle={locale === 'ar' ? t('catalog.subtitle') : (articlesCfg.headerSubtitle || t('catalog.subtitle'))}
+          backgroundImageUrl={articlesCfg.headerImageUrl ? getSafeImageUrl(articlesCfg.headerImageUrl) : undefined}
+          badge={
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)]">
               <Sparkles className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
               <span>{locale === 'ar' ? t('catalog.badge') : (articlesCfg.headerBadge || `${config?.appName || 'Royal'} • Électro de Maison`)}</span>
             </div>
-            <h1 className="font-heading text-2xl sm:text-3xl md:text-5xl font-black text-[var(--royal-ink)] tracking-tight">
-              {locale === 'ar' ? t('catalog.title') : (articlesCfg.headerTitle || t('catalog.title'))}
-            </h1>
-            <p className="mt-2 text-xs sm:text-sm text-neutral-500 max-w-2xl font-normal">
-              {locale === 'ar' ? t('catalog.subtitle') : (articlesCfg.headerSubtitle || t('catalog.subtitle'))}
-            </p>
-          </div>
-        </div>
+          }
+        />
       )}
 
       {/* Unified Top Toolbar: [Toggle Sidebar Icon] -> [Article Count] -> [Search Input] -> [Grid/List, 3/4/6, PerPage, Sort] */}

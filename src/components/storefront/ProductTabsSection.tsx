@@ -32,6 +32,22 @@ export function IsolatedProductCarousel({
 }) {
   const { t } = useI18nStore();
   const { scrollRef, isDragging, dragProps } = useDragScroll<HTMLDivElement>();
+  const [isHovered, setIsHovered] = React.useState(false);
+
+  React.useEffect(() => {
+    if (displayMode === 'grid' || isHovered || isDragging || (products || []).length <= 1) return;
+    const timer = setInterval(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      if (el.scrollWidth <= el.clientWidth + 8) return;
+      if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 16) {
+        el.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        el.scrollBy({ left: 315, behavior: 'smooth' });
+      }
+    }, 3800);
+    return () => clearInterval(timer);
+  }, [displayMode, isHovered, isDragging, products, scrollRef]);
 
   const scroll = (dir: 'left' | 'right') => {
     if (scrollRef.current) {
@@ -103,6 +119,9 @@ export function IsolatedProductCarousel({
           <div
             ref={scrollRef}
             {...dragProps}
+            data-carousel-paused={isHovered ? 'true' : 'false'}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
             className={`flex gap-5 overflow-x-auto pb-3 select-none touch-pan-y ${
               isDragging ? 'cursor-grabbing' : 'cursor-grab snap-x snap-mandatory'
             }`}

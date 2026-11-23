@@ -53,6 +53,7 @@ export function TestimonialsCarousel() {
   const { scrollRef, isDragging, dragProps } = useDragScroll<HTMLDivElement>();
   const { config } = useCmsConfig();
   const { locale, t } = useI18nStore();
+  const [isHovered, setIsHovered] = React.useState(false);
   const displayReviews =
     config.testimonials && config.testimonials.length > 0
       ? config.testimonials.map((t) => ({
@@ -65,6 +66,21 @@ export function TestimonialsCarousel() {
           comment: t.comment,
         }))
       : clientReviews;
+
+  React.useEffect(() => {
+    if (isHovered || isDragging || displayReviews.length <= 1) return;
+    const timer = setInterval(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      if (el.scrollWidth <= el.clientWidth + 8) return;
+      if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 16) {
+        el.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        el.scrollBy({ left: 390, behavior: 'smooth' });
+      }
+    }, 4200);
+    return () => clearInterval(timer);
+  }, [isHovered, isDragging, displayReviews.length, scrollRef]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
@@ -117,6 +133,9 @@ export function TestimonialsCarousel() {
         <div
           ref={scrollRef}
           {...dragProps}
+          data-carousel-paused={isHovered ? 'true' : 'false'}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
           className={`flex gap-6 overflow-x-auto pb-4 select-none touch-pan-y ${
             isDragging ? 'cursor-grabbing' : 'cursor-grab snap-x snap-mandatory'
           }`}

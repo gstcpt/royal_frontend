@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useCartStore } from '@/stores/cart.store';
 import { getCartHeaders, getSafeImageUrl } from '@/lib/cart-session';
 import { useI18nStore } from '@/stores/i18n.store';
+import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHeader';
 import {
   ShoppingBag,
   Trash2,
@@ -170,31 +171,21 @@ export default function CartPage() {
   const progressPercent = Math.min(100, Math.round((subtotalAfterDiscount / shippingThreshold) * 100));
 
   return (
-    <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-24 py-12">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs text-[#0C1A14]/60 uppercase tracking-widest mb-6">
-        <Link href="/" className="hover:text-[#D4AF37] transition">{t('nav.home')}</Link>
-        <span>/</span>
-        <span className="text-[#0C1A14] font-semibold">{t('nav.my_cart')}</span>
-      </nav>
-
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#EFECE6] pb-6 mb-10">
-        <div>
-          <h1 className="font-sans font-bold tracking-tight text-3xl sm:text-4xl text-[#0C1A14] tracking-tight">
-            {t('cart.title')}
-          </h1>
-          <p className="text-sm text-[#0C1A14]/70 mt-1">
-            {items.length} {t('catalog.articles_word')}
-          </p>
-        </div>
-        <Link
-          href="/articles"
-          className="text-xs uppercase font-medium tracking-widest text-[#0C1A14] hover:text-[#D4AF37] flex items-center gap-1.5 transition"
-        >
-          <span>{t('actions.continue_shopping')}</span>
-          <ArrowRight className="w-3.5 h-3.5" />
-        </Link>
-      </div>
+    <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 py-10 sm:py-12">
+      <StorefrontPageHeader
+        title={t('cart.title')}
+        breadcrumbLabel={t('nav.my_cart')}
+        subtitle={`${items.length} ${t('catalog.articles_word')}`}
+        rightSlot={
+          <Link
+            href="/articles"
+            className="text-xs uppercase font-medium tracking-widest text-[#0C1A14] hover:text-[var(--royal-primary)] flex items-center gap-1.5 transition"
+          >
+            <span>{t('actions.continue_shopping')}</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        }
+      />
 
       {loading ? (
         <div className="py-24 text-center">

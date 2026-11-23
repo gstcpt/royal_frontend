@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useI18nStore } from '@/stores/i18n.store';
 import { getCartHeaders, getSafeImageUrl } from '@/lib/cart-session';
 import { ProductCard, StorefrontProduct } from '@/components/storefront/ProductCard';
+import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHeader';
 import { Heart, ShoppingBag, ArrowRight, Check } from 'lucide-react';
 
 export default function WishlistPage() {
@@ -118,38 +119,39 @@ export default function WishlistPage() {
   };
 
   return (
-    <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-24 py-10 sm:py-16">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-8 mb-8 border-b border-neutral-200 gap-4">
-        <div>
-          <span className="text-[10px] uppercase tracking-widest text-amber-600 font-bold block mb-1">
-            {t('wishlist.badge')}
-          </span>
-          <h1 className="font-heading font-black text-3xl sm:text-4xl text-neutral-900 tracking-tight">
-            {t('wishlist.title')} ({cardProducts.length})
-          </h1>
-        </div>
-
-        {cardProducts.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={handleClearAll}
-              className="px-4 py-2 text-xs font-semibold text-neutral-500 hover:text-red-600 transition cursor-pointer"
-            >
-              {t('wishlist.clear_all')}
-            </button>
-            <button
-              type="button"
-              onClick={handleAddAllToCart}
-              className="px-6 py-2.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-bold uppercase tracking-wider hover:bg-[var(--royal-primary-hover)] transition shadow-sm flex items-center gap-2 cursor-pointer"
-            >
-              {addedAll ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <ShoppingBag className="w-3.5 h-3.5" />}
-              <span>{addedAll ? t('wishlist.added_all') : t('wishlist.add_all_to_cart')}</span>
-            </button>
+    <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 py-10 sm:py-12">
+      <StorefrontPageHeader
+        title={`${t('wishlist.title')} (${cardProducts.length})`}
+        breadcrumbLabel={t('nav.wishlist')}
+        subtitle={t('wishlist.subtitle')}
+        badge={
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)]">
+            <Heart className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
+            <span>{t('wishlist.badge')}</span>
           </div>
-        )}
-      </div>
+        }
+        rightSlot={
+          cardProducts.length > 0 ? (
+            <>
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="px-4 py-2 text-xs font-semibold text-neutral-500 hover:text-red-600 transition cursor-pointer"
+              >
+                {t('wishlist.clear_all')}
+              </button>
+              <button
+                type="button"
+                onClick={handleAddAllToCart}
+                className="px-6 py-2.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-bold uppercase tracking-wider hover:bg-[var(--royal-primary-hover)] transition shadow-sm flex items-center gap-2 cursor-pointer"
+              >
+                {addedAll ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <ShoppingBag className="w-3.5 h-3.5" />}
+                <span>{addedAll ? t('wishlist.added_all') : t('wishlist.add_all_to_cart')}</span>
+              </button>
+            </>
+          ) : undefined
+        }
+      />
 
       {/* Empty State or Canonical ProductCard Grid */}
       {cardProducts.length === 0 ? (

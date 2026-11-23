@@ -18,7 +18,7 @@ export function BrandMarquee({ brands: propBrands }: BrandMarqueeProps) {
   const brands = rawBrands.length < 6 ? Array.from({ length: Math.ceil(10 / rawBrands.length) }, () => rawBrands).flat() : rawBrands;
 
   return (
-    <section className="py-7 bg-[#F4F5F7] border-y border-neutral-200 overflow-hidden relative">
+    <section className="py-7 bg-[#F4F5F7] border-y border-neutral-200 overflow-hidden relative marquee-hover-pause">
       <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#F4F5F7] to-transparent z-10 pointer-events-none" />
       <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#F4F5F7] to-transparent z-10 pointer-events-none" />
 

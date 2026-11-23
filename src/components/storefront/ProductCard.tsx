@@ -24,6 +24,7 @@ import { useWishlistStore } from '@/stores/wishlist.store';
 import { useCartStore } from '@/stores/cart.store';
 import { useCompareStore } from '@/stores/compare.store';
 import { useReactionStore } from '@/stores/reaction.store';
+import { useReviewStore } from '@/stores/review.store';
 import { getSafeImageUrl, getCartHeaders } from '@/lib/cart-session';
 import { formatTndCurrency } from '@/lib/utils';
 import { ProductMediaViewer } from './ProductMediaViewer';
@@ -33,6 +34,7 @@ import { Modal } from '@/components/ui';
 import { trackMarketingEvent } from './MarketingPixelsTracker';
 import { QuickOrderModal } from './QuickOrderModal';
 import { ShareProductModal } from './ShareProductModal';
+import { ProductReviewModal } from './ProductReviewModal';
 
 export interface StorefrontVariant {
   id: string;
@@ -88,6 +90,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
   const [isQuickOrderOpen, setIsQuickOrderOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [copiedSku, setCopiedSku] = useState(false);
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
     product.variants?.[0]?.id || ''
@@ -98,7 +101,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
   const [compareNotice, setCompareNotice] = useState<string | null>(null);
 
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlistStore();
-  const { addItem: addToCart } = useCartStore();
+  const { addItem: addToCart, isInCart } = useCartStore();
   const { addToCompare, removeFromCompare, isInCompare } = useCompareStore();
   const {
     reactions,
@@ -108,6 +111,12 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
     toggleReaction,
     authPromptProductId,
   } = useReactionStore();
+  const {
+    reviews: myReviews,
+    stats: reviewStats,
+    loaded: reviewsLoaded,
+    fetchMyReviews,
+  } = useReviewStore();
 
   useEffect(() => {
     if (!reactionsLoaded && typeof window !== 'undefined' && localStorage.getItem('royal_token')) {
@@ -115,7 +124,17 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
     }
   }, [reactionsLoaded, fetchMyReactions]);
 
+  useEffect(() => {
+    if (!reviewsLoaded && typeof window !== 'undefined') {
+      fetchMyReviews();
+    }
+  }, [reviewsLoaded, fetchMyReviews]);
+
   const inWishlist = isInWishlist(product.id);
+  const inCart = isInCart(product.id);
+  const myReview = myReviews[product.id] || null;
+  const displayReviewCount =
+    reviewStats[product.id]?.reviewCount ?? product.reviewCount ?? product.reviewsCount ?? 0;
   const myReaction = reactions[product.id] || null;
   const reactionCounts = getCounts(product.id, product.likeCount || 0, product.dislikeCount || 0);
   const inCompare = isInCompare(product.id);
@@ -304,6 +323,20 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
         isOpen={isShareOpen}
         onClose={() => setIsShareOpen(false)}
         product={product}
+      />
+
+      {/* Rate & Review Modal */}
+      <ProductReviewModal
+        isOpen={isReviewOpen}
+        onClose={() => setIsReviewOpen(false)}
+        product={{
+          id: product.id,
+          name: product.name,
+          sku: product.sku,
+          brandName: product.brand?.name,
+          rating: product.rating,
+          reviewCount: displayReviewCount,
+        }}
       />
 
       {/* Compare Feedback Toast */}
@@ -708,8 +741,9 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                     setActiveImage(getSafeImageUrl(product.primaryImage));
                     setIsQuickViewOpen(true);
                   }}
-                  title="Aperçu rapide"
-                  className="w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] bg-white/25 backdrop-blur-sm hover:bg-white text-[var(--royal-primary)] flex items-center justify-center cursor-pointer transition"
+                  title={t('actions.quick_view')}
+                  aria-label={t('actions.quick_view')}
+                  className="w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] bg-white/75 backdrop-blur-sm hover:bg-white text-[var(--royal-primary)] flex items-center justify-center cursor-pointer transition"
                 >
                   <Eye className="w-4 h-4" />
                 </button>
@@ -718,16 +752,64 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                 <button
                   type="button"
                   onClick={handleToggleCompare}
-                  title="Comparer"
+                  title={t('actions.compare_title')}
+                  aria-label={t('actions.compare_title')}
                   className={`w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] flex items-center justify-center cursor-pointer transition ${
                     inCompare
-                      ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)]'
-                      : 'bg-white/25 backdrop-blur-sm hover:bg-white text-[var(--royal-primary)]'
+                      ? 'bg-blue-50/95 text-blue-600 hover:bg-white'
+                      : 'bg-white/75 backdrop-blur-sm text-[var(--royal-primary)] hover:bg-white hover:text-blue-600'
                   }`}
                 >
                   <Layers className="w-4 h-4" />
                 </button>
               )}
+              {articleFlags.showBuyButton && (
+                <button
+                  type="button"
+                  onClick={handleIconAddToCart}
+                  title={t('actions.add_to_cart')}
+                  aria-label={t('actions.add_to_cart')}
+                  className={`w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] flex items-center justify-center cursor-pointer shrink-0 transition ${
+                    inCart
+                      ? 'bg-emerald-50/95 text-emerald-600 hover:bg-white'
+                      : 'bg-white/75 backdrop-blur-sm text-[var(--royal-primary)] hover:bg-white hover:text-emerald-600'
+                  }`}
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                </button>
+              )}
+              {articleFlags.showWishlistButton && (
+                <button
+                  type="button"
+                  onClick={handleToggleWishlist}
+                  title={inWishlist ? t('actions.wishlist_remove') : t('actions.wishlist_add')}
+                  aria-label={inWishlist ? t('actions.wishlist_remove') : t('actions.wishlist_add')}
+                  className={`w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] flex items-center justify-center cursor-pointer transition ${
+                    inWishlist
+                      ? 'bg-rose-50/95 text-rose-600 hover:bg-white'
+                      : 'bg-white/75 backdrop-blur-sm text-[var(--royal-primary)] hover:bg-white hover:text-rose-600'
+                  }`}
+                >
+                  <Heart className={`w-4 h-4 ${inWishlist ? 'fill-current' : ''}`} />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsReviewOpen(true);
+                }}
+                title={myReview ? t('actions.review_edit') : t('actions.review')}
+                aria-label={myReview ? t('actions.review_edit') : t('actions.review')}
+                className={`w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] flex items-center justify-center cursor-pointer transition ${
+                  myReview
+                    ? 'bg-amber-50/95 text-amber-500 hover:bg-white'
+                    : 'bg-white/75 backdrop-blur-sm text-[var(--royal-primary)] hover:bg-white hover:text-amber-500'
+                }`}
+              >
+                <Star className={`w-4 h-4 ${myReview ? 'fill-amber-400 text-amber-500' : ''}`} />
+              </button>
               <button
                 type="button"
                 onClick={(e) => {
@@ -737,7 +819,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                 }}
                 title={t('actions.share')}
                 aria-label={t('actions.share')}
-                className="w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] bg-white/25 backdrop-blur-sm hover:bg-white text-[var(--royal-primary)] flex items-center justify-center cursor-pointer transition"
+                className="w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] bg-white/75 backdrop-blur-sm hover:bg-white text-[var(--royal-primary)] flex items-center justify-center cursor-pointer transition"
               >
                 <Share2 className="w-4 h-4" />
               </button>
@@ -771,44 +853,19 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                   </button>
                 </>
               )}
-              {articleFlags.showWishlistButton && (
+              {articleFlags.showBuyButton && (
                 <button
                   type="button"
-                  onClick={handleToggleWishlist}
-                  title={inWishlist ? t('actions.wishlist_remove') : t('actions.wishlist_add')}
-                  className={`w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] flex items-center justify-center cursor-pointer transition ${
-                    inWishlist
-                      ? 'bg-rose-50 text-rose-600 hover:bg-white'
-                      : 'bg-white/25 backdrop-blur-sm hover:bg-white text-[var(--royal-primary)] hover:text-rose-600'
-                  }`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsQuickOrderOpen(true);
+                  }}
+                  className="px-4 py-2 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold flex items-center gap-1.5 cursor-pointer transition"
                 >
-                  <Heart className={`w-4 h-4 ${inWishlist ? 'fill-current' : ''}`} />
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>{t('actions.buy')}</span>
                 </button>
-              )}
-              {articleFlags.showBuyButton && (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleIconAddToCart}
-                    title={t('actions.add_to_cart')}
-                    aria-label={t('actions.add_to_cart')}
-                    className="w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] bg-white/25 backdrop-blur-sm hover:bg-white text-[var(--royal-primary)] flex items-center justify-center cursor-pointer shrink-0 transition"
-                  >
-                    <ShoppingBag className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setIsQuickOrderOpen(true);
-                    }}
-                    className="px-4 py-2 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold flex items-center gap-1.5 cursor-pointer transition"
-                  >
-                    <Zap className="w-3.5 h-3.5" />
-                    <span>{t('actions.buy')}</span>
-                  </button>
-                </>
               )}
             </div>
           </div>
@@ -836,27 +893,12 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                   {discountPct ? `-${discountPct}%` : 'PROMO'}
                 </span>
               ) : (
-                <span className="pointer-events-auto px-2.5 py-0.5 rounded-full bg-white/25 backdrop-blur-sm hover:bg-white border border-[var(--royal-primary)] text-[10px] font-bold text-[var(--royal-primary)] uppercase tracking-wider shadow-sm transition-all">
+                <span className="pointer-events-auto px-2.5 py-0.5 rounded-full bg-white/75 backdrop-blur-sm hover:bg-white border border-[var(--royal-primary)] text-[10px] font-bold text-[var(--royal-primary)] uppercase tracking-wider shadow-sm transition-all">
                   {product.brand?.name || 'Royal'}
                 </span>
               )}
 
               <div className="pointer-events-auto flex flex-col gap-1.5">
-                {articleFlags.showWishlistButton && (
-                  <button
-                    type="button"
-                    onClick={handleToggleWishlist}
-                    title={inWishlist ? 'Retirer de la liste d’envies' : 'Ajouter à la liste d’envies'}
-                    aria-label={inWishlist ? 'Retirer de la liste d’envies' : 'Ajouter à la liste d’envies'}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 border-[1.5px] border-[var(--royal-primary)] shadow-sm cursor-pointer ${
-                      inWishlist
-                        ? 'text-rose-600 bg-rose-50/90 hover:bg-white'
-                        : 'bg-white/25 backdrop-blur-sm text-[var(--royal-primary)] hover:bg-white hover:text-rose-600'
-                    }`}
-                  >
-                    <Heart className={`w-3.5 h-3.5 ${inWishlist ? 'fill-current' : ''}`} />
-                  </button>
-                )}
                 {articleFlags.showQuickViewButton && (
                   <button
                     type="button"
@@ -866,9 +908,9 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                       setActiveImage(getSafeImageUrl(product.primaryImage));
                       setIsQuickViewOpen(true);
                     }}
-                    title="Aperçu rapide"
-                    aria-label="Aperçu rapide"
-                    className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 bg-white/25 backdrop-blur-sm border-[1.5px] border-[var(--royal-primary)] text-[var(--royal-primary)] hover:bg-white shadow-sm cursor-pointer"
+                    title={t('actions.quick_view')}
+                    aria-label={t('actions.quick_view')}
+                    className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 bg-white/75 backdrop-blur-sm border-[1.5px] border-[var(--royal-primary)] text-[var(--royal-primary)] hover:bg-white shadow-sm cursor-pointer"
                   >
                     <Eye className="w-3.5 h-3.5" />
                   </button>
@@ -877,12 +919,12 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                   <button
                     type="button"
                     onClick={handleToggleCompare}
-                    title="Comparer cet article"
-                    aria-label="Comparer cet article"
+                    title={t('actions.compare_title')}
+                    aria-label={t('actions.compare_title')}
                     className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 border-[1.5px] border-[var(--royal-primary)] shadow-sm cursor-pointer ${
                       inCompare
-                        ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)]'
-                        : 'bg-white/25 backdrop-blur-sm text-[var(--royal-primary)] hover:bg-white'
+                        ? 'text-blue-600 bg-blue-50/95 hover:bg-white'
+                        : 'bg-white/75 backdrop-blur-sm text-[var(--royal-primary)] hover:bg-white hover:text-blue-600'
                     }`}
                   >
                     <Layers className="w-3.5 h-3.5" />
@@ -894,11 +936,47 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                     onClick={handleIconAddToCart}
                     title={t('actions.add_to_cart')}
                     aria-label={t('actions.add_to_cart')}
-                    className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 bg-white/25 backdrop-blur-sm border-[1.5px] border-[var(--royal-primary)] text-[var(--royal-primary)] hover:bg-white shadow-sm cursor-pointer"
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 border-[1.5px] border-[var(--royal-primary)] shadow-sm cursor-pointer ${
+                      inCart
+                        ? 'text-emerald-600 bg-emerald-50/95 hover:bg-white'
+                        : 'bg-white/75 backdrop-blur-sm text-[var(--royal-primary)] hover:bg-white hover:text-emerald-600'
+                    }`}
                   >
                     <ShoppingBag className="w-3.5 h-3.5" />
                   </button>
                 )}
+                {articleFlags.showWishlistButton && (
+                  <button
+                    type="button"
+                    onClick={handleToggleWishlist}
+                    title={inWishlist ? t('actions.wishlist_remove') : t('actions.wishlist_add')}
+                    aria-label={inWishlist ? t('actions.wishlist_remove') : t('actions.wishlist_add')}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 border-[1.5px] border-[var(--royal-primary)] shadow-sm cursor-pointer ${
+                      inWishlist
+                        ? 'text-rose-600 bg-rose-50/95 hover:bg-white'
+                        : 'bg-white/75 backdrop-blur-sm text-[var(--royal-primary)] hover:bg-white hover:text-rose-600'
+                    }`}
+                  >
+                    <Heart className={`w-3.5 h-3.5 ${inWishlist ? 'fill-current' : ''}`} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsReviewOpen(true);
+                  }}
+                  title={myReview ? t('actions.review_edit') : t('actions.review')}
+                  aria-label={myReview ? t('actions.review_edit') : t('actions.review')}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 border-[1.5px] border-[var(--royal-primary)] shadow-sm cursor-pointer ${
+                    myReview
+                      ? 'text-amber-500 bg-amber-50/95 hover:bg-white'
+                      : 'bg-white/75 backdrop-blur-sm text-[var(--royal-primary)] hover:bg-white hover:text-amber-500'
+                  }`}
+                >
+                  <Star className={`w-3.5 h-3.5 ${myReview ? 'fill-amber-400 text-amber-500' : ''}`} />
+                </button>
                 <button
                   type="button"
                   onClick={(e) => {
@@ -908,7 +986,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                   }}
                   title={t('actions.share')}
                   aria-label={t('actions.share')}
-                  className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 bg-white/25 backdrop-blur-sm border-[1.5px] border-[var(--royal-primary)] text-[var(--royal-primary)] hover:bg-white shadow-sm cursor-pointer"
+                  className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 bg-white/75 backdrop-blur-sm border-[1.5px] border-[var(--royal-primary)] text-[var(--royal-primary)] hover:bg-white shadow-sm cursor-pointer"
                 >
                   <Share2 className="w-3.5 h-3.5" />
                 </button>
@@ -934,7 +1012,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                   onClick={handleCopySku}
                   title={`Cliquer pour copier le SKU (${product.sku})`}
                   aria-label={`Copier le code SKU ${product.sku}`}
-                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/25 backdrop-blur-sm hover:bg-white border-[1.5px] border-[var(--royal-primary)] text-[10px] font-mono font-bold text-[var(--royal-primary)] hover:text-[var(--royal-ink)] shadow-sm transition-all cursor-pointer truncate max-w-full"
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/75 backdrop-blur-sm hover:bg-white border-[1.5px] border-[var(--royal-primary)] text-[10px] font-mono font-bold text-[var(--royal-primary)] hover:text-[var(--royal-ink)] shadow-sm transition-all cursor-pointer truncate max-w-full"
                 >
                   {copiedSku ? (
                     <>
@@ -983,7 +1061,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                     ))}
                   </div>
                   <span className="text-[11px] text-slate-500 truncate">
-                    {product.reviewCount || product.reviewsCount || 0} {t('storefront.reviews_count')}
+                    {displayReviewCount} {t('storefront.reviews_count')}
                   </span>
                 </div>
 

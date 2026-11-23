@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Store, MapPin, Phone, Clock, ArrowRight } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
+import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHeader';
 
 export default function ShowroomsPublicPage() {
   const { config } = useCmsConfig();
@@ -27,14 +28,21 @@ export default function ShowroomsPublicPage() {
 
   if (srCfg.enabled === false) {
     return (
-      <div className="bg-[var(--royal-bg)] min-h-[60vh] flex items-center justify-center px-4">
-        <div className="max-w-md text-center space-y-4 bg-white p-8 rounded-3xl border border-[var(--royal-border)] shadow-sm">
-          <Store className="w-10 h-10 text-[var(--royal-primary)] mx-auto" />
-          <h1 className="font-heading text-xl font-black text-[var(--royal-ink)]">{t('stores.hidden_title')}</h1>
-          <p className="text-xs text-slate-500">{t('stores.hidden_desc')}</p>
-          <Link href="/" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-bold">
-            {t('common.back_home')}
-          </Link>
+      <div className="bg-[var(--royal-bg)] min-h-[60vh] py-10 sm:py-12">
+        <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
+          <StorefrontPageHeader
+            title={locale === 'ar' ? t('stores.hidden_title') : (srCfg.title || t('stores.title'))}
+            breadcrumbLabel={t('stores.title')}
+          />
+          <div className="max-w-md mx-auto text-center space-y-4 bg-white p-8 rounded-3xl border border-[var(--royal-border)] shadow-sm">
+            <Store className="w-10 h-10 text-[var(--royal-primary)] mx-auto" />
+            <h2 className="font-heading text-xl font-black text-[var(--royal-ink)]">{t('stores.hidden_title')}</h2>
+            <p className="text-xs text-slate-500">{t('stores.hidden_desc')}</p>
+            <Link href="/articles" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-bold">
+              <span>{t('storefront.explore_collection')}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -42,18 +50,18 @@ export default function ShowroomsPublicPage() {
 
   const blocks: Record<string, React.ReactNode> = {
     hero: (
-      <div key="hero" className="text-center max-w-2xl mx-auto mb-12">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] mb-4">
-          <Store className="w-4 h-4 text-[var(--royal-primary)]" />
-          <span>{locale === 'ar' ? t('stores.badge') : (srCfg.badgeText || t('stores.badge'))}</span>
-        </div>
-        <h1 className="font-heading text-3xl sm:text-5xl font-black text-[var(--royal-ink)] tracking-tight">
-          {locale === 'ar' ? t('stores.title') : (srCfg.title || t('stores.title'))}
-        </h1>
-        <p className="mt-3 text-sm text-slate-500">
-          {locale === 'ar' ? t('stores.subtitle') : (srCfg.subtitle || t('stores.subtitle'))}
-        </p>
-      </div>
+      <StorefrontPageHeader
+        key="hero"
+        title={locale === 'ar' ? t('stores.title') : (srCfg.title || t('stores.title'))}
+        breadcrumbLabel={t('stores.title')}
+        subtitle={locale === 'ar' ? t('stores.subtitle') : (srCfg.subtitle || t('stores.subtitle'))}
+        badge={
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)]">
+            <Store className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
+            <span>{locale === 'ar' ? t('stores.badge') : (srCfg.badgeText || t('stores.badge'))}</span>
+          </div>
+        }
+      />
     ),
     cards: (
       <div
@@ -125,7 +133,7 @@ export default function ShowroomsPublicPage() {
   };
 
   return (
-    <div className="bg-[var(--royal-bg)] min-h-screen py-14 md:py-20">
+    <div className="bg-[var(--royal-bg)] min-h-screen py-10 sm:py-12">
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
         {order.map((sec) => blocks[sec] || null)}
       </div>

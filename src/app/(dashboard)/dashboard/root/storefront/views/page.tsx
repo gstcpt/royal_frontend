@@ -599,7 +599,7 @@ function StorefrontViewsContent() {
       showPriceFilter: true,
       showBrandFilter: true,
       showCharacteristicsFilter: true,
-      defaultColumns: '4',
+      defaultColumns: '3',
       defaultItemsPerPage: 24,
       cardImageHeightPx: 260,
       showCompareButton: true,
@@ -1429,7 +1429,7 @@ function StorefrontViewsContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Select
                 label="Colonnes Grille par Défaut"
-                value={['3', '4', 'list'].includes(String(a.defaultColumns)) ? String(a.defaultColumns) : '4'}
+                value={['3', '4', 'list'].includes(String(a.defaultColumns)) ? String(a.defaultColumns) : '3'}
                 onChange={(e) => setViews({ ...views, articles: { ...a, defaultColumns: e.target.value } })}
                 options={[
                   { value: '3', label: '3 Colonnes' },

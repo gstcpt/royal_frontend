@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCompareStore } from '@/stores/compare.store';
 import { useI18nStore } from '@/stores/i18n.store';
+import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHeader';
 import {
   Layers,
   Trash2,
@@ -12,7 +13,7 @@ import {
   CheckCircle2,
   XCircle,
   Star,
-  ArrowLeft,
+  ArrowRight,
   Sparkles,
   Scale,
   Shield,
@@ -100,23 +101,34 @@ export default function ComparePage() {
 
   if (items.length === 0) {
     return (
-      <div className="py-24 max-w-4xl mx-auto px-4 text-center">
-        <div className="w-20 h-20 mx-auto rounded-3xl bg-[#EFECE6] border border-[#DDD5C7] flex items-center justify-center text-[#8C827A] mb-6">
-          <Layers className="w-10 h-10" />
-        </div>
-        <h1 className="font-sans font-bold tracking-tight text-3xl font-medium text-[#0C1A14]">
-          {t('compare.empty')}
-        </h1>
-        <p className="mt-3 text-sm text-[#6B635B] max-w-md mx-auto">
-          {t('compare.empty_desc')}
-        </p>
-        <div className="mt-8">
+      <div className="py-10 sm:py-12 w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
+        <StorefrontPageHeader
+          title={t('compare.title')}
+          breadcrumbLabel={t('nav.compare')}
+          subtitle={t('compare.subtitle')}
+          badge={
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)]">
+              <Sparkles className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
+              <span>{t('compare.badge')}</span>
+            </div>
+          }
+        />
+        <div className="text-center py-16 sm:py-20 bg-[#F8F9FA] rounded-[32px] border border-neutral-200 p-6 sm:p-8 max-w-3xl mx-auto">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-white border border-neutral-200 flex items-center justify-center text-neutral-400 mb-4 shadow-sm">
+            <Layers className="w-8 h-8" />
+          </div>
+          <h2 className="font-heading font-bold text-2xl text-[#0C1A14] mb-2">
+            {t('compare.empty')}
+          </h2>
+          <p className="text-sm text-[#6B635B] max-w-md mx-auto mb-6">
+            {t('compare.empty_desc')}
+          </p>
           <Link
             href="/articles"
             className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs uppercase tracking-[0.2em] font-semibold hover:bg-[var(--royal-primary-hover)] transition shadow-md"
           >
-            <ArrowLeft className="w-4 h-4" />
             <span>{t('compare.explore_collections')}</span>
+            <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       </div>
@@ -124,38 +136,35 @@ export default function ComparePage() {
   }
 
   return (
-    <div className="py-12 md:py-20 w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-24">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between pb-8 border-b border-[#ECE7DE] gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EAE5DA] text-xs uppercase tracking-[0.2em] font-semibold text-[#0C1A14] mb-3">
-            <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+    <div className="py-10 sm:py-12 w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
+      <StorefrontPageHeader
+        title={`${t('compare.title')} (${items.length}/4)`}
+        breadcrumbLabel={t('nav.compare')}
+        subtitle={t('compare.subtitle')}
+        badge={
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)]">
+            <Sparkles className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
             <span>{t('compare.badge')}</span>
           </div>
-          <h1 className="font-sans font-bold tracking-tight text-3xl sm:text-4xl text-[#0C1A14] font-medium tracking-tight">
-            {t('compare.title')} ({items.length}/4)
-          </h1>
-          <p className="mt-2 text-xs sm:text-sm text-[#6B635B]">
-            {t('compare.subtitle')}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={clearCompare}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-rose-200 text-rose-700 bg-rose-50/50 hover:bg-rose-100 text-xs font-semibold tracking-wider transition"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>{t('compare.clear_compare')}</span>
-          </button>
-          <Link
-            href="/articles"
-            className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs uppercase tracking-[0.15em] font-semibold hover:bg-[var(--royal-primary-hover)] transition shadow-sm"
-          >
-            <span>{t('compare.add_more')}</span>
-          </Link>
-        </div>
-      </div>
+        }
+        rightSlot={
+          <>
+            <button
+              onClick={clearCompare}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-rose-200 text-rose-700 bg-rose-50/50 hover:bg-rose-100 text-xs font-semibold tracking-wider transition cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{t('compare.clear_compare')}</span>
+            </button>
+            <Link
+              href="/articles"
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs uppercase tracking-[0.15em] font-semibold hover:bg-[var(--royal-primary-hover)] transition shadow-sm"
+            >
+              <span>{t('compare.add_more')}</span>
+            </Link>
+          </>
+        }
+      />
 
       {/* Comparison Matrix Table */}
       <div className="mt-10 overflow-x-auto">

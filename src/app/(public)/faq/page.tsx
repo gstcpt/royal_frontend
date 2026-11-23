@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ChevronDown, HelpCircle, MessageCircle, ArrowRight, Search } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
+import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHeader';
 
 interface FaqItem {
   id: string;
@@ -54,34 +55,36 @@ export default function FaqPage() {
 
   const blocks: Record<string, React.ReactNode> = {
     hero: (
-      <div key="hero" className="text-center mb-10">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] mb-4">
-          <HelpCircle className="w-4 h-4 text-[var(--royal-primary)]" />
-          <span>{locale === 'ar' ? t('faq.badge') : (faqCfg.badgeText || `${t('faq.badge')} ${config.appName || 'Royal'}`)}</span>
-        </div>
-        <h1 className="font-heading text-3xl sm:text-5xl font-black text-[var(--royal-ink)] tracking-tight">
-          {locale === 'ar' ? t('faq.title') : (faqCfg.title || t('faq.title'))}
-        </h1>
-        <p className="mt-3 text-sm text-neutral-500 max-w-xl mx-auto">
-          {locale === 'ar' ? t('faq.subtitle') : (faqCfg.subtitle || t('faq.subtitle'))}
-        </p>
-        {faqCfg.showSearch !== false && (
-          <div className="max-w-md mx-auto mt-6 relative">
-            <Search className="w-4 h-4 text-[var(--royal-primary)] absolute left-4 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('faq.search_placeholder')}
-              className="w-full pl-11 pr-4 py-3 rounded-full bg-white border border-[var(--royal-border)] text-xs sm:text-sm text-[var(--royal-ink)] focus:outline-none focus:border-[var(--royal-primary)] shadow-2xs"
-            />
+      <StorefrontPageHeader
+        key="hero"
+        title={locale === 'ar' ? t('faq.title') : (faqCfg.title || t('faq.title'))}
+        breadcrumbLabel={t('footer.faq')}
+        subtitle={locale === 'ar' ? t('faq.subtitle') : (faqCfg.subtitle || t('faq.subtitle'))}
+        badge={
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)]">
+            <HelpCircle className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
+            <span>{locale === 'ar' ? t('faq.badge') : (faqCfg.badgeText || `${t('faq.badge')} ${config.appName || 'Royal'}`)}</span>
           </div>
-        )}
-      </div>
+        }
+        rightSlot={
+          faqCfg.showSearch !== false ? (
+            <div className="w-full sm:w-80 relative">
+              <Search className="w-4 h-4 text-[var(--royal-primary)] absolute left-4 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t('faq.search_placeholder')}
+                className="w-full pl-11 pr-4 py-2.5 rounded-full bg-white border border-[var(--royal-border)] text-xs sm:text-sm text-[var(--royal-ink)] focus:outline-none focus:border-[var(--royal-primary)] shadow-2xs"
+              />
+            </div>
+          ) : undefined
+        }
+      />
     ),
     categories:
       faqCfg.showCategoryFilter !== false && categories.length > 2 ? (
-        <div key="categories" className="flex flex-wrap justify-center gap-2 mb-10">
+        <div key="categories" className="flex flex-wrap justify-start gap-2 mb-8">
           {categories.map((cat) => (
             <button
               key={cat}
@@ -165,7 +168,7 @@ export default function FaqPage() {
   };
 
   return (
-    <div className="bg-[var(--royal-bg)] min-h-screen py-14 md:py-20">
+    <div className="bg-[var(--royal-bg)] min-h-screen py-10 sm:py-12">
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
         {order.map((sec) => blocks[sec] || null)}
       </div>

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
+import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHeader';
 
 export default function ContactPage() {
   const { config } = useCmsConfig();
@@ -280,17 +281,17 @@ export default function ContactPage() {
 
   const sectionBlocks: Record<string, React.ReactNode> = {
     hero: (
-      <div key="hero" className="text-center max-w-2xl mx-auto mb-14">
-        <span className="inline-block px-3.5 py-1.5 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] mb-4">
-          {cCfg.badgeText || `Service Client ${config.appName || 'Royal'}`}
-        </span>
-        <h1 className="font-heading text-3xl sm:text-5xl font-black text-[var(--royal-ink)] tracking-tight">
-          {cCfg.title || 'Contactez Notre Équipe'}
-        </h1>
-        <p className="mt-3 text-sm text-slate-500">
-          {cCfg.subtitle || 'Une question sur un appareil Royal, un suivi de livraison ou une demande de devis ? Écrivez-nous directement.'}
-        </p>
-      </div>
+      <StorefrontPageHeader
+        key="hero"
+        title={cCfg.title || 'Contactez Notre Équipe'}
+        breadcrumbLabel={t('footer.contact')}
+        subtitle={cCfg.subtitle || 'Une question sur un appareil Royal, un suivi de livraison ou une demande de devis ? Écrivez-nous directement.'}
+        badge={
+          <span className="inline-flex items-center px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)]">
+            {cCfg.badgeText || `Service Client ${config.appName || 'Royal'}`}
+          </span>
+        }
+      />
     ),
     mainGrid: (
       <div key="mainGrid" className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -340,8 +341,8 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="bg-[var(--royal-bg)] min-h-screen py-14 md:py-20">
-      <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-8 lg:px-12">
+    <div className="bg-[var(--royal-bg)] min-h-screen py-10 sm:py-12">
+      <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
         {order.map((sec) => sectionBlocks[sec] || null)}
       </div>
     </div>

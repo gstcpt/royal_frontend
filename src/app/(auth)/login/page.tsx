@@ -28,6 +28,7 @@ function LoginFormContent() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<LoginDto>({
     resolver: zodResolver(loginSchema),
@@ -36,6 +37,8 @@ function LoginFormContent() {
       password: '',
     },
   });
+
+  const watchedEmail = watch('email');
 
   const onSubmit = async (data: LoginDto) => {
     setErrorMessage(null);
@@ -185,7 +188,7 @@ function LoginFormContent() {
         </button>
       </form>
 
-      {needsVerifyEmail && (
+      {needsVerifyEmail !== null && (
         <form
           onSubmit={handleVerifyInlineOtp}
           className="mt-5 p-4 rounded-2xl bg-[#FBF6E8] border border-[#E6D6A6] space-y-3"
@@ -193,18 +196,26 @@ function LoginFormContent() {
           <div className="flex items-center justify-between gap-2 text-xs">
             <span className="font-bold text-[#9A7414] flex items-center gap-1.5 min-w-0 truncate">
               <KeyRound className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">{t('auth.confirm_prefix')} {needsVerifyEmail}</span>
+              <span className="truncate">{t('auth.confirm_prefix')}</span>
             </span>
             <button
               type="button"
               onClick={handleResendInlineOtp}
-              disabled={resendingOtp}
-              className="inline-flex items-center gap-1 font-bold text-[#1D232E] hover:underline cursor-pointer shrink-0"
+              disabled={resendingOtp || !needsVerifyEmail.trim()}
+              className="inline-flex items-center gap-1 font-bold text-[#1D232E] hover:underline cursor-pointer shrink-0 disabled:opacity-40"
             >
               <RefreshCw className={`w-3 h-3 ${resendingOtp ? 'animate-spin' : ''}`} />
               <span>{t('auth.resend')}</span>
             </button>
           </div>
+          <input
+            type="email"
+            required
+            placeholder={t('auth.email_placeholder')}
+            value={needsVerifyEmail}
+            onChange={(e) => setNeedsVerifyEmail(e.target.value)}
+            className="w-full px-3 py-2 rounded-xl border border-[#E6D6A6] bg-white text-xs text-neutral-900"
+          />
           <div className="flex gap-2">
             <input
               type="text"
@@ -218,7 +229,7 @@ function LoginFormContent() {
             />
             <button
               type="submit"
-              disabled={verifyingOtp || verifyOtp.length !== 6}
+              disabled={verifyingOtp || verifyOtp.length !== 6 || !needsVerifyEmail.trim()}
               className="px-4 py-2 rounded-xl bg-[var(--royal-primary)] text-white text-xs font-bold cursor-pointer disabled:opacity-50 shrink-0"
             >
               {verifyingOtp ? '...' : t('auth.validate')}
@@ -227,7 +238,19 @@ function LoginFormContent() {
         </form>
       )}
 
-      <div className="mt-8 pt-6 border-t border-neutral-100 text-center">
+      <div className="mt-8 pt-6 border-t border-neutral-100 text-center space-y-3">
+        <button
+          type="button"
+          onClick={() =>
+            setNeedsVerifyEmail((prev) =>
+              prev !== null ? null : (watchedEmail || '').trim().toLowerCase(),
+            )
+          }
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#9A7414] hover:underline cursor-pointer"
+        >
+          <KeyRound className="w-3.5 h-3.5" />
+          <span>{t('auth.verify_email_link')}</span>
+        </button>
         <p className="text-xs text-neutral-500">
           {t('auth.no_account')}{' '}
           <Link

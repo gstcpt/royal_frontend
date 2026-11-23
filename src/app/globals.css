@@ -131,6 +131,24 @@
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
 }
 
+@keyframes royal-marquee {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-marquee {
+  animation: royal-marquee 28s linear infinite;
+  will-change: transform;
+}
+
+.marquee-hover-pause:hover .animate-marquee {
+  animation-play-state: paused;
+}
+
 /* Print Stylesheet — Royal Precision Commercial Engine */
 @media print {
   @page {

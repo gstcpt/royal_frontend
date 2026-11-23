@@ -27,6 +27,7 @@ export function CategoriesCarousel({ categories }: CategoriesCarouselProps) {
   const { locale, t } = useI18nStore();
   const home = config.views.home;
   const { scrollRef: scrollContainerRef, isDragging, dragProps } = useDragScroll<HTMLDivElement>();
+  const [isHovered, setIsHovered] = React.useState(false);
 
   // Filter categories by CMS selection if configured, otherwise show categories with articles
   const baseCategories = (categories || []).filter(
@@ -38,6 +39,21 @@ export function CategoriesCarousel({ categories }: CategoriesCarouselProps) {
           (c) => home.categoriesTargetSlugs!.includes(c.slug) && c.imageUrl
         )
       : baseCategories;
+
+  React.useEffect(() => {
+    if (isHovered || isDragging || validCategories.length <= 1) return;
+    const timer = setInterval(() => {
+      const el = scrollContainerRef.current;
+      if (!el) return;
+      if (el.scrollWidth <= el.clientWidth + 8) return;
+      if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 16) {
+        el.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        el.scrollBy({ left: 308, behavior: 'smooth' });
+      }
+    }, 3600);
+    return () => clearInterval(timer);
+  }, [isHovered, isDragging, validCategories.length, scrollContainerRef]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
@@ -87,6 +103,9 @@ export function CategoriesCarousel({ categories }: CategoriesCarouselProps) {
         <div
           ref={scrollContainerRef}
           {...dragProps}
+          data-carousel-paused={isHovered ? 'true' : 'false'}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
           className={`flex gap-5 overflow-x-auto pb-4 scrollbar-none select-none touch-pan-y ${
             isDragging ? 'cursor-grabbing' : 'cursor-grab snap-x snap-mandatory'
           }`}

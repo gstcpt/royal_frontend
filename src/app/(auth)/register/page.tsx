@@ -98,7 +98,7 @@ export default function RegisterPage() {
 
   return (
     <div className="bg-white border border-neutral-200 rounded-[28px] p-6 sm:p-10 shadow-xl">
-      <div className="mb-8 text-center">
+      <div className="mb-6 text-center">
         <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 block mb-2">
           {t('auth.privilege_space')}
         </span>
@@ -109,6 +109,13 @@ export default function RegisterPage() {
           {t('auth.register_subtitle')}
         </p>
       </div>
+
+      {!pendingEmail && (
+        <div className="mb-5 p-3.5 rounded-2xl bg-[#FBF6E8] border border-[#E6D6A6] flex items-start gap-2.5 text-xs text-[#9A7414]">
+          <KeyRound className="w-4 h-4 shrink-0 mt-0.5 text-[#C59B27]" />
+          <span>{t('auth.register_verify_notice')}</span>
+        </div>
+      )}
 
       {errorMessage && (
         <div className="mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3 text-red-700 text-xs animate-in fade-in">

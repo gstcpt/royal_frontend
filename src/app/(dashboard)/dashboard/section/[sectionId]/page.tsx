@@ -79,6 +79,7 @@ const SECTION_META: Record<
       { label: 'Vendeurs', href: '/dashboard/users/vendeurs', desc: 'Showrooms & Conseils' },
       { label: 'Financiers', href: '/dashboard/users/financiers', desc: 'Trésorerie & Comptabilité' },
       { label: 'Commercials', href: '/dashboard/users/commercials', desc: 'Prospection & B2B' },
+      { label: 'Marketing', href: '/dashboard/users/marketing', desc: 'SEO, Campagnes & Analytics' },
       { label: 'Responsables Livraison', href: '/dashboard/users/delivery-managers', desc: 'Flotte & Tournées' },
       { label: 'Livreurs', href: '/dashboard/users/delivery-agents', desc: 'Agents Terrain & Colis' },
       { label: 'Clients (Comptes)', href: '/dashboard/users/clients', desc: 'Comptes RBAC Clients' },

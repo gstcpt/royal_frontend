@@ -450,7 +450,7 @@ const DEFAULT_CONFIG: CmsConfig = {
       showPriceFilter: true,
       showBrandFilter: true,
       showCharacteristicsFilter: true,
-      defaultColumns: '4',
+      defaultColumns: '3',
       defaultItemsPerPage: 24,
       showCompareButton: true,
       showWishlistButton: true,
@@ -532,7 +532,7 @@ const DEFAULT_CONFIG: CmsConfig = {
       footerNoteText: 'Pour toute demande relative à vos données personnelles, contactez notre support à royaltn24@gmail.com.',
     },
     showrooms: {
-      enabled: true,
+      enabled: false,
       sectionOrder: ['hero', 'cards', 'map'],
       layoutStyle: 'grid',
       showMap: true,

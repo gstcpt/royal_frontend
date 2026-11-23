@@ -11,6 +11,7 @@ var SystemRole;
     SystemRole["WEBSITE_MANAGER"] = "WEBSITE_MANAGER";
     SystemRole["ADMIN"] = "ADMIN";
     SystemRole["COMMERCIAL"] = "COMMERCIAL";
+    SystemRole["MARKETING"] = "MARKETING";
     SystemRole["SALESPERSON"] = "SALESPERSON";
     SystemRole["CLIENT"] = "CLIENT";
     SystemRole["DELIVERY_MANAGER"] = "DELIVERY_MANAGER";

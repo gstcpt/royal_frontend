@@ -9,6 +9,7 @@ import { useI18nStore } from '@/stores/i18n.store';
 import { getCartHeaders, getSafeImageUrl } from '@/lib/cart-session';
 import { trackMarketingEvent } from '@/components/storefront/MarketingPixelsTracker';
 import { TUNISIAN_GOVERNORATES } from '@/components/storefront/QuickOrderModal';
+import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHeader';
 import {
   ShieldCheck,
   Truck,
@@ -350,22 +351,23 @@ export default function CheckoutPage() {
   const finalTotal = Number((subtotalAfterDiscount + shippingCost).toFixed(3));
 
   return (
-    <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-24 py-12">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-[#EFECE6] pb-6 mb-10">
-        <div>
-          <span className="text-xs uppercase font-semibold text-[#D4AF37] tracking-widest block mb-1">
-            {t('checkout.badge')}
-          </span>
-          <h1 className="font-sans font-bold tracking-tight text-3xl sm:text-4xl text-[#0C1A14] font-medium tracking-tight">
-            {t('checkout.title')}
-          </h1>
-        </div>
-        <div className="hidden sm:flex items-center gap-2 text-xs text-[#0C1A14]/70 bg-white px-4 py-2 rounded-full border border-[#EFECE6]">
-          <Lock className="w-3.5 h-3.5 text-[#D4AF37]" />
-          <span>{t('checkout.ssl_badge')}</span>
-        </div>
-      </div>
+    <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 py-10 sm:py-12">
+      <StorefrontPageHeader
+        title={t('checkout.title')}
+        breadcrumbLabel={t('actions.checkout')}
+        badge={
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)]">
+            <Sparkles className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
+            <span>{t('checkout.badge')}</span>
+          </div>
+        }
+        rightSlot={
+          <div className="hidden sm:flex items-center gap-2 text-xs text-[#0C1A14]/70 bg-white px-4 py-2 rounded-full border border-[#EFECE6]">
+            <Lock className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
+            <span>{t('checkout.ssl_badge')}</span>
+          </div>
+        }
+      />
 
       <form onSubmit={handleSubmitOrder}>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">

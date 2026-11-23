@@ -59,6 +59,7 @@ interface CartState {
   removeItem: (itemId: string) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
   clearCart: () => Promise<void>;
+  isInCart: (productId: string) => boolean;
 }
 
 const countCartItems = (cartData: any): number =>
@@ -71,6 +72,13 @@ export const useCartStore = create<CartState>((set, get) => ({
   cart: null,
   isLoading: false,
   itemCount: 0,
+
+  isInCart: (productId: string) => {
+    const items = get().cart?.items || [];
+    return items.some(
+      (it) => it.productId === productId || it.variant?.product?.id === productId,
+    );
+  },
 
   fetchCart: async () => {
     set({ isLoading: true });
