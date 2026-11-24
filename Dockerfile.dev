@@ -5,9 +5,16 @@ RUN npm install -g pnpm@10.15.0
 
 COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml turbo.json tsconfig.base.json ./
 COPY packages ./packages
-COPY apps/frontend ./apps/frontend
+COPY apps/backend/package.json ./apps/backend/
+COPY apps/backend/packages ./apps/backend/packages
+COPY apps/backend/prisma ./apps/backend/prisma
+COPY apps/frontend/package.json ./apps/frontend/
+COPY apps/frontend/packages ./apps/frontend/packages
 
 RUN pnpm install --no-frozen-lockfile
+
+COPY apps/frontend ./apps/frontend
+
 RUN pnpm --filter "@royal/shared-types" run build
 RUN pnpm --filter "@royal/shared-validators" run build
 RUN pnpm --filter "@royal/shared-utils" run build
