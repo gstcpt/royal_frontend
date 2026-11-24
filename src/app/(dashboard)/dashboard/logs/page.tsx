@@ -41,6 +41,7 @@ import {
   ExternalLink,
   ChevronRight,
   Sparkles,
+  Trash2,
 } from 'lucide-react';
 import {
   DataTable,
@@ -51,6 +52,7 @@ import {
   Select,
   Badge,
   Modal,
+  DeleteConfirmModal,
   Breadcrumb,
   Toast,
 } from '@/components/ui';
@@ -418,8 +420,11 @@ export default function DashboardLogsPage() {
 
   // Dynamic Toolbar & Server Pagination State
   const [page, setPage] = React.useState(1);
-  const [pageSize, setPageSize] = React.useState(25);
+  const [pageSize, setPageSize] = React.useState(12);
   const [totalCount, setTotalCount] = React.useState(0);
+  const [deleteTargetLog, setDeleteTargetLog] = React.useState<AuditLogItem | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+  const [deletingLogs, setDeletingLogs] = React.useState(false);
   const [stats, setStats] = React.useState({
     totalLogs: 0,
     todayLogs: 0,
@@ -650,6 +655,42 @@ export default function DashboardLogsPage() {
     showToast('success', `${selected.length} événement(s) exporté(s) en JSON.`);
   };
 
+  const handleConfirmDeleteSingleLog = async () => {
+    if (!deleteTargetLog || !isRoot) return;
+    setDeletingLogs(true);
+    try {
+      await fetchApi(`/audit-logs/${deleteTargetLog.id}`, { method: 'DELETE' });
+      setSelectedIds((prev) => prev.filter((x) => x !== deleteTargetLog.id));
+      setDeleteTargetLog(null);
+      showToast('success', "Trace d'audit supprimée (libération d'espace DB).");
+      await loadLogs();
+    } catch (err: any) {
+      showToast('error', err?.message || 'Suppression refusée (ROOT exclusif).');
+    } finally {
+      setDeletingLogs(false);
+    }
+  };
+
+  const handleConfirmBulkDeleteLogs = async () => {
+    if (selectedIds.length === 0 || !isRoot) return;
+    setDeletingLogs(true);
+    try {
+      await fetchApi('/audit-logs/bulk-delete', {
+        method: 'POST',
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const count = selectedIds.length;
+      setSelectedIds([]);
+      setBulkDeleteOpen(false);
+      showToast('success', `${count} trace(s) d'audit supprimée(s) de PostgreSQL.`);
+      await loadLogs();
+    } catch (err: any) {
+      showToast('error', err?.message || 'Suppression groupée refusée (ROOT exclusif).');
+    } finally {
+      setDeletingLogs(false);
+    }
+  };
+
   // Table Columns Definition
   const columns: ColumnDef<AuditLogItem>[] = [
     {
@@ -761,7 +802,7 @@ export default function DashboardLogsPage() {
       header: 'Actions',
       className: 'text-right no-print',
       render: (item) => (
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-end gap-1.5">
           <button
             type="button"
             onClick={() => setInspectModalLog(item)}
@@ -770,6 +811,16 @@ export default function DashboardLogsPage() {
           >
             <Eye className="w-3.5 h-3.5" />
           </button>
+          {isRoot && (
+            <button
+              type="button"
+              onClick={() => setDeleteTargetLog(item)}
+              className="p-1.5 rounded-lg text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition shadow-2xs cursor-pointer"
+              title="Supprimer cette trace d'audit (ROOT exclusif)"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       ),
     },
@@ -898,10 +949,12 @@ export default function DashboardLogsPage() {
         supportedModes={['table', 'list', 'matrix']}
         defaultMode="table"
         exportFileName="journal_audit_royal"
-        pageSizeOptions={[10, 25, 50, 100]}
+        pageSizeOptions={[6, 12, 24, 48, 96]}
+        defaultPageSize={12}
         enableMultiSelect={true}
         selectedKeys={selectedIds}
         onSelectionChange={setSelectedIds}
+        onBulkDelete={isRoot ? () => setBulkDeleteOpen(true) : undefined}
         renderBulkActions={() => (
           <Button
             variant="outline"
@@ -1484,6 +1537,27 @@ export default function DashboardLogsPage() {
             )}
           </div>
         </Modal>
+      )}
+
+      {isRoot && (
+        <>
+          <DeleteConfirmModal
+            isOpen={!!deleteTargetLog}
+            onClose={() => setDeleteTargetLog(null)}
+            onConfirm={handleConfirmDeleteSingleLog}
+            isDeleting={deletingLogs}
+            title="Supprimer cette trace d'audit (ROOT) ?"
+            description={`Supprimer définitivement le log #${deleteTargetLog?.id || ''} (${deleteTargetLog?.action || ''}) afin de libérer de l'espace en base PostgreSQL ?`}
+          />
+          <DeleteConfirmModal
+            isOpen={bulkDeleteOpen}
+            onClose={() => setBulkDeleteOpen(false)}
+            onConfirm={handleConfirmBulkDeleteLogs}
+            isDeleting={deletingLogs}
+            title="Purger les traces d'audit sélectionnées (ROOT) ?"
+            description={`Confirmez-vous la suppression définitive de ${selectedIds.length} trace(s) d'audit de la base PostgreSQL ? Action réservée exclusivement à ROOT.`}
+          />
+        </>
       )}
     </div>
   );

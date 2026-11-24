@@ -119,10 +119,12 @@ export default function NewslettersPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
   const [singleDeleteId, setSingleDeleteId] = React.useState<string | null>(null);
 
-  // Filters
+  // Filters & Pagination
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
   const [dateRange, setDateRange] = React.useState<DateRange>({ startDate: '', endDate: '' });
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(12);
 
   const loadSubscribers = React.useCallback(async () => {
     try {
@@ -277,6 +279,16 @@ export default function NewslettersPage() {
       return true;
     });
   }, [subscribers, search, statusFilter, dateRange]);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, dateRange.startDate, dateRange.endDate, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSubscribers.length / pageSize));
+  const paginatedSubscribers = React.useMemo(
+    () => filteredSubscribers.slice((page - 1) * pageSize, page * pageSize),
+    [filteredSubscribers, page, pageSize]
+  );
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
@@ -459,7 +471,7 @@ export default function NewslettersPage() {
             </p>
           </div>
         ) : (
-          filteredSubscribers.map((item) => {
+          paginatedSubscribers.map((item) => {
             const isSelected = selectedIds.includes(item.id);
 
             return (
@@ -569,6 +581,46 @@ export default function NewslettersPage() {
               </div>
             );
           })
+        )}
+
+        {filteredSubscribers.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 bg-white rounded-2xl border border-neutral-200 text-xs text-neutral-600">
+            <div className="flex items-center gap-2">
+              <span>Par page :</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="rounded-lg border border-neutral-200 bg-white px-2 py-1 text-xs font-semibold text-neutral-800 cursor-pointer"
+              >
+                {[6, 12, 24, 48, 96].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="px-3 py-1 rounded-lg border border-neutral-200 hover:bg-neutral-50 disabled:opacity-40 cursor-pointer font-semibold"
+              >
+                Précédent
+              </button>
+              <span className="font-semibold text-neutral-800">
+                Page {page} / {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="px-3 py-1 rounded-lg border border-neutral-200 hover:bg-neutral-50 disabled:opacity-40 cursor-pointer font-semibold"
+              >
+                Suivant
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

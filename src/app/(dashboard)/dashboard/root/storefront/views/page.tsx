@@ -1466,17 +1466,26 @@ function StorefrontViewsContent() {
       }
       if (elemId === 'pagination') {
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Select
               label="Articles par page par défaut"
-              value={String([12, 24, 36, 60, 96].includes(Number(a.defaultItemsPerPage)) ? a.defaultItemsPerPage : 24)}
-              onChange={(e) => setViews({ ...views, articles: { ...a, defaultItemsPerPage: Number(e.target.value) || 24 } })}
+              value={String([6, 12, 24, 48, 96].includes(Number(a.defaultItemsPerPage)) ? a.defaultItemsPerPage : 12)}
+              onChange={(e) => setViews({ ...views, articles: { ...a, defaultItemsPerPage: Number(e.target.value) || 12 } })}
               options={[
-                { value: '12', label: '12 articles / page' },
-                { value: '24', label: '24 articles / page' },
-                { value: '36', label: '36 articles / page' },
-                { value: '60', label: '60 articles / page' },
-                { value: '96', label: '96 articles / page' },
+                { value: '6', label: '6 articles / lot' },
+                { value: '12', label: '12 articles / lot (Défaut)' },
+                { value: '24', label: '24 articles / lot' },
+                { value: '48', label: '48 articles / lot' },
+                { value: '96', label: '96 articles / lot' },
+              ]}
+            />
+            <Select
+              label="Mode de chargement des articles"
+              value={a.paginationMode || 'PAGINATION'}
+              onChange={(e) => setViews({ ...views, articles: { ...a, paginationMode: e.target.value as 'PAGINATION' | 'LOAD_MORE' } })}
+              options={[
+                { value: 'PAGINATION', label: 'Pagination Numérotée (Pages 1, 2, 3...)' },
+                { value: 'LOAD_MORE', label: 'Charger Plus (Bouton « Charger plus »)' },
               ]}
             />
             <Toggle label="Autoriser le choix du nombre par page" checked={a.showPageSizeSelector !== false} onChange={(v) => setViews({ ...views, articles: { ...a, showPageSizeSelector: v } })} />

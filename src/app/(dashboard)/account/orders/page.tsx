@@ -11,16 +11,18 @@ import {
   ExternalLink,
   RefreshCw,
   PackageCheck,
+  Download,
 } from 'lucide-react';
 import { fetchAllPaginated } from '@/lib/api';
 import { formatTndCurrency } from '@/lib/utils';
-import { Button, Breadcrumb } from '@/components/ui';
+import { Button, Breadcrumb, DataTable, ColumnDef } from '@/components/ui';
 import { NINE_ORDER_STATUSES, ORDER_STATUS_LABEL_MAP } from '@/components/common/PrintableOrderSheet';
 
 export default function AccountOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterTab, setFilterTab] = useState<'ALL' | 'ACTIVE' | 'PAST'>('ALL');
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
 
   const loadOrders = async () => {
     setLoading(true);
@@ -82,6 +84,94 @@ export default function AccountOrdersPage() {
     }
   };
 
+  const handleExportSelectedCsv = () => {
+    const sel = filteredOrders.filter((o) => selectedOrderIds.includes(o.id));
+    if (sel.length === 0) return;
+    const csv = [
+      ['Référence', 'Date', 'Statut', 'Articles', 'Total TND'],
+      ...sel.map((o) => [
+        o.reference,
+        new Date(o.createdAt).toLocaleString('fr-FR'),
+        ORDER_STATUS_LABEL_MAP[o.status] || o.status,
+        (o.items || []).length,
+        Number(o.totalAmount || 0).toFixed(3),
+      ]),
+    ]
+      .map((r) => r.join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mes_commandes_selection_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const columns: ColumnDef<any>[] = [
+    {
+      key: 'reference',
+      header: 'Référence',
+      sortable: true,
+      sortValue: (o) => o.reference,
+      render: (o) => (
+        <div>
+          <div className="font-mono font-black text-xs text-neutral-900">{o.reference}</div>
+          <div className="text-[11px] text-neutral-500">
+            {new Date(o.createdAt).toLocaleString('fr-FR')}
+          </div>
+        </div>
+      ),
+      printRender: (o) => o.reference,
+    },
+    {
+      key: 'items',
+      header: 'Articles',
+      render: (o) => (
+        <span className="text-xs font-semibold text-neutral-700">
+          {(o.items || []).length} article(s)
+        </span>
+      ),
+      printRender: (o) => `${(o.items || []).length}`,
+    },
+    {
+      key: 'status',
+      header: 'Statut',
+      sortable: true,
+      sortValue: (o) => o.status,
+      render: (o) => renderStatus(o.status),
+      printRender: (o) => ORDER_STATUS_LABEL_MAP[o.status] || o.status,
+    },
+    {
+      key: 'totalAmount',
+      header: 'Montant TTC',
+      sortable: true,
+      sortValue: (o) => Number(o.totalAmount || 0),
+      className: 'text-right',
+      render: (o) => (
+        <span className="font-mono font-black text-xs text-neutral-900">
+          {formatTndCurrency(Number(o.totalAmount || 0))}
+        </span>
+      ),
+      printRender: (o) => formatTndCurrency(Number(o.totalAmount || 0)),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      className: 'text-right no-print',
+      render: (o) => (
+        <Link
+          href={`/order-confirmation/${o.reference}`}
+          title="Bon & Détails"
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-bold hover:bg-[var(--royal-primary-hover)] transition shadow-xs"
+        >
+          <span>Bon</span>
+          <ExternalLink className="w-3 h-3" />
+        </Link>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6 w-full max-w-[1600px] mx-auto">
       <Breadcrumb items={[{ label: 'Mon Espace Client', href: '/dashboard' }, { label: 'Mes Commandes' }]} />
@@ -127,11 +217,7 @@ export default function AccountOrdersPage() {
         ))}
       </div>
 
-      {loading ? (
-        <div className="bg-white p-12 rounded-2xl border border-neutral-200 text-center text-xs text-neutral-500">
-          Chargement de vos commandes...
-        </div>
-      ) : filteredOrders.length === 0 ? (
+      {!loading && filteredOrders.length === 0 ? (
         <div className="bg-white p-12 rounded-2xl border border-neutral-200 text-center space-y-4">
           <ShoppingBag className="h-10 w-10 text-neutral-300 mx-auto" />
           <div className="text-sm font-bold text-neutral-900">
@@ -145,21 +231,35 @@ export default function AccountOrdersPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-4">
-          {filteredOrders.map((order) => {
+        <DataTable<any>
+          data={filteredOrders}
+          columns={columns}
+          keyExtractor={(o) => o.id}
+          isLoading={loading}
+          onRefresh={loadOrders}
+          searchPlaceholder="Rechercher par référence ou statut..."
+          searchKeys={['reference', 'status']}
+          supportedModes={['list', 'table', 'matrix']}
+          defaultMode="list"
+          defaultPageSize={12}
+          pageSizeOptions={[6, 12, 24, 48, 96]}
+          enableMultiSelect={true}
+          selectedKeys={selectedOrderIds}
+          onSelectionChange={setSelectedOrderIds}
+          renderBulkActions={() => (
+            <Button variant="outline" size="sm" onClick={handleExportSelectedCsv}>
+              <Download className="w-3.5 h-3.5 mr-1.5" />
+              <span>Exporter CSV ({selectedOrderIds.length})</span>
+            </Button>
+          )}
+          renderListItem={(order) => {
             const currentIdx = NINE_ORDER_STATUSES.findIndex((s) => s.key === order.status);
             const isCancelled = order.status === 'CANCELLED';
-
             return (
-              <div
-                key={order.id}
-                className="bg-white p-6 rounded-2xl border border-neutral-200/80 shadow-sm space-y-5 hover:border-neutral-400 transition"
-              >
+              <div className="bg-white p-5 rounded-2xl border border-neutral-200/80 shadow-xs space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-neutral-100">
                   <div className="space-y-0.5">
-                    <div className="font-mono font-black text-sm text-neutral-900">
-                      {order.reference}
-                    </div>
+                    <div className="font-mono font-black text-sm text-neutral-900">{order.reference}</div>
                     <div className="text-[11px] text-neutral-500">
                       Passée le {new Date(order.createdAt).toLocaleString('fr-FR')}
                     </div>
@@ -178,33 +278,21 @@ export default function AccountOrdersPage() {
                     </Link>
                   </div>
                 </div>
-
-                {/* Complete 9-Status Progress Grid */}
                 <div className="bg-[#F8F9FA] rounded-2xl p-3.5 border border-neutral-200/70">
                   <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2">
                     {NINE_ORDER_STATUSES.map((st, idx) => {
                       const isCancelStep = st.key === 'CANCELLED';
-                      const done = isCancelled
-                        ? isCancelStep
-                        : !isCancelStep && currentIdx >= idx;
+                      const done = isCancelled ? isCancelStep : !isCancelStep && currentIdx >= idx;
                       return (
                         <div key={st.key} className="space-y-1.5">
                           <div
                             className={`h-1.5 rounded-full transition-all ${
-                              isCancelStep && isCancelled
-                                ? 'bg-rose-500'
-                                : done
-                                ? 'bg-amber-500'
-                                : 'bg-neutral-200'
+                              isCancelStep && isCancelled ? 'bg-rose-500' : done ? 'bg-amber-500' : 'bg-neutral-200'
                             }`}
                           />
                           <div
                             className={`text-[10px] font-bold flex items-center gap-1 ${
-                              isCancelStep && isCancelled
-                                ? 'text-rose-700'
-                                : done
-                                ? 'text-neutral-900'
-                                : 'text-neutral-400'
+                              isCancelStep && isCancelled ? 'text-rose-700' : done ? 'text-neutral-900' : 'text-neutral-400'
                             }`}
                           >
                             {done && (
@@ -221,29 +309,12 @@ export default function AccountOrdersPage() {
                     })}
                   </div>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
-                  {(order.items || []).map((it: any) => (
-                    <div
-                      key={it.id}
-                      className="flex items-center justify-between p-3 rounded-2xl bg-[#F8F9FA] border border-neutral-200/70"
-                    >
-                      <div className="min-w-0 pr-2">
-                        <div className="font-bold text-neutral-900 truncate">{it.productName}</div>
-                        <div className="text-[11px] text-neutral-500">
-                          {it.variantName || 'Standard'} &bull; Qté: {it.quantity}
-                        </div>
-                      </div>
-                      <span className="font-mono font-bold text-neutral-900 shrink-0">
-                        {formatTndCurrency(Number(it.totalPrice || 0))}
-                      </span>
-                    </div>
-                  ))}
-                </div>
               </div>
             );
-          })}
-        </div>
+          }}
+          exportFileName="mes_commandes_royal"
+          printTitle="Mes Commandes — Royal"
+        />
       )}
     </div>
   );

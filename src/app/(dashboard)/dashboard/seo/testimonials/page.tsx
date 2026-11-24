@@ -1,8 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Sparkles, Plus, Trash2, Star, Save, Check } from 'lucide-react';
-import { Button, Input, Textarea, Modal, Badge, Breadcrumb, Toast, DeleteConfirmModal } from '@/components/ui';
+import { Sparkles, Plus, Trash2, Star, Save, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { Button, Input, Textarea, Modal, Badge, Breadcrumb, Toast, DeleteConfirmModal, DataTable, ColumnDef } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
 
 interface CuratedTestimonial {
@@ -20,13 +20,20 @@ export default function SeoTestimonialsPage() {
   const [items, setItems] = React.useState<CuratedTestimonial[]>([]);
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<CuratedTestimonial | null>(null);
+  const [loading, setLoading] = React.useState(true);
   const [modalOpen, setModalOpen] = React.useState(false);
   const [form, setForm] = React.useState({ name: '', city: 'Tunis', dateLabel: "Aujourd'hui", stars: 5, comment: '' });
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
 
   const loadData = React.useCallback(async () => {
-    const res = await fetchApi('/storefront-cms/cms/testimonials').catch(() => []);
-    setItems(Array.isArray(res) ? res : []);
+    setLoading(true);
+    try {
+      const res = await fetchApi('/storefront-cms/cms/testimonials').catch(() => []);
+      setItems(Array.isArray(res) ? res : []);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   React.useEffect(() => {
@@ -47,18 +54,46 @@ export default function SeoTestimonialsPage() {
     await loadData();
   };
 
-  const handleDelete = async (id: string) => {
-    await fetchApi(`/storefront-cms/cms/testimonials/${id}`, { method: 'DELETE' });
+  const handleToggleStatus = async (item: CuratedTestimonial) => {
+    await fetchApi(`/storefront-cms/cms/testimonials/${item.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive: item.isActive === false }),
+    });
     if (typeof window !== 'undefined') window.dispatchEvent(new Event('royal-cms-updated'));
-    setSelectedIds((prev) => prev.filter((x) => x !== id));
+    setToastMsg(`Témoignage ${item.isActive === false ? 'activé' : 'masqué'}.`);
+    await loadData();
+  };
+
+  const handleBulkStatus = async (isActive: boolean) => {
+    if (selectedIds.length === 0) return;
+    await Promise.allSettled(
+      selectedIds.map((id) =>
+        fetchApi(`/storefront-cms/cms/testimonials/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ isActive }),
+        }),
+      ),
+    );
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('royal-cms-updated'));
+    setToastMsg(`${selectedIds.length} témoignage(s) ${isActive ? 'publié(s)' : 'masqué(s)'}.`);
+    setSelectedIds([]);
+    await loadData();
+  };
+
+  const confirmDeleteSingle = async () => {
+    if (!deleteTarget) return;
+    await fetchApi(`/storefront-cms/cms/testimonials/${deleteTarget.id}`, { method: 'DELETE' });
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('royal-cms-updated'));
+    setSelectedIds((prev) => prev.filter((x) => x !== deleteTarget.id));
     setToastMsg('Témoignage supprimé.');
+    setDeleteTarget(null);
     await loadData();
   };
 
   const confirmBulkDelete = async () => {
     if (selectedIds.length === 0) return;
     await Promise.allSettled(
-      selectedIds.map((id) => fetchApi(`/storefront-cms/cms/testimonials/${id}`, { method: 'DELETE' }))
+      selectedIds.map((id) => fetchApi(`/storefront-cms/cms/testimonials/${id}`, { method: 'DELETE' })),
     );
     if (typeof window !== 'undefined') window.dispatchEvent(new Event('royal-cms-updated'));
     setToastMsg(`${selectedIds.length} témoignage(s) supprimé(s).`);
@@ -66,6 +101,79 @@ export default function SeoTestimonialsPage() {
     setBulkDeleteOpen(false);
     await loadData();
   };
+
+  const columns: ColumnDef<CuratedTestimonial>[] = [
+    {
+      key: 'name',
+      header: 'Client & Ville',
+      sortable: true,
+      sortValue: (t) => t.name,
+      render: (t) => (
+        <div>
+          <div className="text-xs font-bold text-[#1D232E]">{t.name}</div>
+          <div className="text-[11px] text-slate-500">{t.city} &bull; {t.dateLabel}</div>
+        </div>
+      ),
+      printRender: (t) => `${t.name} (${t.city})`,
+    },
+    {
+      key: 'stars',
+      header: 'Note',
+      sortable: true,
+      sortValue: (t) => t.stars || 5,
+      render: (t) => (
+        <div className="flex text-[#C59B27]">
+          {[...Array(t.stars || 5)].map((_, i) => (
+            <Star key={i} className="w-3.5 h-3.5 fill-current" />
+          ))}
+        </div>
+      ),
+      printRender: (t) => `${t.stars || 5}/5`,
+    },
+    {
+      key: 'comment',
+      header: 'Témoignage',
+      render: (t) => <p className="text-xs text-slate-600 line-clamp-2 max-w-md">« {t.comment} »</p>,
+      printRender: (t) => t.comment,
+    },
+    {
+      key: 'isActive',
+      header: 'Statut',
+      sortable: true,
+      sortValue: (t) => (t.isActive !== false ? 'Visible' : 'Masqué'),
+      render: (t) => (
+        <Badge variant={t.isActive !== false ? 'success' : 'neutral'} size="sm">
+          {t.isActive !== false ? 'Visible Accueil' : 'Masqué'}
+        </Badge>
+      ),
+      printRender: (t) => (t.isActive !== false ? 'Visible Accueil' : 'Masqué'),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      className: 'text-right no-print',
+      render: (t) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={() => handleToggleStatus(t)}
+            title={t.isActive !== false ? 'Masquer sur la vitrine' : 'Publier sur la vitrine'}
+            className="w-8 h-8 rounded-lg border border-neutral-200 bg-white hover:bg-[#FBF6E8] text-amber-700 inline-flex items-center justify-center transition cursor-pointer"
+          >
+            {t.isActive !== false ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5 text-slate-400" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => setDeleteTarget(t)}
+            title="Supprimer ce témoignage"
+            className="w-8 h-8 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 inline-flex items-center justify-center transition cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
@@ -99,69 +207,45 @@ export default function SeoTestimonialsPage() {
         </div>
       </div>
 
-      {items.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 bg-white px-4 py-3 rounded-2xl border border-[#E6E1D6] shadow-xs">
-          <button
-            type="button"
-            onClick={() =>
-              setSelectedIds(selectedIds.length === items.length ? [] : items.map((t) => t.id))
-            }
-            className="text-xs font-bold text-[#1D232E] hover:text-[#C59B27] inline-flex items-center gap-2 cursor-pointer"
-          >
-            <span
-              className={`w-4 h-4 rounded border flex items-center justify-center ${
-                selectedIds.length === items.length && items.length > 0
-                  ? 'bg-[#C59B27] border-[#C59B27] text-white'
-                  : 'border-slate-300 bg-white'
-              }`}
-            >
-              {selectedIds.length === items.length && items.length > 0 && <Check className="w-3 h-3" />}
-            </span>
-            <span>
-              {selectedIds.length === items.length ? 'Tout désélectionner' : `Tout sélectionner (${items.length})`}
-            </span>
-          </button>
-
-          {selectedIds.length > 0 && (
-            <Button variant="danger" size="sm" onClick={() => setBulkDeleteOpen(true)}>
-              <Trash2 className="w-3.5 h-3.5 mr-1" />
-              <span>Supprimer la sélection ({selectedIds.length})</span>
+      <DataTable<CuratedTestimonial>
+        data={items}
+        columns={columns}
+        keyExtractor={(t) => t.id}
+        isLoading={loading}
+        onRefresh={loadData}
+        searchPlaceholder="Rechercher par client, ville ou commentaire..."
+        searchKeys={['name', 'city', 'comment']}
+        statusOptions={[
+          { value: 'true', label: 'Visible Accueil' },
+          { value: 'false', label: 'Masqué' },
+        ]}
+        supportedModes={['table', 'list', 'matrix']}
+        defaultMode="table"
+        defaultPageSize={12}
+        pageSizeOptions={[6, 12, 24, 48, 96]}
+        enableMultiSelect={true}
+        selectedKeys={selectedIds}
+        onSelectionChange={setSelectedIds}
+        onBulkDelete={() => setBulkDeleteOpen(true)}
+        renderBulkActions={() => (
+          <>
+            <Button variant="outline" size="sm" onClick={() => handleBulkStatus(true)}>
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+              <span>Publier ({selectedIds.length})</span>
             </Button>
-          )}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {items.map((t) => {
-          const isChecked = selectedIds.includes(t.id);
-          return (
-          <div
-            key={t.id}
-            className={`bg-white p-6 rounded-3xl border shadow-sm space-y-3 flex flex-col justify-between transition ${
-              isChecked ? 'border-[#C59B27] ring-2 ring-[#C59B27]/20 bg-[#FBF9F4]/30' : 'border-[#E6E1D6]'
-            }`}
-          >
+            <Button variant="outline" size="sm" onClick={() => handleBulkStatus(false)}>
+              <EyeOff className="w-3.5 h-3.5 mr-1 text-amber-600" />
+              <span>Masquer ({selectedIds.length})</span>
+            </Button>
+          </>
+        )}
+        renderMatrixCard={(t) => (
+          <div className="bg-white p-5 rounded-3xl border border-[#E6E1D6] shadow-xs space-y-3 h-full flex flex-col justify-between">
             <div className="space-y-2.5">
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="flex items-start gap-2.5 min-w-0">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSelectedIds((prev) =>
-                        prev.includes(t.id) ? prev.filter((x) => x !== t.id) : [...prev, t.id]
-                      )
-                    }
-                    aria-label={`Sélectionner ${t.name}`}
-                    className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 cursor-pointer ${
-                      isChecked ? 'bg-[#C59B27] border-[#C59B27] text-white' : 'border-slate-300 bg-white'
-                    }`}
-                  >
-                    {isChecked && <Check className="w-3 h-3" />}
-                  </button>
-                  <div className="min-w-0">
-                    <h3 className="text-sm font-heading font-bold text-[#1D232E]">{t.name}</h3>
-                    <p className="text-[11px] text-slate-500">{t.city} &bull; {t.dateLabel}</p>
-                  </div>
+                <div>
+                  <h3 className="text-sm font-heading font-bold text-[#1D232E]">{t.name}</h3>
+                  <p className="text-[11px] text-slate-500">{t.city} &bull; {t.dateLabel}</p>
                 </div>
                 <div className="flex text-[#C59B27]">
                   {[...Array(t.stars || 5)].map((_, i) => (
@@ -171,22 +255,32 @@ export default function SeoTestimonialsPage() {
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">« {t.comment} »</p>
             </div>
-
             <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-              <Badge variant="success" size="sm">Visible Accueil</Badge>
-              <button
-                type="button"
-                onClick={() => handleDelete(t.id)}
-                className="text-xs font-bold text-red-600 hover:underline inline-flex items-center gap-1 cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Supprimer</span>
-              </button>
+              <Badge variant={t.isActive !== false ? 'success' : 'neutral'} size="sm">
+                {t.isActive !== false ? 'Visible Accueil' : 'Masqué'}
+              </Badge>
+              <div className="flex items-center gap-1.5">
+                <button type="button" onClick={() => handleToggleStatus(t)} title="Basculer visibilité" className="w-7 h-7 rounded-lg border border-neutral-200 text-amber-700 inline-flex items-center justify-center cursor-pointer">
+                  {t.isActive !== false ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                </button>
+                <button type="button" onClick={() => setDeleteTarget(t)} title="Supprimer" className="w-7 h-7 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 inline-flex items-center justify-center cursor-pointer">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
-          );
-        })}
-      </div>
+        )}
+        printTitle="Témoignages Clients Page Accueil — Royal"
+        exportFileName="temoignages_seo_royal"
+      />
+
+      <DeleteConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDeleteSingle}
+        title="Supprimer ce témoignage ?"
+        description={`Confirmez-vous la suppression du témoignage de ${deleteTarget?.name || ''} ?`}
+      />
 
       <DeleteConfirmModal
         isOpen={bulkDeleteOpen}

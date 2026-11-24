@@ -1,8 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Banknote, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, BarChart3 } from 'lucide-react';
-import { Breadcrumb, Badge } from '@/components/ui';
+import { Banknote, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, BarChart3, Download } from 'lucide-react';
+import { Breadcrumb, Badge, DataTable, ColumnDef } from '@/components/ui';
 import { formatTndCurrency } from '@/lib/utils';
 import { fetchApi } from '@/lib/api';
 import {
@@ -24,6 +24,45 @@ interface CaisseStatRow {
 export default function TreasuryReportsPage() {
   const [liveSales, setLiveSales] = React.useState(0);
   const [caissesStats, setCaissesStats] = React.useState<CaisseStatRow[]>([]);
+  const [selectedNames, setSelectedNames] = React.useState<string[]>([]);
+
+  const columns: ColumnDef<CaisseStatRow>[] = [
+    {
+      key: 'name',
+      header: 'Caisse / Compte',
+      sortable: true,
+      sortValue: (c) => c.name,
+      render: (c) => <span className="font-bold text-xs text-[#1D232E]">{c.name}</span>,
+      printRender: (c) => c.name,
+    },
+    {
+      key: 'encaissements',
+      header: 'Encaissements',
+      sortable: true,
+      sortValue: (c) => c.encaissements,
+      className: 'text-right',
+      render: (c) => <span className="font-mono font-bold text-xs text-emerald-700">{formatTndCurrency(c.encaissements)}</span>,
+      printRender: (c) => formatTndCurrency(c.encaissements),
+    },
+    {
+      key: 'decaissements',
+      header: 'Décaissements',
+      sortable: true,
+      sortValue: (c) => c.decaissements,
+      className: 'text-right',
+      render: (c) => <span className="font-mono font-bold text-xs text-rose-700">{formatTndCurrency(c.decaissements)}</span>,
+      printRender: (c) => formatTndCurrency(c.decaissements),
+    },
+    {
+      key: 'transferts',
+      header: 'Transferts Estimés',
+      sortable: true,
+      sortValue: (c) => c.transferts,
+      className: 'text-right',
+      render: (c) => <span className="font-mono font-bold text-xs text-[#9A7414]">{formatTndCurrency(c.transferts)}</span>,
+      printRender: (c) => formatTndCurrency(c.transferts),
+    },
+  ];
 
   React.useEffect(() => {
     Promise.all([
@@ -200,6 +239,48 @@ export default function TreasuryReportsPage() {
           />
         </div>
       </div>
+
+      <DataTable<CaisseStatRow>
+        data={caissesStats}
+        columns={columns}
+        keyExtractor={(c) => c.name}
+        searchPlaceholder="Rechercher une caisse ou un compte..."
+        searchKeys={['name']}
+        supportedModes={['table', 'list', 'matrix']}
+        defaultMode="table"
+        defaultPageSize={12}
+        pageSizeOptions={[6, 12, 24, 48, 96]}
+        enableMultiSelect={true}
+        selectedKeys={selectedNames}
+        onSelectionChange={setSelectedNames}
+        renderBulkActions={() => (
+          <button
+            type="button"
+            onClick={() => {
+              const sel = caissesStats.filter((c) => selectedNames.includes(c.name));
+              const csv = [
+                ['Caisse', 'Encaissements TND', 'Décaissements TND', 'Transferts TND'],
+                ...sel.map((c) => [`"${c.name.replace(/"/g, '""')}"`, c.encaissements, c.decaissements, c.transferts]),
+              ]
+                .map((r) => r.join(','))
+                .join('\n');
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `suivi_caisses_selection_${Date.now()}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-100 text-neutral-800 hover:bg-neutral-200 border border-neutral-200 text-xs font-semibold cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Exporter CSV sélection ({selectedNames.length})</span>
+          </button>
+        )}
+        exportFileName="rapports_suivi_caisses_royal"
+        printTitle="Suivi & Statistiques des Caisses — Royal"
+      />
     </div>
   );
 }

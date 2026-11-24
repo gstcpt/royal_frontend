@@ -182,6 +182,19 @@ export default function SupportMessagesPage() {
     });
   }, [threads, activeFolder, statusFilter, searchQuery, dateRange]);
 
+  const [listPage, setListPage] = React.useState(1);
+  const [listPageSize, setListPageSize] = React.useState(12);
+
+  React.useEffect(() => {
+    setListPage(1);
+  }, [activeFolder, statusFilter, searchQuery, dateRange.startDate, dateRange.endDate, listPageSize]);
+
+  const totalListPages = Math.max(1, Math.ceil(filteredThreads.length / listPageSize));
+  const paginatedThreads = React.useMemo(
+    () => filteredThreads.slice((listPage - 1) * listPageSize, listPage * listPageSize),
+    [filteredThreads, listPage, listPageSize],
+  );
+
   const activeThread = React.useMemo(() => {
     const targetId = isMobile ? mobileModalThreadId : selectedThreadId;
     if (isMobile) {
@@ -508,7 +521,7 @@ export default function SupportMessagesPage() {
               )}
 
               {!loading &&
-                filteredThreads.map((t) => {
+                paginatedThreads.map((t) => {
                   const isSelected = activeThread?.id === t.id;
                   const isChecked = selectedThreadIds.includes(t.id);
                   const cName = t.customer
@@ -591,6 +604,43 @@ export default function SupportMessagesPage() {
                     </div>
                   );
                 })}
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-t border-slate-100 bg-white text-xs text-slate-600">
+              <div className="flex items-center gap-1.5">
+                <span>Par page :</span>
+                <select
+                  value={listPageSize}
+                  onChange={(e) => setListPageSize(Number(e.target.value))}
+                  className="rounded-lg border border-[#E6E1D6] bg-white px-2 py-1 text-xs font-semibold text-[#1D232E] cursor-pointer"
+                >
+                  {[6, 12, 24, 48, 96].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={listPage <= 1}
+                  onClick={() => setListPage((p) => Math.max(1, p - 1))}
+                  className="px-2.5 py-1 rounded-lg border border-[#E6E1D6] hover:bg-[#FBF9F4] disabled:opacity-40 cursor-pointer font-semibold"
+                >
+                  Précédent
+                </button>
+                <span className="font-bold text-[#1D232E]">
+                  {listPage} / {totalListPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={listPage >= totalListPages}
+                  onClick={() => setListPage((p) => Math.min(totalListPages, p + 1))}
+                  className="px-2.5 py-1 rounded-lg border border-[#E6E1D6] hover:bg-[#FBF9F4] disabled:opacity-40 cursor-pointer font-semibold"
+                >
+                  Suivant
+                </button>
+              </div>
             </div>
           </div>
         </div>

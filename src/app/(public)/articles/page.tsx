@@ -117,12 +117,15 @@ function ArticlesContent() {
   const { config } = useCmsConfig();
   const { locale, t } = useI18nStore();
   const articlesCfg = config.views.articles;
+  const isLoadMoreMode = articlesCfg.paginationMode === 'LOAD_MORE';
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [products, setProducts] = useState<StorefrontProduct[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
+  const [loadMorePage, setLoadMorePage] = useState<number>(1);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [brands, setBrands] = useState<BrandItem[]>([]);
   const [variantFacets, setVariantFacets] = useState<VariantFacet[]>([]);
@@ -208,7 +211,48 @@ function ArticlesContent() {
     [searchParams],
   );
   const currentPage = Math.max(1, Number(searchParams.get('page') || 1) || 1);
-  const perPage = Math.min(96, Math.max(12, Number(searchParams.get('limit') || articlesCfg.defaultItemsPerPage || 24) || 24));
+  const perPage = Math.min(96, Math.max(6, Number(searchParams.get('limit') || articlesCfg.defaultItemsPerPage || 12) || 12));
+
+  const filterSignature = useMemo(
+    () =>
+      [
+        selectedCategories.join(','),
+        selectedBrands.join(','),
+        selectedVariantOpts.join(','),
+        JSON.stringify(selectedChars),
+        selectedSort,
+        searchQuery,
+        String(inStockOnly),
+        String(promoOnly),
+        urlMinPrice,
+        urlMaxPrice,
+        urlTargetIds.join(','),
+        articlesCfg.targetType || '',
+        (articlesCfg.targetCategorySlugs || []).join(','),
+        (articlesCfg.targetProductIds || []).join(','),
+        String(perPage),
+        String(isLoadMoreMode),
+      ].join('||'),
+    [
+      selectedCategories,
+      selectedBrands,
+      selectedVariantOpts,
+      selectedChars,
+      selectedSort,
+      searchQuery,
+      inStockOnly,
+      promoOnly,
+      urlMinPrice,
+      urlMaxPrice,
+      urlTargetIds,
+      articlesCfg.targetType,
+      articlesCfg.targetCategorySlugs,
+      articlesCfg.targetProductIds,
+      perPage,
+      isLoadMoreMode,
+    ],
+  );
+  const prevSignatureRef = useRef(filterSignature);
 
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const [minPriceInput, setMinPriceInput] = useState(urlMinPrice);
@@ -276,6 +320,7 @@ function ArticlesContent() {
       else params.delete(k);
     });
     params.set('page', '1');
+    setLoadMorePage(1);
     startTransition(() => {
       router.push(`/articles?${params.toString()}`, { scroll: false });
     });
@@ -306,8 +351,19 @@ function ArticlesContent() {
 
   // Fetch Storefront Articles dynamically on any filter change
   useEffect(() => {
+    const filtersChanged = prevSignatureRef.current !== filterSignature;
+    if (filtersChanged) {
+      prevSignatureRef.current = filterSignature;
+      if (isLoadMoreMode && loadMorePage !== 1) {
+        setLoadMorePage(1);
+        return;
+      }
+    }
+    const effectivePage = isLoadMoreMode ? loadMorePage : currentPage;
+
     async function fetchArticles() {
-      setLoading(true);
+      if (isLoadMoreMode && effectivePage > 1) setLoadingMore(true);
+      else setLoading(true);
       try {
         const params = new URLSearchParams();
         const effectiveCategories =
@@ -337,7 +393,7 @@ function ArticlesContent() {
         if (promoOnly) params.set('collection', 'promo');
         if (urlMinPrice) params.set('minPrice', urlMinPrice);
         if (urlMaxPrice) params.set('maxPrice', urlMaxPrice);
-        params.set('page', effectiveTargetIds.length > 0 ? '1' : String(currentPage));
+        params.set('page', effectiveTargetIds.length > 0 ? '1' : String(effectivePage));
         params.set('limit', effectiveTargetIds.length > 0 ? '200' : String(perPage));
 
         const res = await fetch(`/api/v1/products/storefront?${params.toString()}`);
@@ -351,7 +407,14 @@ function ArticlesContent() {
             setTotalCount(list.length);
             setTotalPages(1);
           } else {
-            setProducts(list);
+            if (isLoadMoreMode && effectivePage > 1 && Array.isArray(list)) {
+              setProducts((prev) => {
+                const seen = new Set(prev.map((item) => item.id));
+                return [...prev, ...list.filter((item: any) => !seen.has(item.id))];
+              });
+            } else {
+              setProducts(list);
+            }
             setTotalCount(Number(meta?.total ?? list.length));
             setTotalPages(Math.max(1, Number(meta?.totalPages ?? Math.ceil((meta?.total ?? list.length) / perPage))));
           }
@@ -360,26 +423,16 @@ function ArticlesContent() {
         console.error('Failed fetching storefront articles', err);
       } finally {
         setLoading(false);
+        setLoadingMore(false);
       }
     }
 
     fetchArticles();
   }, [
-    selectedCategories,
-    selectedBrands,
-    selectedVariantOpts,
-    selectedChars,
-    selectedSort,
-    searchQuery,
-    inStockOnly,
-    promoOnly,
-    urlMinPrice,
-    urlMaxPrice,
-    urlTargetIds,
-    articlesCfg.targetType,
-    articlesCfg.targetCategorySlugs,
-    articlesCfg.targetProductIds,
+    filterSignature,
     currentPage,
+    loadMorePage,
+    isLoadMoreMode,
     perPage,
   ]);
 
@@ -673,10 +726,10 @@ function ArticlesContent() {
             value={String(perPage)}
             onChange={(val) => updateQuery({ limit: val })}
             options={[
+              { value: '6', label: `6 ${t('catalog.per_page_suffix')}` },
               { value: '12', label: `12 ${t('catalog.per_page_suffix')}` },
               { value: '24', label: `24 ${t('catalog.per_page_suffix')}` },
-              { value: '36', label: `36 ${t('catalog.per_page_suffix')}` },
-              { value: '60', label: `60 ${t('catalog.per_page_suffix')}` },
+              { value: '48', label: `48 ${t('catalog.per_page_suffix')}` },
               { value: '96', label: `96 ${t('catalog.per_page_suffix')}` },
             ]}
           />
@@ -1035,50 +1088,70 @@ function ArticlesContent() {
             </div>
           )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
-              <button
-                type="button"
-                disabled={currentPage <= 1}
-                onClick={() => goToPage(currentPage - 1)}
-                className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl border border-neutral-200 bg-white text-xs font-bold text-neutral-800 hover:bg-neutral-50 disabled:opacity-40 cursor-pointer"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                {t('table.prev_page')}
-              </button>
+          {/* Pagination or Load More (CMS Controlled) */}
+          {isLoadMoreMode ? (
+            products.length > 0 && (
+              <div className="flex flex-col items-center gap-3 pt-4">
+                <span className="text-xs font-medium text-neutral-500">
+                  Affichage de {products.length} sur {totalCount} article(s)
+                </span>
+                {loadMorePage < totalPages && (
+                  <button
+                    type="button"
+                    disabled={loadingMore}
+                    onClick={() => setLoadMorePage((p) => p + 1)}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold shadow-sm disabled:opacity-50 transition cursor-pointer"
+                  >
+                    <span>{loadingMore ? 'Chargement...' : "Charger plus d'articles"}</span>
+                  </button>
+                )}
+              </div>
+            )
+          ) : (
+            totalPages > 1 && (
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
+                <button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => goToPage(currentPage - 1)}
+                  className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl border border-neutral-200 bg-white text-xs font-bold text-neutral-800 hover:bg-neutral-50 disabled:opacity-40 cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  {t('table.prev_page')}
+                </button>
 
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter((pg) => pg === 1 || pg === totalPages || Math.abs(pg - currentPage) <= 2)
-                .map((pg, idx, arr) => (
-                  <React.Fragment key={pg}>
-                    {idx > 0 && arr[idx - 1] !== pg - 1 && (
-                      <span className="px-2 text-xs text-neutral-400">...</span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => goToPage(pg)}
-                      className={`min-w-[36px] h-9 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
-                        pg === currentPage
-                          ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)] border-[var(--royal-primary)] shadow-sm'
-                          : 'bg-white text-slate-700 border-[var(--royal-border)] hover:bg-[var(--royal-gold-light)]'
-                      }`}
-                    >
-                      {pg}
-                    </button>
-                  </React.Fragment>
-                ))}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((pg) => pg === 1 || pg === totalPages || Math.abs(pg - currentPage) <= 2)
+                  .map((pg, idx, arr) => (
+                    <React.Fragment key={pg}>
+                      {idx > 0 && arr[idx - 1] !== pg - 1 && (
+                        <span className="px-2 text-xs text-neutral-400">...</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => goToPage(pg)}
+                        className={`min-w-[36px] h-9 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                          pg === currentPage
+                            ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)] border-[var(--royal-primary)] shadow-sm'
+                            : 'bg-white text-slate-700 border-[var(--royal-border)] hover:bg-[var(--royal-gold-light)]'
+                        }`}
+                      >
+                        {pg}
+                      </button>
+                    </React.Fragment>
+                  ))}
 
-              <button
-                type="button"
-                disabled={currentPage >= totalPages}
-                onClick={() => goToPage(currentPage + 1)}
-                className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl border border-neutral-200 bg-white text-xs font-bold text-neutral-800 hover:bg-neutral-50 disabled:opacity-40 cursor-pointer"
-              >
-                {t('table.next_page')}
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => goToPage(currentPage + 1)}
+                  className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl border border-neutral-200 bg-white text-xs font-bold text-neutral-800 hover:bg-neutral-50 disabled:opacity-40 cursor-pointer"
+                >
+                  {t('table.next_page')}
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )
           )}
         </main>
       </div>

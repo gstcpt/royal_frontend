@@ -14,6 +14,7 @@ import {
   DashboardVisibilityProvider,
   resolveRouteVisibility,
 } from '@/providers/DashboardVisibilityProvider';
+import { AiAssistantProvider } from '@/providers/AiAssistantProvider';
 import {
   LayoutDashboard,
   Store,
@@ -1683,11 +1684,11 @@ export default function DashboardLayout({
 }) {
   const [queryString, setQueryString] = useState('');
   return (
-    <>
+    <AiAssistantProvider>
       <Suspense fallback={null}>
         <SearchParamsWatcher onSync={setQueryString} />
       </Suspense>
       <DashboardLayoutInner queryString={queryString}>{children}</DashboardLayoutInner>
-    </>
+    </AiAssistantProvider>
   );
 }

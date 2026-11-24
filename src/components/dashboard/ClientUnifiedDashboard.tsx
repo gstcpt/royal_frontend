@@ -34,6 +34,7 @@ import { getCartHeaders, getSafeImageUrl } from '@/lib/cart-session';
 import { formatTndCurrency } from '@/lib/utils';
 import { ProductCard, StorefrontProduct } from '@/components/storefront/ProductCard';
 import { ORDER_STATUS_LABEL_MAP } from '@/components/common/PrintableOrderSheet';
+import { SectionAiRecapPanel } from '@/components/dashboard/SectionAiRecapPanel';
 
 type FeedEventType =
   | 'ORDER'
@@ -422,6 +423,23 @@ export function ClientUnifiedDashboard() {
           </div>
         )}
       </div>
+
+      <SectionAiRecapPanel
+        sectionId="client"
+        title="Mon Espace Client VIP Royal"
+        subtitle="Résumé personnalisé de vos commandes, favoris, alertes et messages"
+        kpis={{
+          orders: interactions.orders.length,
+          inProgressOrders,
+          totalSpentTnd,
+          wishlist: interactions.wishlistProducts.length,
+          reviews: interactions.commentedItems.length,
+        }}
+        summaryMetrics={{
+          unreadNotifCount,
+          threadsCount,
+        }}
+      />
 
       {/* Unified Seamless Full-Width Chronologie • Fil d'Actualité (No isolated sidebar split!) */}
       <div className="w-full space-y-5">

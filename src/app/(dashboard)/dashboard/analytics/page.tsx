@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Toast } from '@/components/ui/toast';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
+import { useAiAssistant } from '@/providers/AiAssistantProvider';
 import { Printer } from 'lucide-react';
 import { fetchApi } from '@/lib/api';
 import { cn, formatTndCurrency } from '@/lib/utils';
@@ -101,6 +102,7 @@ const INITIAL_TRAFFIC: TrafficRow[] = [
 export default function AnalyticsPage() {
   const [traffic, setTraffic] = useState<TrafficRow[]>([]);
   const [selectedTrafficIds, setSelectedTrafficIds] = useState<string[]>([]);
+  const { isRecapEnabled, runAiJob } = useAiAssistant();
   const [aiInsights, setAiInsights] = useState<{
     headline?: string;
     summary?: string;
@@ -113,21 +115,26 @@ export default function AnalyticsPage() {
     setLoadingAi(true);
     setAiError(null);
     try {
-      const res = await fetchApi('/storefront-cms/ai/generate', {
-        method: 'POST',
-        body: JSON.stringify({
-          mode: 'ANALYTICS_INSIGHT',
-          payload: {
-            ...stats,
-            topPages: traffic.slice(0, 5).map((r) => ({
-              path: r.pagePath,
-              views: r.viewsCount,
-              conv: r.conversionRatePercent,
-            })),
-          },
-        }),
+      if (!isRecapEnabled('analytics')) {
+        setAiError('Les conseils IA Analytics sont désactivés dans Système > Intelligence Artificielle.');
+        return;
+      }
+      const res = await runAiJob({
+        mode: 'ANALYTICS_INSIGHT',
+        title: 'Analyse IA — Trafic & Conversion Analytics',
+        subtitle: 'Failover automatique Worker 1 ↔ Worker 2',
+        payload: {
+          ...stats,
+          topPages: traffic.slice(0, 5).map((r) => ({
+            path: r.pagePath,
+            views: r.viewsCount,
+            conv: r.conversionRatePercent,
+          })),
+        },
       });
-      setAiInsights(res?.data || res);
+      if (res) {
+        setAiInsights(res?.data || res);
+      }
     } catch (err: any) {
       setAiError(err?.message || 'Activez un fournisseur IA gratuit (Gemini / Groq) dans Système > IA.');
     } finally {
@@ -288,16 +295,18 @@ export default function AnalyticsPage() {
             ]}
           />
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleGenerateInsights}
-          isLoading={loadingAi}
-          className="border-[#E6D6A6] bg-[#FBF6E8] text-[#9A7414] hover:bg-[#C59B27] hover:text-white shrink-0"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Conseils IA Conversion &amp; Stock</span>
-        </Button>
+        {isRecapEnabled('analytics') && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleGenerateInsights}
+            isLoading={loadingAi}
+            className="border-[#E6D6A6] bg-[#FBF6E8] text-[#9A7414] hover:bg-[#C59B27] hover:text-white shrink-0"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Conseils IA Conversion &amp; Stock</span>
+          </Button>
+        )}
       </div>
 
       {aiError && (

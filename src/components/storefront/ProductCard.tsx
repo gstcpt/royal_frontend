@@ -583,9 +583,13 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                 <button
                   type="button"
                   onClick={handleConfirmAddToCart}
-                  title={t('actions.add_to_cart')}
+                  title={inCart ? t('actions.added_to_cart_qty') : t('actions.add_to_cart')}
                   aria-label={t('actions.add_to_cart')}
-                  className="w-11 h-11 rounded-full bg-white hover:bg-[var(--royal-gold-light)] border border-[var(--royal-primary)] text-[var(--royal-primary)] transition flex items-center justify-center shrink-0 cursor-pointer shadow-2xs"
+                  className={`w-11 h-11 rounded-full border-[1.5px] transition flex items-center justify-center shrink-0 cursor-pointer shadow-2xs ${
+                    inCart
+                      ? 'bg-[var(--royal-success,#059669)] hover:bg-[var(--royal-success-hover,#047857)] border-white text-white ring-1 ring-[var(--royal-success,#059669)]/80'
+                      : 'bg-white hover:bg-[var(--royal-gold-light)] border-[var(--royal-primary)] text-[var(--royal-primary)]'
+                  }`}
                 >
                   <ShoppingBag className="w-4 h-4" />
                 </button>
@@ -763,21 +767,6 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                   <Layers className="w-4 h-4" />
                 </button>
               )}
-              {articleFlags.showBuyButton && (
-                <button
-                  type="button"
-                  onClick={handleIconAddToCart}
-                  title={t('actions.add_to_cart')}
-                  aria-label={t('actions.add_to_cart')}
-                  className={`w-9 h-9 rounded-full border-[1.5px] border-[var(--royal-primary)] flex items-center justify-center cursor-pointer shrink-0 transition ${
-                    inCart
-                      ? 'bg-emerald-50/95 text-emerald-600 hover:bg-white'
-                      : 'bg-white/75 backdrop-blur-sm text-[var(--royal-primary)] hover:bg-white hover:text-emerald-600'
-                  }`}
-                >
-                  <ShoppingBag className="w-4 h-4" />
-                </button>
-              )}
               {articleFlags.showWishlistButton && (
                 <button
                   type="button"
@@ -854,18 +843,33 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                 </>
               )}
               {articleFlags.showBuyButton && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsQuickOrderOpen(true);
-                  }}
-                  className="px-4 py-2 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold flex items-center gap-1.5 cursor-pointer transition"
-                >
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>{t('actions.buy')}</span>
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleIconAddToCart}
+                    title={t('actions.add_to_cart')}
+                    aria-label={t('actions.add_to_cart')}
+                    className={`w-9 h-9 rounded-full border-[1.5px] flex items-center justify-center cursor-pointer shrink-0 transition shadow-2xs ${
+                      inCart
+                        ? 'bg-[var(--royal-success,#059669)] hover:bg-[var(--royal-success-hover,#047857)] border-white text-white ring-1 ring-[var(--royal-success,#059669)]/80'
+                        : 'bg-white hover:bg-[var(--royal-gold-light)] border-[var(--royal-primary)] text-[var(--royal-primary)]'
+                    }`}
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsQuickOrderOpen(true);
+                    }}
+                    className="px-4 py-2 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold flex items-center gap-1.5 cursor-pointer transition"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>{t('actions.buy')}</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -928,21 +932,6 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                     }`}
                   >
                     <Layers className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                {articleFlags.showBuyButton && (
-                  <button
-                    type="button"
-                    onClick={handleIconAddToCart}
-                    title={t('actions.add_to_cart')}
-                    aria-label={t('actions.add_to_cart')}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 border-[1.5px] border-[var(--royal-primary)] shadow-sm cursor-pointer ${
-                      inCart
-                        ? 'text-emerald-600 bg-emerald-50/95 hover:bg-white'
-                        : 'bg-white/75 backdrop-blur-sm text-[var(--royal-primary)] hover:bg-white hover:text-emerald-600'
-                    }`}
-                  >
-                    <ShoppingBag className="w-3.5 h-3.5" />
                   </button>
                 )}
                 {articleFlags.showWishlistButton && (
@@ -1098,19 +1087,34 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
               </div>
 
               {articleFlags.showBuyButton && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsQuickOrderOpen(true);
-                  }}
-                  title={t('actions.quick_order')}
-                  className="w-full py-2 px-3 rounded-xl bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold transition shadow-2xs flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer"
-                >
-                  <Zap className="w-3.5 h-3.5 shrink-0" />
-                  <span>{t('actions.buy')}</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleIconAddToCart}
+                    title={t('actions.add_to_cart')}
+                    aria-label={t('actions.add_to_cart')}
+                    className={`w-9 h-[34px] rounded-xl border-[1.5px] flex items-center justify-center shrink-0 cursor-pointer transition shadow-2xs ${
+                      inCart
+                        ? 'bg-[var(--royal-success,#059669)] hover:bg-[var(--royal-success-hover,#047857)] border-white text-white ring-1 ring-[var(--royal-success,#059669)]/80'
+                        : 'bg-white hover:bg-[var(--royal-gold-light)] border-[var(--royal-primary)] text-[var(--royal-primary)]'
+                    }`}
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsQuickOrderOpen(true);
+                    }}
+                    title={t('actions.quick_order')}
+                    className="flex-1 py-2 px-3 rounded-xl bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold transition shadow-2xs flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer"
+                  >
+                    <Zap className="w-3.5 h-3.5 shrink-0" />
+                    <span>{t('actions.buy')}</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>

@@ -46,6 +46,7 @@ import {
   RoyalSegmentedBarsChart,
   RoyalHorizontalBarsChart,
 } from '@/components/dashboard/RoyalChartsSuite';
+import { SectionAiRecapPanel } from '@/components/dashboard/SectionAiRecapPanel';
 
 type LinkDef = { label: string; href: string; desc: string };
 
@@ -395,6 +396,14 @@ export default function SectionDashboardPage() {
           <Breadcrumb items={[{ label: meta.title }]} />
         </div>
       </div>
+
+      <SectionAiRecapPanel
+        sectionId={sectionId}
+        title={meta.title}
+        subtitle={meta.subtitle}
+        kpis={kpis}
+        summaryMetrics={charts}
+      />
 
       {/* 2. Section-Specific Live Metrics Cards — Smart Full-Width Balanced Rows */}
       <div className="space-y-4">

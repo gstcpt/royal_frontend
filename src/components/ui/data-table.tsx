@@ -313,7 +313,7 @@ export function DataTable<T extends object = any>({
   exportFileName,
   extraActions,
   defaultPageSize = 12,
-  pageSizeOptions = [12, 24, 36, 60, 96],
+  pageSizeOptions = [6, 12, 24, 48, 96],
 }: DataTableProps<T>) {
   const { t } = useI18nStore();
   const effectiveSearchPlaceholder = searchPlaceholder === 'Rechercher...' ? t('table.search_default') : searchPlaceholder;

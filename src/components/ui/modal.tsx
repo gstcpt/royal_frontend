@@ -3,7 +3,8 @@
 import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
-import { X, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle2, Info, Sparkles } from 'lucide-react';
+import { resolveFormKeyFromPath, useOptionalAiAssistant } from '@/providers/AiAssistantProvider';
 
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | 'fullscreen';
 export type ModalType = 'create' | 'edit' | 'delete' | 'details' | 'wizard' | 'custom';
@@ -21,9 +22,35 @@ export interface ModalProps {
   className?: string;
   bodyClassName?: string;
   closeOnOutsideClick?: boolean;
+  aiFormKey?: string;
+  enableAiFill?: boolean;
 }
 
 const openModalStack: string[] = [];
+
+function setReactControlValue(
+  el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
+  val: string,
+) {
+  const proto =
+    el instanceof HTMLTextAreaElement
+      ? window.HTMLTextAreaElement.prototype
+      : el instanceof HTMLSelectElement
+      ? window.HTMLSelectElement.prototype
+      : window.HTMLInputElement.prototype;
+  const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
+  const tracker = (el as any)._valueTracker;
+  if (tracker) {
+    tracker.setValue('__royal_ai_prev__');
+  }
+  if (descriptor && descriptor.set) {
+    descriptor.set.call(el, val);
+  } else {
+    (el as any).value = val;
+  }
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+}
 
 export function Modal({
   isOpen,
@@ -38,10 +65,138 @@ export function Modal({
   className,
   bodyClassName,
   closeOnOutsideClick = true,
+  aiFormKey,
+  enableAiFill = true,
 }: ModalProps) {
   const [mounted, setMounted] = React.useState(false);
   const [stackIndex, setStackIndex] = React.useState(0);
+  const [aiStatusNotice, setAiStatusNotice] = React.useState<string | null>(null);
+  const [hasDetectedFormFields, setHasDetectedFormFields] = React.useState(false);
   const modalId = React.useId();
+  const bodyRef = React.useRef<HTMLDivElement | null>(null);
+  const aiCtx = useOptionalAiAssistant();
+
+  const resolvedFormKey = React.useMemo(() => {
+    if (aiFormKey) return aiFormKey;
+    if (typeof window !== 'undefined') return resolveFormKeyFromPath(window.location.pathname);
+    return 'generic';
+  }, [aiFormKey]);
+
+  React.useEffect(() => {
+    if (!isOpen || !mounted) {
+      setHasDetectedFormFields(false);
+      return;
+    }
+    if (type === 'create' || type === 'edit') {
+      setHasDetectedFormFields(true);
+      return;
+    }
+    if (type === 'delete' || type === 'details') {
+      setHasDetectedFormFields(false);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const root = bodyRef.current;
+      if (!root) {
+        setHasDetectedFormFields(false);
+        return;
+      }
+      const controls = Array.from(
+        root.querySelectorAll<HTMLElement>(
+          'input:not([type="hidden"]):not([type="password"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), select:not([disabled])',
+        ),
+      ).filter((el) => {
+        const ph = (el.getAttribute('placeholder') || '').toLowerCase();
+        return !ph.includes('rechercher') && !ph.includes('search');
+      });
+      setHasDetectedFormFields(controls.length >= 2);
+    }, 35);
+    return () => window.clearTimeout(timer);
+  }, [isOpen, mounted, type]);
+
+  const showAiFillButton =
+    Boolean(aiCtx) &&
+    enableAiFill !== false &&
+    hasDetectedFormFields &&
+    Boolean(aiCtx?.isFormEnabled(resolvedFormKey));
+
+  const handleAiFormFill = React.useCallback(async () => {
+    if (!aiCtx || !bodyRef.current) return;
+    const container = bodyRef.current;
+    const elements = Array.from(
+      container.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+        'input:not([type="hidden"]):not([type="password"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), select:not([disabled])',
+      ),
+    );
+
+    if (elements.length === 0) return;
+
+    const fieldRegistry: Array<{
+      key: string;
+      label: string;
+      type: string;
+      options?: string[];
+      el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+    }> = [];
+    const currentValues: Record<string, string> = {};
+
+    elements.forEach((el, idx) => {
+      const wrapper = el.closest('div');
+      const labelEl =
+        (el.id ? container.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null) ||
+        wrapper?.querySelector('label') ||
+        wrapper?.parentElement?.querySelector('label');
+      const labelText = (labelEl?.textContent || el.getAttribute('placeholder') || el.name || `Champ ${idx + 1}`).trim();
+      const key = el.name || `field_${idx}`;
+      const options =
+        el instanceof HTMLSelectElement
+          ? Array.from(el.options).map((o) => o.value).filter(Boolean)
+          : undefined;
+
+      fieldRegistry.push({
+        key,
+        label: labelText,
+        type: el instanceof HTMLSelectElement ? 'select' : el instanceof HTMLTextAreaElement ? 'textarea' : el.type || 'text',
+        ...(options ? { options } : {}),
+        el,
+      });
+      currentValues[key] = el.value || '';
+    });
+
+    const formTitleStr = typeof title === 'string' ? title : `Formulaire (${resolvedFormKey})`;
+    const res: any = await aiCtx.runAiJob({
+      mode: 'FORM_AUTOFILL',
+      title: `Auto-remplissage IA — ${formTitleStr}`,
+      subtitle: 'Analyse des champs du formulaire et génération intelligente',
+      payload: {
+        formKey: resolvedFormKey,
+        formTitle: formTitleStr,
+        mode: type,
+        fields: fieldRegistry.map(({ el: _omit, ...meta }) => meta),
+        currentValues,
+      },
+    });
+
+    const payload = res?.data || res;
+    const suggested = payload?.values && typeof payload.values === 'object' ? payload.values : null;
+    if (!suggested) return;
+
+    let filledCount = 0;
+    fieldRegistry.forEach(({ key, el }) => {
+      const nextVal = suggested[key];
+      if (nextVal !== undefined && nextVal !== null && String(nextVal).trim() !== '') {
+        setReactControlValue(el, String(nextVal));
+        filledCount++;
+      }
+    });
+
+    if (filledCount > 0) {
+      setAiStatusNotice(
+        `${filledCount} champ(s) complété(s) par Worker ${res?.workerNumber || 1} (${res?.provider || 'IA'}).`,
+      );
+      setTimeout(() => setAiStatusNotice(null), 5000);
+    }
+  }, [aiCtx, resolvedFormKey, title, type]);
 
   React.useEffect(() => {
     setMounted(true);
@@ -168,23 +323,43 @@ export function Modal({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fermer"
-            className="w-8 h-8 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-500 hover:text-neutral-900 flex items-center justify-center transition shrink-0 cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {showAiFillButton && (
+              <button
+                type="button"
+                onClick={handleAiFormFill}
+                title="Compléter automatiquement ce formulaire avec l'IA"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FBF6E8] hover:bg-[var(--royal-primary)] text-[#9A7414] hover:text-white border border-[#E6D6A6] text-xs font-bold transition cursor-pointer shadow-2xs"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Remplir par IA</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Fermer"
+              className="w-8 h-8 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-500 hover:text-neutral-900 flex items-center justify-center transition shrink-0 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Body with guaranteed zero horizontal scrolling and standardized padding */}
         <div
+          ref={bodyRef}
           className={cn(
             'flex-1 overflow-y-auto overflow-x-hidden [&>*:first-child:not([class*="p-"]):not([class*="px-"]):not([class*="md:flex-row"])]:p-6',
             bodyClassName
           )}
         >
+          {aiStatusNotice && (
+            <div className="mx-6 mt-4 mb-0 px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{aiStatusNotice}</span>
+            </div>
+          )}
           {children}
         </div>
 

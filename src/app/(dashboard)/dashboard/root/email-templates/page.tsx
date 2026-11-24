@@ -17,8 +17,10 @@ import {
   Image as ImageIcon,
   Sparkles,
   Table,
+  Check,
+  Download,
 } from 'lucide-react';
-import { Button, Input, Textarea, Badge, Modal, Breadcrumb, Toast } from '@/components/ui';
+import { Button, Input, Textarea, Badge, Modal, DeleteConfirmModal, Breadcrumb, Toast } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
 
 interface EmailTemplateItem {
@@ -46,6 +48,8 @@ function EmailTemplatesContent() {
 
   const [templates, setTemplates] = React.useState<EmailTemplateItem[]>([]);
   const [selectedId, setSelectedId] = React.useState<string>('');
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
   const [form, setForm] = React.useState({ name: '', key: '', subject: '', bodyHtml: '', variablesStr: '' });
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -118,6 +122,7 @@ function EmailTemplatesContent() {
 
   const handleDelete = async (id: string) => {
     await fetchApi(`/storefront-cms/cms/email-templates/${id}`, { method: 'DELETE' });
+    setSelectedIds((prev) => prev.filter((x) => x !== id));
     setToastMsg('Modèle supprimé.');
     const list = await loadTemplates();
     const next = list.find((t) => t.category === activeCat);
@@ -125,7 +130,44 @@ function EmailTemplatesContent() {
     else setSelectedId('');
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    await Promise.allSettled(
+      selectedIds.map((id) => fetchApi(`/storefront-cms/cms/email-templates/${id}`, { method: 'DELETE' })),
+    );
+    const count = selectedIds.length;
+    setSelectedIds([]);
+    setBulkDeleteOpen(false);
+    setToastMsg(`${count} modèle(s) supprimé(s).`);
+    const list = await loadTemplates();
+    const next = list.find((t) => t.category === activeCat);
+    if (next) selectTemplate(next);
+    else setSelectedId('');
+  };
+
+  const handleExportSelected = () => {
+    const sel = templates.filter((t) => selectedIds.includes(t.id));
+    if (sel.length === 0) return;
+    const blob = new Blob([JSON.stringify(sel, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `email_templates_${activeCat}_${sel.length}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setToastMsg(`${sel.length} modèle(s) exporté(s).`);
+  };
+
   const filtered = templates.filter((t) => t.category === activeCat);
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(12);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [activeCat, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginatedTemplates = filtered.slice((page - 1) * pageSize, page * pageSize);
   const currentTabMeta = CAT_TABS.find((c) => c.id === activeCat) || CAT_TABS[0];
 
   const previewHtml = form.bodyHtml
@@ -221,35 +263,129 @@ function EmailTemplatesContent() {
           </aside>
 
           <div className="space-y-2.5">
-            {filtered.map((tpl) => (
-            <div
-              key={tpl.id}
-              onClick={() => selectTemplate(tpl)}
-              className={`p-4 rounded-2xl border cursor-pointer transition flex items-start justify-between gap-2 ${
-                selectedId === tpl.id
-                  ? 'bg-[#FBF6E8] border-[#C59B27] shadow-sm'
-                  : 'bg-white border-[#E6E1D6] hover:border-[#C59B27]/50'
-              }`}
-            >
-              <div className="min-w-0">
-                <div className="text-xs font-extrabold text-[#1D232E] truncate">{tpl.name}</div>
-                <div className="text-[11px] text-slate-500 truncate mt-0.5">{tpl.subject}</div>
-                <span className="inline-block mt-1.5 font-mono text-[10px] px-2 py-0.5 rounded bg-white border border-[#E6E1D6] text-[#9A7414]">
-                  {tpl.key}
-                </span>
+            {filtered.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-white border border-[#E6E1D6] text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allSelected = filtered.every((t) => selectedIds.includes(t.id));
+                    setSelectedIds(allSelected ? [] : filtered.map((t) => t.id));
+                  }}
+                  className="inline-flex items-center gap-2 font-bold text-[#1D232E] cursor-pointer"
+                >
+                  <span
+                    className={`w-4 h-4 rounded border flex items-center justify-center ${
+                      filtered.length > 0 && filtered.every((t) => selectedIds.includes(t.id))
+                        ? 'bg-[#C59B27] border-[#C59B27] text-white'
+                        : 'border-slate-300 bg-white'
+                    }`}
+                  >
+                    {filtered.length > 0 && filtered.every((t) => selectedIds.includes(t.id)) && <Check className="w-3 h-3" />}
+                  </span>
+                  <span>Tout ({filtered.length})</span>
+                </button>
+                {selectedIds.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <Button variant="outline" size="sm" onClick={handleExportSelected}>
+                      <Download className="w-3 h-3 mr-1" />
+                      <span>JSON ({selectedIds.length})</span>
+                    </Button>
+                    <Button variant="danger" size="sm" onClick={() => setBulkDeleteOpen(true)}>
+                      <Trash2 className="w-3 h-3 mr-1" />
+                      <span>({selectedIds.length})</span>
+                    </Button>
+                  </div>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDelete(tpl.id);
-                }}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer"
+            )}
+
+            {paginatedTemplates.map((tpl) => {
+              const isChecked = selectedIds.includes(tpl.id);
+              return (
+              <div
+                key={tpl.id}
+                onClick={() => selectTemplate(tpl)}
+                className={`p-4 rounded-2xl border cursor-pointer transition flex items-start justify-between gap-2 ${
+                  selectedId === tpl.id
+                    ? 'bg-[#FBF6E8] border-[#C59B27] shadow-sm'
+                    : 'bg-white border-[#E6E1D6] hover:border-[#C59B27]/50'
+                }`}
               >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedIds((prev) =>
+                        prev.includes(tpl.id) ? prev.filter((x) => x !== tpl.id) : [...prev, tpl.id],
+                      );
+                    }}
+                    aria-label={`Sélectionner ${tpl.name}`}
+                    className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 cursor-pointer ${
+                      isChecked ? 'bg-[#C59B27] border-[#C59B27] text-white' : 'border-slate-300 bg-white'
+                    }`}
+                  >
+                    {isChecked && <Check className="w-3 h-3" />}
+                  </button>
+                  <div className="min-w-0">
+                    <div className="text-xs font-extrabold text-[#1D232E] truncate">{tpl.name}</div>
+                    <div className="text-[11px] text-slate-500 truncate mt-0.5">{tpl.subject}</div>
+                    <span className="inline-block mt-1.5 font-mono text-[10px] px-2 py-0.5 rounded bg-white border border-[#E6E1D6] text-[#9A7414]">
+                      {tpl.key}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(tpl.id);
+                  }}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer shrink-0"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              );
+            })}
+
+            {filtered.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 rounded-2xl bg-white border border-[#E6E1D6] text-xs text-slate-600">
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  aria-label="Modèles par page"
+                  className="rounded-lg border border-[#E6E1D6] bg-white px-2 py-1 text-xs font-semibold text-[#1D232E] cursor-pointer"
+                >
+                  {[6, 12, 24, 48, 96].map((n) => (
+                    <option key={n} value={n}>
+                      {n} / p
+                    </option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className="px-2 py-1 rounded-lg border border-[#E6E1D6] hover:bg-[#FBF9F4] disabled:opacity-40 cursor-pointer font-semibold"
+                  >
+                    Préc.
+                  </button>
+                  <span className="font-bold text-[#1D232E]">
+                    {page}/{totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    className="px-2 py-1 rounded-lg border border-[#E6E1D6] hover:bg-[#FBF9F4] disabled:opacity-40 cursor-pointer font-semibold"
+                  >
+                    Suiv.
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -387,6 +523,14 @@ function EmailTemplatesContent() {
           />
         </div>
       </Modal>
+
+      <DeleteConfirmModal
+        isOpen={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        onConfirm={handleBulkDelete}
+        title="Supprimer les modèles sélectionnés ?"
+        description={`Confirmez-vous la suppression de ${selectedIds.length} modèle(s) de courriel ?`}
+      />
 
       <Toast isOpen={!!toastMsg} message={toastMsg || ''} type="success" onClose={() => setToastMsg(null)} />
     </div>

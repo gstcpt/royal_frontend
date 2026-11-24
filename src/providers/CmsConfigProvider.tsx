@@ -199,6 +199,7 @@ export interface CmsViewsConfig {
     showCharacteristicsFilter?: boolean;
     defaultColumns: string;
     defaultItemsPerPage: number;
+    paginationMode?: 'PAGINATION' | 'LOAD_MORE';
     cardImageHeightPx?: number;
     showCompareButton: boolean;
     showWishlistButton: boolean;
@@ -451,7 +452,8 @@ const DEFAULT_CONFIG: CmsConfig = {
       showBrandFilter: true,
       showCharacteristicsFilter: true,
       defaultColumns: '3',
-      defaultItemsPerPage: 24,
+      defaultItemsPerPage: 12,
+      paginationMode: 'PAGINATION',
       showCompareButton: true,
       showWishlistButton: true,
       showQuickViewButton: true,

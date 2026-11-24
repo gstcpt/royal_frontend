@@ -42,6 +42,7 @@ import {
   DashboardAnalyticsPack,
   UserDashboardPayload,
 } from '@/components/dashboard/DashboardAnalyticsPack';
+import { SectionAiRecapPanel } from '@/components/dashboard/SectionAiRecapPanel';
 import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 
 interface DashboardKpis {
@@ -227,6 +228,14 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      <SectionAiRecapPanel
+        sectionId="main"
+        title={isRoot ? 'Vue Globale Système Master ROOT' : 'Tableau de Bord Royal'}
+        subtitle="Synthèse analytique transversale des ventes, stocks et commandes"
+        kpis={kpis as unknown as Record<string, any>}
+        summaryMetrics={userDash as unknown as Record<string, any>}
+      />
 
       {/* Role-Tailored Visual Charts, Order Calendar & 5 Latest Unread Messages */}
       <DashboardAnalyticsPack data={userDash} />

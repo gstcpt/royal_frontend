@@ -36,9 +36,10 @@ export function ModalArticlesTable({
   articles,
   title,
   subtitle,
-  pageSize = 5,
+  pageSize = 12,
 }: ModalArticlesTableProps) {
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [currentPageSize, setCurrentPageSize] = React.useState<number>(pageSize || 12);
   const [currentPage, setCurrentPage] = React.useState(1);
 
   // Filter articles
@@ -55,11 +56,11 @@ export function ModalArticlesTable({
   }, [articles, searchQuery]);
 
   // Pagination
-  const totalPages = Math.max(1, Math.ceil(filteredArticles.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(filteredArticles.length / currentPageSize));
   const paginatedArticles = React.useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredArticles.slice(start, start + pageSize);
-  }, [filteredArticles, currentPage, pageSize]);
+    const start = (currentPage - 1) * currentPageSize;
+    return filteredArticles.slice(start, start + currentPageSize);
+  }, [filteredArticles, currentPage, currentPageSize]);
 
   return (
     <div className="space-y-4">
@@ -249,31 +250,51 @@ export function ModalArticlesTable({
       )}
 
       {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-2 text-xs">
-          <span className="text-neutral-400">
-            Page {currentPage} sur {totalPages}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              disabled={currentPage <= 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="p-1.5 rounded-lg border border-neutral-200 text-neutral-700 hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
-              title="Page précédente"
+      {filteredArticles.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs">
+          <div className="flex items-center gap-2 text-neutral-500">
+            <span>Par page :</span>
+            <select
+              value={currentPageSize}
+              onChange={(e) => {
+                setCurrentPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              aria-label="Articles par page"
+              className="rounded-lg border border-neutral-200 bg-white px-2 py-1 text-xs font-semibold text-neutral-800 cursor-pointer"
             >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              disabled={currentPage >= totalPages}
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="p-1.5 rounded-lg border border-neutral-200 text-neutral-700 hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
-              title="Page suivante"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+              {[6, 12, 24, 48, 96].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+            <span className="text-neutral-400">
+              Page {currentPage} sur {totalPages}
+            </span>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="p-1.5 rounded-lg border border-neutral-200 text-neutral-700 hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
+                title="Page précédente"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="p-1.5 rounded-lg border border-neutral-200 text-neutral-700 hover:bg-neutral-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition"
+                title="Page suivante"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -295,7 +316,7 @@ export function RelatedArticlesModal({
   title,
   subtitle,
   articles,
-  pageSize = 5,
+  pageSize = 12,
 }: RelatedArticlesModalProps) {
   const { isRouteVisible } = useRouteVisibility();
   const canSeeArticles = isRouteVisible('/dashboard/articles');

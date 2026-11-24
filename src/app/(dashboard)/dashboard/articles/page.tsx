@@ -66,6 +66,7 @@ import { API_BASE_URL, fetchApi, fetchAllPaginated } from '@/lib/api';
 import { Eye as _ArtEye, EyeOff as _ArtEyeOff, FileEdit as _ArtDraft, Sparkles as _ArtStar, FolderTree as _ArtCat } from 'lucide-react';
 import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 import { useAuthStore } from '@/stores/auth.store';
+import { useAiAssistant } from '@/providers/AiAssistantProvider';
 
 interface ProductItem {
   id: string;
@@ -497,6 +498,7 @@ const FORM_SECTIONS: FormSectionTab[] = [
 
 export default function DashboardArticlesPage() {
   const { isRouteVisible, isRoot } = useRouteVisibility();
+  const { isFormEnabled, runAiJob } = useAiAssistant();
   const canDeleteProduct = useAuthStore((s) => s.hasPermission('products.delete'));
   const canSeeInventory = isRouteVisible('/dashboard/inventory');
   // Main Data States
@@ -2467,51 +2469,54 @@ export default function DashboardArticlesPage() {
                   <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
                     Descriptions Produit &amp; Fiche Technique
                   </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    isLoading={isGeneratingAi}
-                    disabled={!formData.name.trim()}
-                    onClick={async () => {
-                      setIsGeneratingAi(true);
-                      try {
-                        const catName = categories.find((c) => c.id === formData.categoryId)?.name || '';
-                        const brandName = brands.find((b) => b.id === formData.brandId)?.name || '';
-                        const res = await fetchApi('/storefront-cms/ai/generate', {
-                          method: 'POST',
-                          body: JSON.stringify({
+                  {isFormEnabled('articles') && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      isLoading={isGeneratingAi}
+                      disabled={!formData.name.trim()}
+                      onClick={async () => {
+                        setIsGeneratingAi(true);
+                        try {
+                          const catName = categories.find((c) => c.id === formData.categoryId)?.name || '';
+                          const brandName = brands.find((b) => b.id === formData.brandId)?.name || '';
+                          const res = await runAiJob({
                             mode: 'PRODUCT_COPY',
+                            title: `Rédaction IA — ${formData.name}`,
+                            subtitle: 'Génération FR/AR et balises SEO avec bascule automatique multi-workers',
                             payload: {
                               name: formData.name,
                               category: catName,
                               brand: brandName,
                               price: formData.sellingPrice,
                             },
-                          }),
-                        });
-                        const ai = res?.data || res;
-                        setFormData((prev) => ({
-                          ...prev,
-                          nameAr: ai?.nameAr || prev.nameAr,
-                          shortDescription: ai?.shortDescription || prev.shortDescription,
-                          description: ai?.description || prev.description,
-                          metaTitle: ai?.metaTitle || prev.metaTitle,
-                          metaDesc: ai?.metaDesc || prev.metaDesc,
-                          focusKeyword: ai?.focusKeyword || prev.focusKeyword,
-                        }));
-                        showToast('success', 'Rédaction FR/AR et balises SEO générées par IA.');
-                      } catch (err: any) {
-                        showToast('error', err?.message || (isRoot ? 'IA indisponible. Vérifiez /dashboard/root/ai.' : 'Assistant IA temporairement indisponible.'));
-                      } finally {
-                        setIsGeneratingAi(false);
-                      }
-                    }}
-                    className="h-8 text-xs border-[#E6D6A6] bg-[#FBF6E8] text-[#9A7414] hover:bg-[#C59B27] hover:text-white"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Générer Fiche &amp; SEO par IA</span>
-                  </Button>
+                          });
+                          if (res) {
+                            const ai = res?.data || res;
+                            setFormData((prev) => ({
+                              ...prev,
+                              nameAr: ai?.nameAr || prev.nameAr,
+                              shortDescription: ai?.shortDescription || prev.shortDescription,
+                              description: ai?.description || prev.description,
+                              metaTitle: ai?.metaTitle || prev.metaTitle,
+                              metaDesc: ai?.metaDesc || prev.metaDesc,
+                              focusKeyword: ai?.focusKeyword || prev.focusKeyword,
+                            }));
+                            showToast('success', 'Rédaction FR/AR et balises SEO générées par IA.');
+                          }
+                        } catch (err: any) {
+                          showToast('error', err?.message || (isRoot ? 'IA indisponible. Vérifiez /dashboard/root/ai.' : 'Assistant IA temporairement indisponible.'));
+                        } finally {
+                          setIsGeneratingAi(false);
+                        }
+                      }}
+                      className="h-8 text-xs border-[#E6D6A6] bg-[#FBF6E8] text-[#9A7414] hover:bg-[#C59B27] hover:text-white"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Générer Fiche &amp; SEO par IA</span>
+                    </Button>
+                  )}
                 </div>
 
                 <Textarea

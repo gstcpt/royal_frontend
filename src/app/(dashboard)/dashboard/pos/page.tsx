@@ -104,7 +104,7 @@ export default function PosTerminalPage() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [cart, setCart] = useState<CartLine[]>([]);
 
-  const POS_PAGE_SIZE_OPTIONS = [12, 24, 48, 60, 108];
+  const POS_PAGE_SIZE_OPTIONS = [6, 12, 24, 48, 96];
 
   // Order & Customer fields
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
@@ -849,7 +849,7 @@ export default function PosTerminalPage() {
                 })}
               </div>
 
-              {/* Pagination Bar (12 default, 24, 48, 60, 108) */}
+              {/* Pagination Bar (6, 12 default, 24, 48, 96) */}
               <div className="pt-4 border-t border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-500 no-print">
                 <div className="flex items-center gap-2">
                   <span>Afficher</span>

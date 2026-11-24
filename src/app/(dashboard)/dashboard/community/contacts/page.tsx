@@ -163,10 +163,12 @@ export default function ContactsPage() {
     return () => mq.removeEventListener('change', sync);
   }, []);
 
-  // Filters
+  // Filters & Pagination
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<'ALL' | 'NEW' | 'REPLIED' | 'ARCHIVED'>('ALL');
   const [dateRange, setDateRange] = React.useState<DateRange>({ startDate: '', endDate: '' });
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(12);
 
   const loadContacts = React.useCallback(async () => {
     try {
@@ -292,6 +294,16 @@ export default function ContactsPage() {
       return true;
     });
   }, [currentTab, inboxDiscussions, trashDiscussions, search, statusFilter, dateRange]);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [currentTab, search, statusFilter, dateRange.startDate, dateRange.endDate, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(displayedDiscussions.length / pageSize));
+  const paginatedDiscussions = React.useMemo(
+    () => displayedDiscussions.slice((page - 1) * pageSize, page * pageSize),
+    [displayedDiscussions, page, pageSize]
+  );
 
   // Active selected discussion
   const activeDiscussion = React.useMemo(() => {
@@ -768,7 +780,7 @@ export default function ContactsPage() {
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {displayedDiscussions.map((disc) => {
+                  {paginatedDiscussions.map((disc) => {
                     const isSelected = selectedEmails.includes(disc.email);
                     const isActive = activeDiscussionEmail === disc.email;
                     const hasUnread = disc.unreadCount > 0;
@@ -897,6 +909,44 @@ export default function ContactsPage() {
                   })}
                 </div>
               )}
+
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 bg-white rounded-2xl border border-neutral-200/80 text-xs text-neutral-600 no-print print:hidden">
+                <div className="flex items-center gap-2">
+                  <span>Par page :</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="rounded-lg border border-neutral-200 bg-white px-2 py-1 text-xs font-semibold text-neutral-800 cursor-pointer"
+                  >
+                    {[6, 12, 24, 48, 96].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className="px-2.5 py-1 rounded-lg border border-neutral-200 hover:bg-neutral-50 disabled:opacity-40 cursor-pointer font-semibold"
+                  >
+                    Précédent
+                  </button>
+                  <span className="font-semibold text-neutral-800">
+                    Page {page} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    className="px-2.5 py-1 rounded-lg border border-neutral-200 hover:bg-neutral-50 disabled:opacity-40 cursor-pointer font-semibold"
+                  >
+                    Suivant
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* RIGHT / DETAIL PANE: CONVERSATION SPLIT VIEW (Desktop only) */}

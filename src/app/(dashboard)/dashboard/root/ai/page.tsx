@@ -12,6 +12,8 @@ import {
   RefreshCw,
   Zap,
   Bot,
+  LayoutDashboard,
+  FileEdit,
 } from 'lucide-react';
 import {
   Button,
@@ -25,6 +27,11 @@ import {
   ViewGuideStep,
 } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
+import {
+  AI_FORM_TARGETS,
+  AI_OVERVIEW_TARGETS,
+  useAiAssistant,
+} from '@/providers/AiAssistantProvider';
 
 const DEFAULT_GROQ_MODELS = [
   { id: 'openai/gpt-oss-120b', label: 'openai/gpt-oss-120b (Flagship — Qualité & FR/AR)' },
@@ -40,7 +47,7 @@ const AI_GUIDE_STEPS: ViewGuideStep[] = [
     id: 'gemini-free',
     number: '01',
     title: 'Google AI Studio — Gemini Flash (Gratuit 1 500 req/jour)',
-    description: 'Aucune carte bancaire requise pour générer des fiches produits FR/AR et analyses SEO.',
+    description: 'Aucune carte bancaire requise pour générer des récaps sections, formulaires et SEO.',
     platformLabel: 'Obtenir une Clé Google AI Studio',
     platformUrl: 'https://aistudio.google.com/app/apikey',
     fields: [
@@ -59,7 +66,7 @@ const AI_GUIDE_STEPS: ViewGuideStep[] = [
     id: 'groq-free',
     number: '02',
     title: 'Groq Cloud LPU — Modèles Open-Weight Gratuits',
-    description: 'Alternative open-source ultra rapide avec détection automatique des modèles autorisés sur votre clé.',
+    description: 'Worker secondaire ou principal avec bascule automatique sans coupure si le premier worker est occupé.',
     platformLabel: 'Obtenir une Clé Gratuite Groq',
     platformUrl: 'https://console.groq.com/keys',
     fields: [
@@ -68,8 +75,8 @@ const AI_GUIDE_STEPS: ViewGuideStep[] = [
         example: 'Modèle conseillé : openai/gpt-oss-120b ou qwen/qwen3.8-27b',
         steps: [
           'Ouvrez console.groq.com → API Keys → Create API Key.',
-          'Vérifiez dans Settings → Limits les modèles autorisés ou cliquez sur « Actualiser Modèles ».',
-          'En cas d’indisponibilité d’un modèle, Royal bascule automatiquement sur un modèle actif de votre compte.',
+          'En cas de serveur occupé ou panne technique, le système bascule en boucle entre Worker 1 et Worker 2.',
+          'Une notification Toast s’affiche uniquement lorsque les deux quotas d’utilisation sont épuisés.',
         ],
       },
     ],
@@ -77,6 +84,7 @@ const AI_GUIDE_STEPS: ViewGuideStep[] = [
 ];
 
 export default function AiProviderRootPage() {
+  const { runAiJob, refreshAvailability } = useAiAssistant();
   const [config, setConfig] = useState({
     enabled: false,
     provider: 'GEMINI' as 'GEMINI' | 'GROQ',
@@ -86,6 +94,10 @@ export default function AiProviderRootPage() {
     groqModel: 'openai/gpt-oss-120b',
     enableCatalogCopy: true,
     enableAnalyticsInsights: true,
+    enableOverviewRecaps: true,
+    enableFormAutofill: true,
+    recapTargets: {} as Record<string, boolean>,
+    formTargets: {} as Record<string, boolean>,
     defaultTone: 'Luxe éditorial sobre, précis et orienté conversion (Tunisie, TND)',
   });
   const [groqModels, setGroqModels] = useState<{ id: string; label: string }[]>(DEFAULT_GROQ_MODELS);
@@ -108,6 +120,10 @@ export default function AiProviderRootPage() {
         ...prev,
         ...v,
         groqModel: v?.groqModel || 'openai/gpt-oss-120b',
+        enableOverviewRecaps: v?.enableOverviewRecaps !== false,
+        enableFormAutofill: v?.enableFormAutofill !== false,
+        recapTargets: v?.recapTargets && typeof v.recapTargets === 'object' ? v.recapTargets : {},
+        formTargets: v?.formTargets && typeof v.formTargets === 'object' ? v.formTargets : {},
       }));
     } catch (err: any) {
       setToastMsg({ text: err?.message || 'Accès réservé au compte ROOT.', type: 'error' });
@@ -164,7 +180,11 @@ export default function AiProviderRootPage() {
         method: 'PUT',
         body: JSON.stringify({ value: config }),
       });
-      setToastMsg({ text: 'Configuration Intelligence Artificielle enregistrée.', type: 'success' });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('royal:ai-config-updated'));
+      }
+      await refreshAvailability();
+      setToastMsg({ text: 'Configuration Intelligence Artificielle enregistrée et diffusée.', type: 'success' });
     } catch (err: any) {
       setToastMsg({ text: err?.message || 'Erreur sauvegarde IA.', type: 'error' });
     } finally {
@@ -176,14 +196,19 @@ export default function AiProviderRootPage() {
     setTesting(true);
     setTestReply(null);
     try {
-      const res = await fetchApi('/storefront-cms/ai/test', {
-        method: 'POST',
-        body: JSON.stringify({
-          mode: 'TEST',
-          overrideConfig: config,
-        }),
+      const payload = await runAiJob({
+        mode: 'TEST',
+        overrideConfig: config,
+        title: 'Diagnostic Failover Workers IA',
+        subtitle: `Test boucle Worker 1 (${config.provider}) ↔ Worker 2 (${config.provider === 'GEMINI' ? 'GROQ' : 'GEMINI'})`,
       });
-      const payload = res?.data && !res?.reply ? res.data : res;
+      if (!payload) {
+        setTestReply({
+          ok: false,
+          text: 'Test annulé ou quotas épuisés sur les workers configurés.',
+        });
+        return;
+      }
       if (payload?.provider === 'GROQ' && payload?.model && payload.model !== config.groqModel) {
         setConfig((prev) => ({ ...prev, groqModel: payload.model }));
         setGroqModels((prev) =>
@@ -193,16 +218,16 @@ export default function AiProviderRootPage() {
         );
       }
       const fallbackNote = payload?.fallbackFrom
-        ? ` (Bascule auto depuis ${payload.fallbackFrom} → ${payload.model} — pensez à cliquer sur Sauvegarder)`
+        ? ` (Bascule auto Worker 1 ${payload.fallbackFrom} → Worker 2 ${payload.provider})`
         : '';
       setTestReply({
         ok: true,
-        text: `[${payload?.provider} • ${payload?.model}] ${payload?.reply || 'Connexion opérationnelle.'}${fallbackNote}`,
+        text: `[Worker ${payload?.workerNumber || 1} • ${payload?.provider} • ${payload?.model}] ${payload?.reply || 'Connexion opérationnelle.'}${fallbackNote}`,
       });
     } catch (err: any) {
       setTestReply({
         ok: false,
-        text: err?.message || 'Échec de connexion au fournisseur IA.',
+        text: err?.message || 'Échec de connexion aux workers IA.',
       });
     } finally {
       setTesting(false);
@@ -217,6 +242,22 @@ export default function AiProviderRootPage() {
     return base;
   }, [groqModels, config.groqModel]);
 
+  const setAllRecapTargets = (val: boolean) => {
+    const next: Record<string, boolean> = {};
+    AI_OVERVIEW_TARGETS.forEach((t) => {
+      next[t.id] = val;
+    });
+    setConfig((prev) => ({ ...prev, recapTargets: next }));
+  };
+
+  const setAllFormTargets = (val: boolean) => {
+    const next: Record<string, boolean> = {};
+    AI_FORM_TARGETS.forEach((t) => {
+      next[t.id] = val;
+    });
+    setConfig((prev) => ({ ...prev, formTargets: next }));
+  };
+
   return (
     <div className="space-y-6 max-w-[1720px] mx-auto">
       <Toast
@@ -230,14 +271,14 @@ export default function AiProviderRootPage() {
         <div className="min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-heading font-black text-[#1D232E] tracking-tight">
-              Intelligence Artificielle (Gemini Flash &amp; Groq Gratuits)
+              Intelligence Artificielle (Workers Failover &amp; Périmètre)
             </h1>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6]">
-              ROOT ONLY • 0 DT TIER GRATUIT
+              ROOT ONLY • WORKER 1 ↔ WORKER 2
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1 max-w-2xl">
-            Automatisez la rédaction FR/AR de vos articles, le SEO Google et l’analyse de vos performances sans aucun abonnement payant.
+            Bascule automatique en boucle entre Gemini Flash et Groq, et contrôle fin des Récaps Vues d’Ensemble &amp; Auto-remplissage des Formulaires.
           </p>
           <Breadcrumb
             className="mt-2"
@@ -259,7 +300,7 @@ export default function AiProviderRootPage() {
           </Button>
           <Button variant="outline" size="sm" onClick={handleTestAi} isLoading={testing}>
             <Zap className="w-3.5 h-3.5 text-amber-600" />
-            <span>Tester Connexion IA</span>
+            <span>Tester Failover Workers</span>
           </Button>
           <Button variant="gold" size="sm" onClick={() => handleSave()} isLoading={saving}>
             <Save className="w-3.5 h-3.5" />
@@ -291,13 +332,13 @@ export default function AiProviderRootPage() {
         </div>
       ) : (
         <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          {/* Card 1: Activation & Tone */}
+          {/* Card 1: Activation & 2 Modes */}
           <div className="lg:col-span-12 bg-white rounded-2xl border border-[#E6E1D6] p-5 sm:p-6 space-y-4 shadow-xs">
             <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
               <div className="flex items-center gap-2">
                 <Bot className="w-4 h-4 text-[#C59B27]" />
                 <h2 className="text-sm font-bold text-[#1D232E]">
-                  Activation Globale &amp; Capacités Merchandising
+                  Activation Globale, Priorité Workers &amp; Modes d&apos;Usage
                 </h2>
               </div>
               <Toggle
@@ -309,14 +350,14 @@ export default function AiProviderRootPage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
               <Select
-                label="Moteur IA Actif *"
+                label="Worker 1 Prioritaire (Worker 2 = Backup Auto) *"
                 value={config.provider}
                 onChange={(e) => setConfig({ ...config, provider: e.target.value as 'GEMINI' | 'GROQ' })}
                 options={[
-                  { label: 'Google AI Studio — Gemini Flash (Recommandé)', value: 'GEMINI' },
-                  { label: 'Groq Cloud LPU — Open-Weight Ultra Rapide', value: 'GROQ' },
+                  { label: 'Worker 1 : Google Gemini (Backup : Groq)', value: 'GEMINI' },
+                  { label: 'Worker 1 : Groq Cloud (Backup : Gemini)', value: 'GROQ' },
                 ]}
               />
               <Input
@@ -325,21 +366,27 @@ export default function AiProviderRootPage() {
                 onChange={(e) => setConfig({ ...config, defaultTone: e.target.value })}
               />
               <div className="p-3 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center justify-between gap-2">
-                <span className="text-xs font-bold text-[#1D232E]">Rédaction Fiches Articles</span>
+                <div>
+                  <span className="text-xs font-bold text-[#1D232E] block">Mode 1 : Récaps Vues d&apos;Ensemble</span>
+                  <span className="text-[10px] text-slate-500">Synthèses IA par section</span>
+                </div>
                 <Toggle
                   compact
                   size="sm"
-                  checked={config.enableCatalogCopy}
-                  onChange={(v) => setConfig({ ...config, enableCatalogCopy: v })}
+                  checked={config.enableOverviewRecaps}
+                  onChange={(v) => setConfig({ ...config, enableOverviewRecaps: v, enableAnalyticsInsights: v })}
                 />
               </div>
               <div className="p-3 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center justify-between gap-2">
-                <span className="text-xs font-bold text-[#1D232E]">Conseils Stock &amp; Trafic</span>
+                <div>
+                  <span className="text-xs font-bold text-[#1D232E] block">Mode 2 : Auto-Remplissage Modales</span>
+                  <span className="text-[10px] text-slate-500">Formulaires Ajout &amp; Édition</span>
+                </div>
                 <Toggle
                   compact
                   size="sm"
-                  checked={config.enableAnalyticsInsights}
-                  onChange={(v) => setConfig({ ...config, enableAnalyticsInsights: v })}
+                  checked={config.enableFormAutofill}
+                  onChange={(v) => setConfig({ ...config, enableFormAutofill: v, enableCatalogCopy: v })}
                 />
               </div>
             </div>
@@ -350,7 +397,9 @@ export default function AiProviderRootPage() {
             <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3.5">
               <div className="flex items-center gap-2 min-w-0">
                 <Sparkles className="w-4 h-4 text-[#C59B27] shrink-0" />
-                <h3 className="text-sm font-bold text-[#1D232E] truncate">01 — Google AI Studio (Gemini Free Tier)</h3>
+                <h3 className="text-sm font-bold text-[#1D232E] truncate">
+                  {config.provider === 'GEMINI' ? 'Worker 1' : 'Worker 2'} — Google AI Studio (Gemini)
+                </h3>
                 <GuideInfoButton onClick={() => { setGuideIndex(0); setGuideOpen(true); }} />
               </div>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
@@ -373,6 +422,7 @@ export default function AiProviderRootPage() {
               options={[
                 { label: 'gemini-2.5-flash (Dernier — Équilibré & Rapide)', value: 'gemini-2.5-flash' },
                 { label: 'gemini-2.0-flash (Rapide FR/AR)', value: 'gemini-2.0-flash' },
+                { label: 'gemini-2.5-flash-lite (Ultra léger)', value: 'gemini-2.5-flash-lite' },
               ]}
             />
           </div>
@@ -382,7 +432,9 @@ export default function AiProviderRootPage() {
             <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3.5">
               <div className="flex items-center gap-2 min-w-0">
                 <Zap className="w-4 h-4 text-[#C59B27] shrink-0" />
-                <h3 className="text-sm font-bold text-[#1D232E] truncate">02 — Groq Cloud LPU (Gratuit)</h3>
+                <h3 className="text-sm font-bold text-[#1D232E] truncate">
+                  {config.provider === 'GROQ' ? 'Worker 1' : 'Worker 2'} — Groq Cloud LPU
+                </h3>
                 <GuideInfoButton onClick={() => { setGuideIndex(1); setGuideOpen(true); }} />
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -416,6 +468,106 @@ export default function AiProviderRootPage() {
               onChange={(e) => setConfig({ ...config, groqModel: e.target.value })}
               options={groqSelectOptions}
             />
+          </div>
+
+          {/* Card 4: Contrôle Granulaire ON/OFF des Vues d'Ensemble */}
+          <div className="lg:col-span-6 bg-white rounded-2xl border border-[#E6E1D6] p-5 sm:p-6 space-y-4 shadow-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3.5">
+              <div className="flex items-center gap-2">
+                <LayoutDashboard className="w-4 h-4 text-[#C59B27]" />
+                <div>
+                  <h3 className="text-sm font-bold text-[#1D232E]">Récaps IA par Vue d&apos;Ensemble</h3>
+                  <p className="text-[11px] text-slate-500">Activez ou masquez la synthèse IA sur chaque vue d&apos;ensemble</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button type="button" onClick={() => setAllRecapTargets(true)} className="px-2.5 py-1 rounded-lg bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6] text-[10px] font-bold cursor-pointer">
+                  Tout ON
+                </button>
+                <button type="button" onClick={() => setAllRecapTargets(false)} className="px-2.5 py-1 rounded-lg bg-neutral-100 text-neutral-700 border border-neutral-200 text-[10px] font-bold cursor-pointer">
+                  Tout OFF
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {AI_OVERVIEW_TARGETS.map((item) => {
+                const checked = config.recapTargets[item.id] !== false;
+                return (
+                  <div
+                    key={item.id}
+                    className="p-3 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-[#1D232E] truncate">{item.label}</div>
+                      <div className="text-[10px] text-slate-400 truncate">{item.section}</div>
+                    </div>
+                    <Toggle
+                      compact
+                      size="sm"
+                      checked={checked}
+                      onChange={(val) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          recapTargets: { ...prev.recapTargets, [item.id]: val },
+                        }))
+                      }
+                      ariaLabel={item.label}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Card 5: Contrôle Granulaire ON/OFF des Formulaires Ajout/Édition */}
+          <div className="lg:col-span-6 bg-white rounded-2xl border border-[#E6E1D6] p-5 sm:p-6 space-y-4 shadow-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3.5">
+              <div className="flex items-center gap-2">
+                <FileEdit className="w-4 h-4 text-[#C59B27]" />
+                <div>
+                  <h3 className="text-sm font-bold text-[#1D232E]">Auto-Remplissage IA par Formulaire</h3>
+                  <p className="text-[11px] text-slate-500">Choisissez dans quelles modales Ajout / Édition le bouton IA apparaît</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button type="button" onClick={() => setAllFormTargets(true)} className="px-2.5 py-1 rounded-lg bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6] text-[10px] font-bold cursor-pointer">
+                  Tout ON
+                </button>
+                <button type="button" onClick={() => setAllFormTargets(false)} className="px-2.5 py-1 rounded-lg bg-neutral-100 text-neutral-700 border border-neutral-200 text-[10px] font-bold cursor-pointer">
+                  Tout OFF
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[440px] overflow-y-auto pr-1">
+              {AI_FORM_TARGETS.map((item) => {
+                const checked = config.formTargets[item.id] !== false;
+                return (
+                  <div
+                    key={item.id}
+                    className="p-3 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-[#1D232E] truncate">{item.label}</div>
+                      <div className="text-[10px] text-slate-400 truncate">{item.section}</div>
+                    </div>
+                    <Toggle
+                      compact
+                      size="sm"
+                      checked={checked}
+                      onChange={(val) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          formTargets: { ...prev.formTargets, [item.id]: val },
+                        }))
+                      }
+                      ariaLabel={item.label}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </form>
       )}
