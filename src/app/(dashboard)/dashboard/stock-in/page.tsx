@@ -114,195 +114,36 @@ export interface GoodsReceiptItem {
   updatedAt: string;
 }
 
-// ══════════════════════════════════════════════════════════════════════════════════
-// DEFAULT SEED DATA: REALISTIC TUNISIAN RECEPTION FLOWS
-// ══════════════════════════════════════════════════════════════════════════════════
-
-const DEFAULT_RECEIPTS: GoodsReceiptItem[] = [
-  {
-    id: 'rec-001',
-    receiptNumber: 'BE-2026-0042',
-    poNumber: 'CMD-ATM-08',
-    supplierId: 'cmwdo1zo5000fo559pldn0tlm',
-    supplierName: 'Alliance Technique Maghreb (ATM)',
-    supplierCode: 'SUP-ATM-03',
-    supplierType: 'COMPANY',
-    supplierTaxIdOrCin: '1284910/C/P/000',
-    warehouseId: 'wh-depot-sousse-01',
-    warehouseName: 'Dépôt Sousse — Hub Logistique Central',
-    warehouseCode: 'DEP-SOUSSE-01',
-    targetStorageLevel: 'WAREHOUSE_DIRECT',
-    targetLocationDetail: 'Dépôt Sousse (Stock Général Direct Quai A)',
-    status: 'CONFIRMED',
-    totalHt: 14650.0,
-    totalTtc: 17433.5,
-    receptionDate: '2026-11-15T10:30:00.000Z',
-    expectedDate: '2026-11-15T09:00:00.000Z',
-    receivedBy: 'Mounir Zitouni (Chef Quai)',
-    notes: 'Réception complète conforme au Bon de Livraison fournisseur N° BL-ATM-9921. Imputation stock effectuée.',
-    createdAt: '2026-11-15T10:00:00.000Z',
-    updatedAt: '2026-11-15T11:15:00.000Z',
-    items: [
-      {
-        id: 'item-1',
-        sku: 'FLR-CUIS-INOX-01',
-        name: 'Cuisinière Tout Inox 5 Feux Professionnelle',
-        orderedQty: 10,
-        receivedQty: 10,
-        unitPriceHt: 1100.0,
-        taxRate: 19,
-        storageLocation: 'DEP-SOUSSE-01 (Stock Général)',
-      },
-      {
-        id: 'item-2',
-        sku: 'FLR-COC-28',
-        name: 'Cocotte Ronde en Fonte Émaillée Signature 28cm',
-        orderedQty: 15,
-        receivedQty: 15,
-        unitPriceHt: 243.33,
-        taxRate: 19,
-        storageLocation: 'DEP-SOUSSE/A1-T1-E01 (Allée A, Tarma A.1)',
-      },
-    ],
-    attachedDocuments: [
-      {
-        id: 'doc-1',
-        name: 'Bon_Livraison_Fournisseur_ATM_9921.pdf',
-        type: 'SUPPLIER_BL',
-        fileType: 'pdf',
-        fileUrl: '/uploads/sample_bl_atm.pdf',
-        uploadedAt: '2026-11-15T10:15:00.000Z',
-        documentRef: 'BL-ATM-9921',
-      },
-      {
-        id: 'doc-2',
-        name: 'Facture_Achat_ATM_0814.jpg',
-        type: 'SUPPLIER_INVOICE',
-        fileType: 'image',
-        fileUrl: 'https://images.unsplash.com/photo-1554415707-9e4966a604f7?q=80&w=800&auto=format&fit=crop',
-        uploadedAt: '2026-11-15T10:20:00.000Z',
-        documentRef: 'FAC-ATM-0814',
-      },
-    ],
-  },
-  {
-    id: 'rec-002',
-    receiptNumber: 'BE-2026-0043',
-    poNumber: 'CMD-BENNA-02',
-    supplierId: 'cmw-artisan-benna-01',
-    supplierName: 'Mounir El Benna (Artisan Coutelier)',
-    supplierCode: 'ART-BENNA-TN',
-    supplierType: 'INDIVIDUAL',
-    supplierTaxIdOrCin: 'CIN: 08429184',
-    warehouseId: 'wh-depot-sousse-01',
-    warehouseName: 'Dépôt Sousse — Hub Logistique Central',
-    warehouseCode: 'DEP-SOUSSE-01',
-    targetStorageLevel: 'SHELF_PRECISE',
-    targetLocationDetail: 'Allée B ➔ Tarma B.1 ➔ Étagère DEP-SOUSSE/B1-T1-E01',
-    status: 'INSPECTION',
-    totalHt: 6870.0,
-    totalTtc: 8175.3,
-    receptionDate: '2026-11-15T14:00:00.000Z',
-    expectedDate: '2026-11-15T12:00:00.000Z',
-    receivedBy: 'Kamel Ben Amor',
-    notes: 'Livraison manuelle artisanale à quai. Contrôle des lames damas en cours.',
-    createdAt: '2026-11-15T13:45:00.000Z',
-    updatedAt: '2026-11-15T14:10:00.000Z',
-    items: [
-      {
-        id: 'item-3',
-        sku: 'FLR-SAN-18',
-        name: 'Couteau Santoku Damas 67 Couches 18cm',
-        orderedQty: 30,
-        receivedQty: 30,
-        unitPriceHt: 145.0,
-        taxRate: 19,
-        storageLocation: 'DEP-SOUSSE/B1-T1-E01 (Étagère Vitrée)',
-      },
-      {
-        id: 'item-4',
-        sku: 'FLR-BLOC-7',
-        name: 'Bloc de 7 Couteaux Japonais Bambou',
-        orderedQty: 7,
-        receivedQty: 6, // 1 reliquat
-        unitPriceHt: 360.0,
-        taxRate: 19,
-        storageLocation: 'DEP-SOUSSE/B1-T1-E01 (Étagère Vitrée)',
-      },
-    ],
-    attachedDocuments: [
-      {
-        id: 'doc-3',
-        name: 'Bordereau_Livraison_Benna_Manuscrit.jpg',
-        type: 'SUPPLIER_BL',
-        fileType: 'image',
-        fileUrl: 'https://images.unsplash.com/photo-1607344645866-009c320c5ab8?q=80&w=800&auto=format&fit=crop',
-        uploadedAt: '2026-11-15T13:50:00.000Z',
-        documentRef: 'BL-MAN-04',
-      },
-    ],
-  },
-  {
-    id: 'rec-003',
-    receiptNumber: 'BE-2026-0044',
-    poNumber: 'CMD-MEOF-14',
-    supplierId: 'cmwdbq4on000ehlrs2iu87jsi',
-    supplierName: "Manufacture Européenne d'Orfèvrerie & Fonte",
-    supplierCode: 'SUP-MEOF-01',
-    supplierType: 'COMPANY',
-    supplierTaxIdOrCin: 'FR-89218291033',
-    warehouseId: 'wh-tunis-charguia',
-    warehouseName: 'Entrepôt Central Principal Tunis',
-    warehouseCode: 'WH-CENTRAL',
-    targetStorageLevel: 'AISLE',
-    targetLocationDetail: 'Allée A (Petit Électroménager & Cuisson)',
-    status: 'PENDING_DOCS',
-    totalHt: 28400.0,
-    totalTtc: 33796.0,
-    receptionDate: '2026-11-14T16:00:00.000Z',
-    expectedDate: '2026-11-14T14:00:00.000Z',
-    receivedBy: 'Sonia Trabelsi',
-    notes: 'Déchargement palettes terminé. En attente de la facture définitive dédouanée.',
-    createdAt: '2026-11-14T15:30:00.000Z',
-    updatedAt: '2026-11-15T09:00:00.000Z',
-    items: [
-      {
-        id: 'item-5',
-        sku: 'FLR-STA-31',
-        name: 'Cocotte Ovale Staub 31cm Grenadine',
-        orderedQty: 25,
-        receivedQty: 25,
-        unitPriceHt: 280.0,
-        taxRate: 19,
-        storageLocation: 'WH-CENTRAL (Allée A)',
-      },
-      {
-        id: 'item-6',
-        sku: 'FLR-MEN-24',
-        name: 'Ménagère 24 Pièces Argent & Inox Miroir',
-        orderedQty: 40,
-        receivedQty: 38,
-        unitPriceHt: 190.0,
-        taxRate: 19,
-        storageLocation: 'WH-CENTRAL (Allée A)',
-      },
-    ],
-    attachedDocuments: [],
-  },
-];
-
 export default function StockInDashboardPage() {
   const sysDoc = useSystemDocumentConfig();
   const [receipts, setReceipts] = React.useState<GoodsReceiptItem[]>([]);
+  const [suppliersList, setSuppliersList] = React.useState<Array<{ id: string; name: string; code?: string; supplierType?: string; taxId?: string; cin?: string; leadTimeDays?: number }>>([]);
+  const [warehousesList, setWarehousesList] = React.useState<Array<{ id: string; name: string; code: string; city?: string }>>([]);
+  const [catalogProducts, setCatalogProducts] = React.useState<Array<{ id: string; sku: string; name: string; basePrice?: number; sellingPrice?: number }>>([]);
+  const [selectedAddSku, setSelectedAddSku] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(true);
   const [feedbackMessage, setFeedbackMessage] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const loadStockIns = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetchApi('/storefront-cms/sys-config/stockIns');
+      const [res, supRes, whRes, prodRes] = await Promise.all([
+        fetchApi('/storefront-cms/sys-config/stockIns').catch(() => null),
+        fetchApi('/suppliers').catch(() => []),
+        fetchApi('/warehouses').catch(() => []),
+        fetchApi('/products?status=ACTIVE&limit=100').catch(() => null),
+      ]);
       const list = res?.value || res?.data?.value || [];
       setReceipts(Array.isArray(list) ? list : []);
+
+      const sups = Array.isArray(supRes) ? supRes : supRes?.data || [];
+      setSuppliersList(Array.isArray(sups) ? sups : []);
+
+      const whs = Array.isArray(whRes) ? whRes : whRes?.data || [];
+      setWarehousesList(Array.isArray(whs) ? whs : []);
+
+      const prods = Array.isArray(prodRes) ? prodRes : prodRes?.data || prodRes?.items || [];
+      setCatalogProducts(Array.isArray(prods) ? prods : []);
     } catch {
       setReceipts([]);
     } finally {
@@ -355,42 +196,21 @@ export default function StockInDashboardPage() {
 
   // Wizard Multi-Step State
   const [wizardStep, setWizardStep] = React.useState<1 | 2 | 3 | 4>(1);
-  const [formPoNumber, setFormPoNumber] = React.useState('CMD-2026-09');
-  const [formSupplierId, setFormSupplierId] = React.useState('cmwdo1zo5000fo559pldn0tlm'); // ATM by default
-  const [formWarehouseId, setFormWarehouseId] = React.useState('wh-depot-sousse-01'); // Sousse by default
+  const [formPoNumber, setFormPoNumber] = React.useState('');
+  const [formSupplierId, setFormSupplierId] = React.useState('');
+  const [formWarehouseId, setFormWarehouseId] = React.useState('');
   const [formStorageLevel, setFormStorageLevel] = React.useState<'WAREHOUSE_DIRECT' | 'AISLE' | 'TARMA' | 'SHELF_PRECISE'>('WAREHOUSE_DIRECT');
-  const [formLocationDetail, setFormLocationDetail] = React.useState('Dépôt Sousse (Stock Général Direct)');
-  
+  const [formLocationDetail, setFormLocationDetail] = React.useState('Stock Général Direct');
+
   // Articles in wizard
-  const [wizardItems, setWizardItems] = React.useState<StockInArticleItem[]>([
-    {
-      id: 'wz-1',
-      sku: 'FLR-COC-28',
-      name: 'Cocotte Ronde en Fonte Émaillée Signature 28cm',
-      orderedQty: 20,
-      receivedQty: 20,
-      unitPriceHt: 240.0,
-      taxRate: 19,
-      storageLocation: 'Dépôt Sousse (Stock Général)',
-    },
-    {
-      id: 'wz-2',
-      sku: 'FLR-SAN-18',
-      name: 'Couteau Santoku Damas 67 Couches 18cm',
-      orderedQty: 15,
-      receivedQty: 15,
-      unitPriceHt: 145.0,
-      taxRate: 19,
-      storageLocation: 'Dépôt Sousse (Stock Général)',
-    },
-  ]);
+  const [wizardItems, setWizardItems] = React.useState<StockInArticleItem[]>([]);
 
   // Documents attached in wizard
-  const [formBlRef, setFormBlRef] = React.useState('BL-ATM-2026-0941');
-  const [formBlFileUrl, setFormBlFileUrl] = React.useState('https://images.unsplash.com/photo-1554415707-9e4966a604f7?q=80&w=800&auto=format&fit=crop');
-  const [formBlFileType, setFormBlFileType] = React.useState<'pdf' | 'image'>('image');
-  const [formInvoiceRef, setFormInvoiceRef] = React.useState('FAC-ATM-2026-1180');
-  const [formInvoiceFileUrl, setFormInvoiceFileUrl] = React.useState('/uploads/sample_invoice.pdf');
+  const [formBlRef, setFormBlRef] = React.useState('');
+  const [formBlFileUrl, setFormBlFileUrl] = React.useState('');
+  const [formBlFileType, setFormBlFileType] = React.useState<'pdf' | 'image'>('pdf');
+  const [formInvoiceRef, setFormInvoiceRef] = React.useState('');
+  const [formInvoiceFileUrl, setFormInvoiceFileUrl] = React.useState('');
   const [formInvoiceFileType, setFormInvoiceFileType] = React.useState<'pdf' | 'image'>('pdf');
   const [formNotes, setFormNotes] = React.useState('');
 
@@ -409,7 +229,7 @@ export default function StockInDashboardPage() {
           setWizardStep(1);
           setFormPoNumber(match.purchaseOrderRef || fromBr);
           setFormBlRef(match.supplierDeliveryNoteNumber || fromBr);
-          setFormLocationDetail(match.warehouseName || 'Dépôt Central Sousse');
+          setFormLocationDetail(match.warehouseName || 'Stock Général Direct');
           setFormNotes(`Entrée en stock générée depuis le Bon de Réception ${fromBr} (${match.supplierName})`);
           if (Array.isArray(match.items) && match.items.length > 0) {
             setWizardItems(
@@ -419,9 +239,9 @@ export default function StockInDashboardPage() {
                 name: it.name || 'Article réceptionné',
                 orderedQty: Number(it.expectedQty || it.receivedQty || 1),
                 receivedQty: Number(it.receivedQty || 1),
-                unitPriceHt: 220,
-                taxRate: 19,
-                storageLocation: match.warehouseName || 'Dépôt Central Sousse',
+                unitPriceHt: Number(it.unitCostHt || 0),
+                taxRate: sysDoc.defaultVatRate || 19,
+                storageLocation: match.warehouseName || 'Stock Général Direct',
               }))
             );
           }
@@ -429,7 +249,7 @@ export default function StockInDashboardPage() {
         }
       })
       .catch(() => null);
-  }, []);
+  }, [sysDoc.defaultVatRate]);
 
   const showToast = (type: 'success' | 'error', text: string) => {
     setFeedbackMessage({ type, text });
@@ -438,15 +258,20 @@ export default function StockInDashboardPage() {
 
   // Open New Wizard
   const openNewWizard = () => {
-    const nextNum = receipts.length + 43;
+    const firstSup = suppliersList[0];
+    const firstWh = warehousesList[0];
     setWizardStep(1);
-    setFormPoNumber(`CMD-FLR-${String(nextNum).padStart(2, '0')}`);
-    setFormSupplierId('cmwdo1zo5000fo559pldn0tlm');
-    setFormWarehouseId('wh-depot-sousse-01');
+    setFormPoNumber(sysDoc.generateNextRef('BC', receipts.length + 1));
+    setFormSupplierId(firstSup?.id || '');
+    setFormWarehouseId(firstWh?.id || '');
     setFormStorageLevel('WAREHOUSE_DIRECT');
-    setFormLocationDetail('Dépôt Sousse (Stock Général Direct)');
-    setFormBlRef(`BL-SUP-${Date.now().toString().slice(-4)}`);
-    setFormInvoiceRef(`FAC-SUP-${Date.now().toString().slice(-4)}`);
+    setFormLocationDetail(firstWh ? `${firstWh.name} (Stock Général Direct)` : 'Stock Général Direct');
+    setWizardItems([]);
+    setSelectedAddSku(catalogProducts[0]?.sku || '');
+    setFormBlRef('');
+    setFormBlFileUrl('');
+    setFormInvoiceRef('');
+    setFormInvoiceFileUrl('');
     setFormNotes('');
     setIsWizardOpen(true);
   };
@@ -486,50 +311,53 @@ export default function StockInDashboardPage() {
       0
     );
 
+    const matchedSup = suppliersList.find((s) => s.id === formSupplierId);
+    const matchedWh = warehousesList.find((w) => w.id === formWarehouseId);
+    const docs: AttachedDocument[] = [];
+    if (formBlRef.trim()) {
+      docs.push({
+        id: `doc-${Date.now()}-bl`,
+        name: `${formBlRef.trim()}.${formBlFileType}`,
+        type: 'SUPPLIER_BL',
+        fileType: formBlFileType,
+        fileUrl: formBlFileUrl || '',
+        uploadedAt: new Date().toISOString(),
+        documentRef: formBlRef.trim(),
+      });
+    }
+    if (formInvoiceRef.trim()) {
+      docs.push({
+        id: `doc-${Date.now()}-fac`,
+        name: `${formInvoiceRef.trim()}.${formInvoiceFileType}`,
+        type: 'SUPPLIER_INVOICE',
+        fileType: formInvoiceFileType,
+        fileUrl: formInvoiceFileUrl || '',
+        uploadedAt: new Date().toISOString(),
+        documentRef: formInvoiceRef.trim(),
+      });
+    }
+
     const newReceipt: GoodsReceiptItem = {
       id: `rec-${Date.now()}`,
       receiptNumber: nextReceiptNum,
       poNumber: formPoNumber,
-      supplierId: formSupplierId,
-      supplierName:
-        formSupplierId === 'cmw-artisan-benna-01'
-          ? 'Mounir El Benna (Particulier)'
-          : 'Comptoir Tunisien de l’Électroménager (CTE)',
-      supplierCode: formSupplierId === 'cmw-artisan-benna-01' ? 'ART-BENNA-TN' : 'FRN-CTE-01',
-      supplierType: formSupplierId === 'cmw-artisan-benna-01' ? 'INDIVIDUAL' : 'COMPANY',
-      supplierTaxIdOrCin:
-        formSupplierId === 'cmw-artisan-benna-01' ? 'CIN: 08429184' : '1492810/A/M/000',
-      warehouseId: formWarehouseId,
-      warehouseName: 'Entrepôt Central Principal',
-      warehouseCode: 'WH-CENTRAL',
+      supplierId: formSupplierId || matchedSup?.id || '',
+      supplierName: matchedSup?.name || 'Fournisseur',
+      supplierCode: matchedSup?.code || 'FRN',
+      supplierType: matchedSup?.supplierType === 'INDIVIDUAL' ? 'INDIVIDUAL' : 'COMPANY',
+      supplierTaxIdOrCin: matchedSup?.cin ? `CIN: ${matchedSup.cin}` : matchedSup?.taxId || '—',
+      warehouseId: formWarehouseId || matchedWh?.id || '',
+      warehouseName: matchedWh?.name || 'Entrepôt',
+      warehouseCode: matchedWh?.code || 'WH',
       targetStorageLevel: formStorageLevel,
       targetLocationDetail: formLocationDetail,
       status: 'CONFIRMED',
       items: itemsWithVat,
-      attachedDocuments: [
-        {
-          id: `doc-${Date.now()}-bl`,
-          name: `${formBlRef}.jpg`,
-          type: 'SUPPLIER_BL',
-          fileType: formBlFileType,
-          fileUrl: formBlFileUrl,
-          uploadedAt: new Date().toISOString(),
-          documentRef: formBlRef,
-        },
-        {
-          id: `doc-${Date.now()}-fac`,
-          name: `${formInvoiceRef}.pdf`,
-          type: 'SUPPLIER_INVOICE',
-          fileType: formInvoiceFileType,
-          fileUrl: formInvoiceFileUrl,
-          uploadedAt: new Date().toISOString(),
-          documentRef: formInvoiceRef,
-        },
-      ],
+      attachedDocuments: docs,
       totalHt: nextTotalHt,
       totalTtc: nextTotalTtc,
       receptionDate: new Date().toISOString(),
-      receivedBy: 'Chef Quai Royal',
+      receivedBy: 'Réceptionnaire Quai',
       notes: formNotes || 'Bon d’entrée validé et imputé au stock physique avec succès.',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -930,10 +758,7 @@ export default function StockInDashboardPage() {
             value: filterWarehouse,
             onChange: setFilterWarehouse,
             allLabel: 'Tous les dépôts',
-            options: [
-              { value: 'wh-depot-sousse-01', label: 'Dépôt Sousse (Hub)' },
-              { value: 'wh-tunis-charguia', label: 'Entrepôt Tunis' },
-            ],
+            options: warehousesList.map((w) => ({ value: w.id, label: w.name })),
           },
         ]}
       />
@@ -1084,15 +909,13 @@ export default function StockInDashboardPage() {
                     onChange={(e) => setFormSupplierId(e.target.value)}
                     className="w-full text-xs h-9 bg-neutral-50 border-neutral-200 rounded-xl"
                   >
-                    <option value="cmwdo1zo5000fo559pldn0tlm">
-                      🏢 Alliance Technique Maghreb (ATM) — Délai 4j
-                    </option>
-                    <option value="cmw-artisan-benna-01">
-                      👤 Mounir El Benna (Artisan Particulier) — Délai 5j
-                    </option>
-                    <option value="cmwdbq4on000ehlrs2iu87jsi">
-                      🏢 Manufacture Européenne d'Orfèvrerie — Délai 7j
-                    </option>
+                    <option value="">Sélectionner un fournisseur...</option>
+                    {suppliersList.map((sup) => (
+                      <option key={sup.id} value={sup.id}>
+                        {sup.name}
+                        {sup.leadTimeDays ? ` — Délai ${sup.leadTimeDays}j` : ''}
+                      </option>
+                    ))}
                   </Select>
                 </div>
                 <div>
@@ -1101,11 +924,20 @@ export default function StockInDashboardPage() {
                   </label>
                   <Select
                     value={formWarehouseId}
-                    onChange={(e) => setFormWarehouseId(e.target.value)}
+                    onChange={(e) => {
+                      const whId = e.target.value;
+                      setFormWarehouseId(whId);
+                      const matched = warehousesList.find((w) => w.id === whId);
+                      if (matched) setFormLocationDetail(`${matched.name} (Stock Général Direct)`);
+                    }}
                     className="w-full text-xs h-9 bg-neutral-50 border-neutral-200 rounded-xl"
                   >
-                    <option value="wh-depot-sousse-01">Dépôt Sousse — Hub Central (Principal)</option>
-                    <option value="wh-tunis-charguia">Entrepôt Tunis Charguia II</option>
+                    <option value="">Sélectionner un entrepôt...</option>
+                    {warehousesList.map((wh) => (
+                      <option key={wh.id} value={wh.id}>
+                        {wh.name} ({wh.code})
+                      </option>
+                    ))}
                   </Select>
                 </div>
               </div>
@@ -1130,38 +962,80 @@ export default function StockInDashboardPage() {
                       onChange={(e) => {
                         const lvl = e.target.value as any;
                         setFormStorageLevel(lvl);
+                        const whName = warehousesList.find((w) => w.id === formWarehouseId)?.name || 'Entrepôt';
                         if (lvl === 'WAREHOUSE_DIRECT') {
-                          setFormLocationDetail('Dépôt Sousse (Stock Général Direct)');
+                          setFormLocationDetail(`${whName} (Stock Général Direct)`);
                         } else if (lvl === 'AISLE') {
-                          setFormLocationDetail('Allée A — Cuisson & Gros Matériel');
+                          setFormLocationDetail(`${whName} — Allée`);
                         } else {
-                          setFormLocationDetail('Allée A ➔ Tarma A.1 ➔ Étagère DEP-SOUSSE/A1-T1-E01');
+                          setFormLocationDetail(`${whName} — Emplacement Précis`);
                         }
                       }}
                       className="w-full text-xs h-9 bg-white border-neutral-200 rounded-xl"
                     >
                       <option value="WAREHOUSE_DIRECT">
-                        📦 Directement au Dépôt Sousse (Stock Général / Quai)
+                        Directement au Dépôt (Stock Général / Quai)
                       </option>
-                      <option value="AISLE">🗄️ Au niveau d'une Allée (ex: Allée A)</option>
-                      <option value="SHELF_PRECISE">🎯 Emplacement Précis (Allée ➔ Tarma ➔ Étagère)</option>
+                      <option value="AISLE">Au niveau d&apos;une Allée</option>
+                      <option value="SHELF_PRECISE">Emplacement Précis (Allée / Tarma / Étagère)</option>
                     </Select>
                   </div>
                   <Input
                     label="Détail de l'Emplacement Cible"
                     value={formLocationDetail}
                     onChange={(e) => setFormLocationDetail(e.target.value)}
-                    placeholder="ex: Dépôt Sousse (Stock Général Direct)"
+                    placeholder="ex: Stock Général Direct"
                   />
                 </div>
               </div>
 
               {/* Articles to receive */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-bold text-neutral-900 text-xs">
                     Articles Référencés dans la Commande ({wizardItems.length})
                   </span>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={selectedAddSku}
+                      onChange={(e) => setSelectedAddSku(e.target.value)}
+                      className="text-xs h-8 bg-neutral-50 border-neutral-200 rounded-lg min-w-[210px]"
+                    >
+                      <option value="">Ajouter un article du catalogue...</option>
+                      {catalogProducts.map((p) => (
+                        <option key={p.id} value={p.sku}>
+                          {p.sku} — {p.name}
+                        </option>
+                      ))}
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!selectedAddSku}
+                      onClick={() => {
+                        const prod = catalogProducts.find((p) => p.sku === selectedAddSku);
+                        if (!prod) return;
+                        setWizardItems((prev) => [
+                          ...prev,
+                          {
+                            id: `wz-${Date.now()}-${prev.length + 1}`,
+                            sku: prod.sku,
+                            name: prod.name,
+                            orderedQty: 1,
+                            receivedQty: 1,
+                            unitPriceHt: Number(prod.basePrice || prod.sellingPrice || 0),
+                            taxRate: sysDoc.defaultVatRate || 19,
+                            storageLocation: formLocationDetail,
+                          },
+                        ]);
+                      }}
+                      className="text-xs h-8"
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1" />
+                      Ajouter
+                    </Button>
+                  </div>
                 </div>
                 <div className="border border-neutral-200 rounded-xl overflow-hidden bg-white">
                   <table className="w-full text-left text-xs">
@@ -1421,7 +1295,7 @@ export default function StockInDashboardPage() {
 
                   <div className="text-right">
                     <span className="font-mono text-sm font-black px-2.5 py-1 rounded-lg bg-[#FBF6E8] text-[#8C6400] border border-[#E6D6A6] block">
-                      BE-2026-0045 (Brouillon validé)
+                      {sysDoc.generateNextRef('BE', receipts.length + 1)} (Aperçu)
                     </span>
                     <span className="text-[10px] text-neutral-400 block mt-1 font-mono">
                       Date : {new Date().toLocaleDateString('fr-FR')}
@@ -1430,41 +1304,43 @@ export default function StockInDashboardPage() {
                 </div>
 
                 {/* Supplier & Warehouse 2-Column Info */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200/80 space-y-1">
-                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
-                      Fournisseur
-                    </span>
-                    <span className="font-bold text-neutral-900 block">
-                      {formSupplierId === 'cmw-artisan-benna-01'
-                        ? 'Mounir El Benna (Particulier / Artisan)'
-                        : 'Alliance Technique Maghreb (ATM)'}
-                    </span>
-                    <span className="text-[11px] font-mono text-neutral-600 block">
-                      ID: {formSupplierId === 'cmw-artisan-benna-01' ? 'CIN: 08429184' : 'MF: 1284910/C/P/000'}
-                    </span>
-                    <span className="text-[11px] text-neutral-500 block">
-                      Réf. BL: {formBlRef} • Facture: {formInvoiceRef}
-                    </span>
-                  </div>
+                {(() => {
+                  const selSup = suppliersList.find((s) => s.id === formSupplierId);
+                  const selWh = warehousesList.find((w) => w.id === formWarehouseId);
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                      <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200/80 space-y-1">
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
+                          Fournisseur
+                        </span>
+                        <span className="font-bold text-neutral-900 block">
+                          {selSup?.name || 'Fournisseur non sélectionné'}
+                        </span>
+                        <span className="text-[11px] font-mono text-neutral-600 block">
+                          ID: {selSup?.cin ? `CIN: ${selSup.cin}` : selSup?.taxId || '—'}
+                        </span>
+                        <span className="text-[11px] text-neutral-500 block">
+                          Réf. BL: {formBlRef || '—'} • Facture: {formInvoiceRef || '—'}
+                        </span>
+                      </div>
 
-                  <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200/80 space-y-1">
-                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
-                      Entrepôt de Réception
-                    </span>
-                    <span className="font-bold text-neutral-900 block">
-                      {formWarehouseId === 'wh-depot-sousse-01'
-                        ? 'Dépôt Sousse — Hub Logistique Central'
-                        : 'Entrepôt Tunis Charguia II'}
-                    </span>
-                    <span className="text-[11px] font-mono text-amber-800 font-bold block">
-                      Emplacement: {formLocationDetail}
-                    </span>
-                    <span className="text-[11px] text-neutral-500 block">
-                      Réceptionné par: Mounir Zitouni (Chef Quai)
-                    </span>
-                  </div>
-                </div>
+                      <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200/80 space-y-1">
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block">
+                          Entrepôt de Réception
+                        </span>
+                        <span className="font-bold text-neutral-900 block">
+                          {selWh?.name || 'Entrepôt non sélectionné'}
+                        </span>
+                        <span className="text-[11px] font-mono text-amber-800 font-bold block">
+                          Emplacement: {formLocationDetail}
+                        </span>
+                        <span className="text-[11px] text-neutral-500 block">
+                          Stock réel mis à jour dès validation
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Detailed articles list */}
                 <div className="border border-neutral-200 rounded-xl overflow-hidden">

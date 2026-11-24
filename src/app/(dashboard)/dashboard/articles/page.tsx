@@ -161,260 +161,6 @@ interface DynamicVariantFamily {
   values: DynamicVariantValue[];
 }
 
-const DEFAULT_OFFICIAL_BRANDS: BrandOption[] = [
-  { id: 'cmwdo1zn1000ao559e7edy33w', name: 'Bosch', slug: 'bosch', description: 'Gros électroménager et fours de précision allemande' },
-  { id: 'cmwdo1zmn0008o559m8awgbep', name: 'DeLonghi', slug: 'delonghi', description: 'Cafetières et broyeurs espresso italiens' },
-  { id: 'cmwdo1zmu0009o559tjvibm59', name: 'Tefal', slug: 'tefal', description: 'Poêles antiadhésives et petit électroménager' },
-  { id: 'cmwdo1zmg0007o559z0nlnj3i', name: 'Kenwood', slug: 'kenwood', description: 'Robots pâtissiers et culinaires' },
-  { id: 'cmwdo1zm10006o559n86vc3hg', name: 'Moulinex', slug: 'moulinex', description: 'Préparation culinaire du quotidien' },
-  { id: 'cmwdo1zn7000bo559b6xxmpqi', name: 'Beko', slug: 'beko', description: 'Cuisinières et froid innovant' },
-  { id: 'cmwdbq4og000ahlrs3m4nrm8v', name: 'Staub', slug: 'staub', description: 'Cocottes en fonte émaillée française' },
-  { id: 'cmwdbq4of0009hlrsru8daked', name: 'Zwilling J.A. Henckels', slug: 'zwilling', description: 'Coutellerie d’exception de Solingen' },
-  { id: 'cmwdbq4oa0008hlrso1b15k4r', name: 'Le Creuset', slug: 'le-creuset', description: 'Fonte émaillée et céramique d’art' },
-  { id: 'cmwdbq4ok000bhlrs9i71uzzn', name: 'De Buyer', slug: 'de-buyer', description: 'Ustensiles de cuisson professionnelle' },
-  { id: 'cmwdbq4ol000chlrse5y60crj', name: 'WMF', slug: 'wmf', description: 'Cuisson et art de la table allemand' },
-  { id: 'cmwdbq4om000dhlrs1f00kerg', name: 'Christofle Paris', slug: 'christofle', description: 'Orfèvrerie de prestige et cristal' },
-  { id: 'cmwdo1znd000co559b6oh8zbi', name: 'Philips', slug: 'philips', description: 'Airfryers et innovation maison' },
-];
-
-const DEFAULT_DYNAMIC_CHARACTERISTICS: DynamicCharacteristic[] = [
-  {
-    id: 'spec-puissance',
-    name: 'Puissance Électrique',
-    code: 'puissance_w',
-    type: 'NUMBER',
-    unit: 'W',
-    categoryIds: ['cmwdo1zjh0002o559lgs9gk8c', 'cmwdo1zkc0003o5597alt78s1', 'cmwdo1zle0005o559lctijwzr', 'petit-electromenager', 'gros-electromenager', 'maison-et-entretien'],
-    isRequired: true,
-  },
-  {
-    id: 'spec-capacite',
-    name: 'Capacité / Volume Utile',
-    code: 'capacite_l',
-    type: 'NUMBER',
-    unit: 'Litres',
-    categoryIds: ['cmwdo1zjh0002o559lgs9gk8c', 'cmwdo1zkc0003o5597alt78s1', 'cmwdbq4nb0002hlrs0v3qclcd', 'petit-electromenager', 'gros-electromenager', 'batterie-de-cuisine'],
-    isRequired: true,
-  },
-  {
-    id: 'spec-matiere',
-    name: 'Matière / Revêtement Principal',
-    code: 'matiere_revetement',
-    type: 'SELECT',
-    options: ['Inox 18/10 Chirurgical', 'Granit Anti-adhésif 9 Couches', 'Fonte Émaillée Tradition', 'Céramique Grand Cru', 'Acier Damas VG-10', 'Verre Trempé'],
-    categoryIds: ['cmwdbq4nb0002hlrs0v3qclcd', 'cmwdbq4ny0003hlrs71ojxd7b', 'cmwdbq4o00004hlrszw40soub', 'batterie-de-cuisine', 'coutellerie-haute-precision', 'art-de-la-table'],
-    isRequired: true,
-  },
-  {
-    id: 'spec-compat-induction',
-    name: 'Compatible Induction',
-    code: 'compatible_induction',
-    type: 'BOOLEAN',
-    categoryIds: ['cmwdbq4nb0002hlrs0v3qclcd', 'cmwdo1zl20004o559ziro23hm', 'batterie-de-cuisine', 'cuisine-et-preparation'],
-    isRequired: false,
-  },
-  {
-    id: 'spec-longueur-lame',
-    name: 'Longueur de Lame',
-    code: 'longueur_lame_cm',
-    type: 'NUMBER',
-    unit: 'cm',
-    categoryIds: ['cmwdbq4ny0003hlrs71ojxd7b', 'coutellerie-haute-precision'],
-    isRequired: true,
-  },
-  {
-    id: 'spec-pression',
-    name: 'Pression Pompe / Vapeur',
-    code: 'pression_bars',
-    type: 'NUMBER',
-    unit: 'Bars',
-    categoryIds: ['cmwdo1zjh0002o559lgs9gk8c', 'cmwdo1zle0005o559lctijwzr', 'petit-electromenager', 'maison-et-entretien'],
-    isRequired: false,
-  },
-  {
-    id: 'spec-garantie',
-    name: 'Garantie Constructeur',
-    code: 'garantie_ans',
-    type: 'NUMBER',
-    unit: 'Ans',
-    categoryIds: [],
-    isRequired: true,
-  },
-  {
-    id: 'spec-origine',
-    name: 'Pays d’Origine / Fabrication',
-    code: 'pays_origine',
-    type: 'SELECT',
-    options: ['Allemagne', 'France', 'Italie', 'Japon', 'Suisse', 'Turquie', 'Tunisie'],
-    categoryIds: [],
-    isRequired: false,
-  },
-];
-
-const DEFAULT_DYNAMIC_VARIANT_FAMILIES: DynamicVariantFamily[] = [
-  {
-    id: 'fam-color',
-    name: 'Coloris & Nuances',
-    code: 'couleur',
-    visualType: 'COLOR_SWATCH',
-    values: [
-      { id: 'c-noir', label: 'Noir Mat Profond', colorHex: '#1c1917' },
-      { id: 'c-rouge', label: 'Rouge Cerise', colorHex: '#b91c1c' },
-      { id: 'c-inox', label: 'Inox Brossé Argent', colorHex: '#94a3b8' },
-      { id: 'c-creme', label: 'Crème Vintage Ivoire', colorHex: '#fef3c7' },
-      { id: 'c-bleu', label: 'Bleu Nuit', colorHex: '#1e3a8a' },
-    ],
-  },
-  {
-    id: 'fam-taille',
-    name: 'Dimensions & Formats',
-    code: 'taille',
-    visualType: 'TEXT_PILL',
-    values: [
-      { id: 't-20', label: '20 cm' },
-      { id: 't-24', label: '24 cm' },
-      { id: 't-28', label: '28 cm' },
-      { id: 't-32', label: '32 cm' },
-      { id: 't-5l', label: '5.0 Litres' },
-      { id: 't-8l', label: '8.5 Litres Double Tiroir' },
-    ],
-  },
-  {
-    id: 'fam-puissance',
-    name: 'Puissances & Motorisations',
-    code: 'puissance',
-    visualType: 'TEXT_PILL',
-    values: [
-      { id: 'p-800', label: '800 W' },
-      { id: 'p-1200', label: '1200 W' },
-      { id: 'p-1600', label: '1600 W Titanium Pro' },
-      { id: 'p-2000', label: '2000 W Multicyclone' },
-      { id: 'p-2400', label: '2400 W Double Résistance' },
-    ],
-  },
-  {
-    id: 'fam-revetement',
-    name: 'Revêtements & Matériaux',
-    code: 'revetement',
-    visualType: 'TEXT_PILL',
-    values: [
-      { id: 'r-granit', label: 'Granit Anti-adhésif 9 Couches' },
-      { id: 'r-inox', label: 'Inox 18/10 Chirurgical' },
-      { id: 'r-fonte', label: 'Fonte Émaillée' },
-      { id: 'r-damas', label: 'Acier Damassé VG-10' },
-    ],
-  },
-];
-
-const DEFAULT_DEMO_PRODUCTS: ProductItem[] = [
-  {
-    id: 'prod-cuisiniere-60',
-    sku: 'DKN-CUIS-60-INOX',
-    name: 'Cuisinière Tout Inox 60x60 — 4 Feux Gaz Sécurité Thermocouple',
-    nameAr: 'طباخ غاز كامل إينوكس 60×60',
-    slug: 'cuisiniere-tout-inox-60x60',
-    sellingPrice: 1150,
-    basePrice: 950,
-    discountPrice: 1049,
-    status: 'ACTIVE',
-    isFeatured: true,
-    primaryImage: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80',
-    category: { id: 'cat-gros-electro', name: 'Gros Électroménager', slug: 'gros-electromenager' },
-    brand: { id: 'brand-beko', name: 'Beko', slug: 'beko' },
-    variantsCount: 3,
-    createdAt: '2026-11-15T09:00:00.000Z',
-    updatedAt: '2026-11-15T09:00:00.000Z',
-    createdBy: 'SUPER_ADMIN',
-    isUpdated: false,
-    isDeleted: false,
-  },
-  {
-    id: 'prod-airfryer-double',
-    sku: 'PHL-AF-XXL-2T',
-    name: 'Airfryer XXL Double Tiroir DualZone 8.5L — Technologie AirRapid 2400W',
-    nameAr: 'قلاية هوائية مزدوجة الأدراج 8.5 لتر',
-    slug: 'airfryer-xxl-double-tiroir',
-    sellingPrice: 599,
-    basePrice: 420,
-    discountPrice: 529,
-    status: 'ACTIVE',
-    isFeatured: true,
-    primaryImage: 'https://images.unsplash.com/photo-1588854337236-6889d631faa8?auto=format&fit=crop&w=800&q=80',
-    category: { id: 'cat-petit-electro', name: 'Petit Électroménager', slug: 'petit-electromenager' },
-    brand: { id: 'brand-tefal', name: 'Tefal', slug: 'tefal' },
-    variantsCount: 2,
-    createdAt: '2026-11-14T14:00:00.000Z',
-    updatedAt: '2026-11-14T14:00:00.000Z',
-    createdBy: 'ADMIN',
-    isUpdated: false,
-    isDeleted: false,
-  },
-  {
-    id: 'prod-espresso-barista',
-    sku: 'DLG-ESP-SPEC-9355',
-    name: 'Machine Espresso Barista La Specialista Prestigio Broyeur Intégré',
-    nameAr: 'ماكينة قهوة إسبريسو احترافية مع مطحنة',
-    slug: 'machine-espresso-barista-la-specialista',
-    sellingPrice: 2450,
-    basePrice: 1980,
-    discountPrice: 2290,
-    status: 'ACTIVE',
-    isFeatured: true,
-    primaryImage: 'https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?auto=format&fit=crop&w=800&q=80',
-    category: { id: 'cat-petit-electro', name: 'Petit Électroménager', slug: 'petit-electromenager' },
-    brand: { id: 'brand-delonghi', name: 'DeLonghi', slug: 'delonghi' },
-    variantsCount: 4,
-    createdAt: '2026-11-10T11:20:00.000Z',
-    updatedAt: '2026-11-10T11:20:00.000Z',
-    createdBy: 'ADMIN',
-    isUpdated: false,
-    isDeleted: false,
-  },
-  {
-    id: 'prod-batterie-granit',
-    sku: 'BAT-GRANIT-10P-GRIS',
-    name: 'Batterie de Cuisine Granit Anti-adhésif 10 Pièces Induction Intégrale',
-    nameAr: 'طقم أواني طهي جرانيت 10 قطع',
-    slug: 'batterie-cuisine-granit-10p',
-    sellingPrice: 429,
-    basePrice: 290,
-    discountPrice: 389,
-    status: 'ACTIVE',
-    isFeatured: false,
-    primaryImage: 'https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?auto=format&fit=crop&w=800&q=80',
-    category: { id: 'cat-cuisine-prepa', name: 'Cuisine & Préparation', slug: 'cuisine-et-preparation' },
-    brand: { id: 'brand-tefal', name: 'Tefal', slug: 'tefal' },
-    variantsCount: 2,
-    createdAt: '2026-11-02T16:45:00.000Z',
-    updatedAt: '2026-11-02T16:45:00.000Z',
-    createdBy: 'ADMIN',
-    isUpdated: false,
-    isDeleted: false,
-  },
-  {
-    id: 'prod-couteau-santoku',
-    sku: 'ZWL-PRO-SANTOKU-18',
-    name: 'Couteau Santoku Japonais Alvéolé 18cm Acier Forgé Friodur',
-    nameAr: 'سكين سانتوكو ياباني احترافي 18 سم',
-    slug: 'couteau-santoku-japonais-18cm',
-    sellingPrice: 289,
-    basePrice: 195,
-    discountPrice: 259,
-    status: 'ACTIVE',
-    isFeatured: true,
-    primaryImage: 'https://images.unsplash.com/photo-1593618998160-e34014e67546?auto=format&fit=crop&w=800&q=80',
-    category: { id: 'cat-coutellerie', name: 'Coutellerie Haute Précision', slug: 'coutellerie-haute-precision' },
-    brand: { id: 'brand-zwilling', name: 'Zwilling J.A. Henckels', slug: 'zwilling' },
-    variantsCount: 1,
-    createdAt: '2026-10-20T10:00:00.000Z',
-    updatedAt: '2026-10-20T10:00:00.000Z',
-    createdBy: 'SYSTEM',
-    isUpdated: false,
-    isDeleted: false,
-  },
-];
-
-
 interface VariantFormItem {
   id?: string;
   sku: string;
@@ -504,9 +250,9 @@ export default function DashboardArticlesPage() {
   // Main Data States
   const [products, setProducts] = React.useState<ProductItem[]>([]);
   const [categories, setCategories] = React.useState<CategoryOption[]>([]);
-  const [brands, setBrands] = React.useState<BrandOption[]>(DEFAULT_OFFICIAL_BRANDS);
-  const [characteristicsList, setCharacteristicsList] = React.useState<DynamicCharacteristic[]>(DEFAULT_DYNAMIC_CHARACTERISTICS);
-  const [variantFamiliesList, setVariantFamiliesList] = React.useState<DynamicVariantFamily[]>(DEFAULT_DYNAMIC_VARIANT_FAMILIES);
+  const [brands, setBrands] = React.useState<BrandOption[]>([]);
+  const [characteristicsList, setCharacteristicsList] = React.useState<DynamicCharacteristic[]>([]);
+  const [variantFamiliesList, setVariantFamiliesList] = React.useState<DynamicVariantFamily[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
   // Multi-selection state
@@ -704,32 +450,28 @@ export default function DashboardArticlesPage() {
 
       if (prodsRes) {
         const list = Array.isArray(prodsRes) ? prodsRes : prodsRes.data || [];
-        setProducts(list);
+        setProducts(Array.isArray(list) ? list : []);
       } else {
-        setProducts(DEFAULT_DEMO_PRODUCTS);
+        setProducts([]);
       }
       if (catsRes) {
         const cList = Array.isArray(catsRes) ? catsRes : catsRes.data || [];
-        setCategories(cList);
+        setCategories(Array.isArray(cList) ? cList : []);
       }
       if (brandsRes) {
         const bList = Array.isArray(brandsRes) ? brandsRes : brandsRes.data || [];
-        if (bList.length > 0) {
-          setBrands(bList);
-        } else {
-          setBrands(DEFAULT_OFFICIAL_BRANDS);
-        }
+        setBrands(Array.isArray(bList) ? bList : []);
       } else {
-        setBrands(DEFAULT_OFFICIAL_BRANDS);
+        setBrands([]);
       }
 
       if (charsRes) {
         const chList = Array.isArray(charsRes) ? charsRes : charsRes.data || [];
-        if (chList.length > 0) setCharacteristicsList(chList);
+        setCharacteristicsList(Array.isArray(chList) ? chList : []);
       }
       if (varsRes) {
         const vList = Array.isArray(varsRes) ? varsRes : varsRes.data || [];
-        if (vList.length > 0) setVariantFamiliesList(vList);
+        setVariantFamiliesList(Array.isArray(vList) ? vList : []);
       }
     } catch (err) {
       console.error('Erreur chargement catalogue:', err);

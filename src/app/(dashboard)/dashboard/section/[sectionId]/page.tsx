@@ -374,8 +374,6 @@ export default function SectionDashboardPage() {
   const visibleLinks = meta.links.filter((l) => isRouteVisible(l.href));
   const linkRows = chunkRowsForFullWidth(visibleLinks);
 
-  const fallbackSlices = [{ label: 'Chargement...', value: 1 }];
-
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
       {/* 1. Header Card ONLY (Zero buttons in header) */}
@@ -475,7 +473,7 @@ export default function SectionDashboardPage() {
               subtitle="Support client, messages contact & alertes actives"
               centerLabel="Total"
               centerValue={String((kpis.supportCount || 0) + (kpis.contactsCount || 0) + (kpis.totalNotificationsCount || 0))}
-              slices={charts.statusBreakdown?.length ? charts.statusBreakdown : fallbackSlices}
+              slices={charts.statusBreakdown?.length ? charts.statusBreakdown : []}
             />
           </div>
           <div className="lg:col-span-6">
@@ -520,7 +518,7 @@ export default function SectionDashboardPage() {
               subtitle="Personnel actif vs désactivé vs base clients"
               centerLabel="Comptes"
               centerValue={String((kpis.usersCount || 0) + (kpis.customersCount || 0))}
-              slices={charts.accountStatusSlices?.length ? charts.accountStatusSlices : fallbackSlices}
+              slices={charts.accountStatusSlices?.length ? charts.accountStatusSlices : []}
             />
           </div>
           <div className="lg:col-span-7">
@@ -556,7 +554,7 @@ export default function SectionDashboardPage() {
               subtitle="Articles actifs vs brouillons / archivés"
               centerLabel="Articles"
               centerValue={String(kpis.productsCount ?? 0)}
-              slices={charts.statusSlices?.length ? charts.statusSlices : fallbackSlices}
+              slices={charts.statusSlices?.length ? charts.statusSlices : []}
             />
           </div>
           <div className="lg:col-span-7">
@@ -597,7 +595,7 @@ export default function SectionDashboardPage() {
               subtitle="Espèces, chèques, traites & virements"
               centerLabel="Règlements"
               centerValue={String((charts.methodSlices || []).reduce((s: number, x: any) => s + (x.value || 0), 0))}
-              slices={charts.methodSlices?.length ? charts.methodSlices : fallbackSlices}
+              slices={charts.methodSlices?.length ? charts.methodSlices : []}
             />
           </div>
           <div className="lg:col-span-7">
@@ -636,7 +634,7 @@ export default function SectionDashboardPage() {
               subtitle="Répartition des bons de commande par statut"
               centerLabel="Total BC"
               centerValue={String(kpis.poCount ?? 0)}
-              slices={charts.poStatusSlices?.length ? charts.poStatusSlices : fallbackSlices}
+              slices={charts.poStatusSlices?.length ? charts.poStatusSlices : []}
             />
           </div>
           <div className="lg:col-span-7">
@@ -675,7 +673,7 @@ export default function SectionDashboardPage() {
               subtitle="Entrées (BE), Sorties (BS/Ventes), Ajustements & Transferts"
               centerLabel="Mouvements"
               centerValue={String(kpis.movementsCount ?? 0)}
-              slices={charts.movementSlices?.length ? charts.movementSlices : fallbackSlices}
+              slices={charts.movementSlices?.length ? charts.movementSlices : []}
             />
           </div>
           <div className="lg:col-span-7">
@@ -714,7 +712,7 @@ export default function SectionDashboardPage() {
               subtitle="Répartition des encaissements showroom"
               centerLabel="Tickets"
               centerValue={String(kpis.posOrdersCount ?? 0)}
-              slices={charts.posOrderSlices?.length ? charts.posOrderSlices : fallbackSlices}
+              slices={charts.posOrderSlices?.length ? charts.posOrderSlices : []}
             />
           </div>
           <div className="lg:col-span-7">
@@ -750,7 +748,7 @@ export default function SectionDashboardPage() {
               subtitle="Engagement authentique enregistré en base"
               centerLabel="Actions"
               centerValue={String((kpis.totalInteractions || 0) + (kpis.reviewsTotal || 0) + (kpis.newsletterCount || 0))}
-              slices={charts.interactionSlices?.length ? charts.interactionSlices : fallbackSlices}
+              slices={charts.interactionSlices?.length ? charts.interactionSlices : []}
             />
           </div>
           <div className="lg:col-span-7">
@@ -781,7 +779,7 @@ export default function SectionDashboardPage() {
               subtitle="Rôles, permissions RBAC, paramètres & emails"
               centerLabel="Éléments"
               centerValue={String((kpis.rolesCount || 0) + (kpis.settingsCount || 0) + (kpis.emailTemplatesCount || 0))}
-              slices={charts.configSlices?.length ? charts.configSlices : fallbackSlices}
+              slices={charts.configSlices?.length ? charts.configSlices : []}
             />
           </div>
           <div className="lg:col-span-4">
@@ -795,7 +793,7 @@ export default function SectionDashboardPage() {
             <RoyalGaugeChart
               title="Couverture Architecture & RBAC"
               subtitle="Niveau d’intégrité des rôles & permissions"
-              score={typeof charts.securityCoverage === 'number' ? charts.securityCoverage : 100}
+              score={typeof charts.securityCoverage === 'number' ? charts.securityCoverage : 0}
               statusText={`${kpis.rolesCount ?? 0} rôles système et ${kpis.permissionsCount ?? 0} permissions actives.`}
             />
           </div>
@@ -820,7 +818,7 @@ export default function SectionDashboardPage() {
               subtitle="En attente, expédiées/livrées & annulées"
               centerLabel="Commandes"
               centerValue={String(kpis.ordersCount ?? 0)}
-              slices={charts.statusSlices?.length ? charts.statusSlices : fallbackSlices}
+              slices={charts.statusSlices?.length ? charts.statusSlices : []}
             />
           </div>
           <div className="lg:col-span-7">

@@ -24,6 +24,7 @@ interface CaisseStatRow {
 export default function TreasuryReportsPage() {
   const [liveSales, setLiveSales] = React.useState(0);
   const [caissesStats, setCaissesStats] = React.useState<CaisseStatRow[]>([]);
+  const [coverageScore, setCoverageScore] = React.useState(0);
   const [selectedNames, setSelectedNames] = React.useState<string[]>([]);
 
   const columns: ColumnDef<CaisseStatRow>[] = [
@@ -55,7 +56,7 @@ export default function TreasuryReportsPage() {
     },
     {
       key: 'transferts',
-      header: 'Transferts Estimés',
+      header: 'Transferts',
       sortable: true,
       sortValue: (c) => c.transferts,
       className: 'text-right',
@@ -65,37 +66,17 @@ export default function TreasuryReportsPage() {
   ];
 
   React.useEffect(() => {
-    Promise.all([
-      fetchApi('/storefront-cms/user-dashboard').catch(() => null),
-      fetchApi('/storefront-cms/sys-config/treasuryAccounts').catch(() => null),
-      fetchApi('/storefront-cms/sys-config/treasuryTransactions').catch(() => null),
-    ]).then(([dash, accRes, txRes]) => {
-      if (dash?.salesTotal) setLiveSales(Number(dash.salesTotal));
-      const accounts = accRes?.value || accRes?.data?.value || [];
-      const txs = txRes?.value || txRes?.data?.value || [];
-      if (Array.isArray(accounts) && accounts.length > 0) {
-        const rows: CaisseStatRow[] = accounts.map((acc: any) => {
-          const matchingTxs = (Array.isArray(txs) ? txs : []).filter(
-            (t: any) =>
-              t.accountName?.toLowerCase().includes(String(acc.name || '').toLowerCase().slice(0, 12)) ||
-              t.accountCode === acc.code
-          );
-          const enc = matchingTxs
-            .filter((t: any) => t.type === 'INFLOW')
-            .reduce((s: number, t: any) => s + Number(t.amountTnd || 0), 0);
-          const dec = matchingTxs
-            .filter((t: any) => t.type === 'OUTFLOW')
-            .reduce((s: number, t: any) => s + Number(t.amountTnd || 0), 0);
-          return {
-            name: acc.name || acc.code || 'Compte Trésorerie',
-            encaissements: enc > 0 ? enc : Number(acc.currentBalanceTnd || 0),
-            decaissements: dec,
-            transferts: Math.round(Number(acc.initialBalanceTnd || 0) * 0.25),
-          };
-        });
-        setCaissesStats(rows);
-      }
-    });
+    fetchApi('/storefront-cms/treasury-report')
+      .then((res) => {
+        const payload = res?.caissesStats ? res : res?.data || res;
+        if (payload?.salesTotal !== undefined) setLiveSales(Number(payload.salesTotal || 0));
+        if (Array.isArray(payload?.caissesStats)) setCaissesStats(payload.caissesStats);
+        if (payload?.coverageScore !== undefined) setCoverageScore(Number(payload.coverageScore || 0));
+      })
+      .catch(() => {
+        setCaissesStats([]);
+        setCoverageScore(0);
+      });
   }, []);
 
   const maxVal = Math.max(1, ...caissesStats.map((c) => c.encaissements));
@@ -212,7 +193,7 @@ export default function TreasuryReportsPage() {
           <RoyalGaugeChart
             title="Ratio Couverture Cash"
             subtitle="Liquidités nettes vs décaissements"
-            score={caissesStats.length > 0 ? 94 : 0}
+            score={coverageScore}
             statusText={`Trésorerie active sur ${caissesStats.length} compte(s) PostgreSQL.`}
           />
         </div>

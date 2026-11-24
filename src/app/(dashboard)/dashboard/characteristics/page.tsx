@@ -187,160 +187,6 @@ export default function DashboardCharacteristicsPage() {
   const [modalArticlesPage, setModalArticlesPage] = React.useState(1);
   const [modalArticlesSearch, setModalArticlesSearch] = React.useState('');
 
-  // Initial Sample Characteristics
-  const defaultCharacteristics: CharacteristicItem[] = [
-    {
-      id: 'char-puissance',
-      name: 'Puissance Moteur',
-      nameAr: 'قوة المحرك',
-      code: 'puissance_watt',
-      type: 'NUMBER',
-      unit: 'W',
-      categoryIds: ['cat-gros-electro', 'cat-petit-electro'],
-      isRequired: true,
-      isFilterable: true,
-      articlesCount: 16,
-      createdAt: '2026-11-15T08:30:00.000Z',
-      updatedAt: '2026-11-15T08:30:00.000Z',
-      createdBy: 'SUPER_ADMIN',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'char-capacite',
-      name: 'Capacité Cuve / Bol',
-      nameAr: 'سعة الوعاء',
-      code: 'capacite_litre',
-      type: 'NUMBER',
-      unit: 'L',
-      categoryIds: ['cat-petit-electro', 'cat-cuisine-prepa'],
-      isRequired: false,
-      isFilterable: true,
-      articlesCount: 12,
-      createdAt: '2026-11-14T10:00:00.000Z',
-      updatedAt: '2026-11-14T10:00:00.000Z',
-      createdBy: 'SUPER_ADMIN',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'char-materiau',
-      name: 'Matériau Principal',
-      nameAr: 'المادة الرئيسية',
-      code: 'materiau_principal',
-      type: 'SELECT',
-      options: ['Inox 18/10', 'Acier Damas', 'Fonte Émaillée', 'Céramique Grand Cru', 'Aluminium Forgé', 'Verre Borosilicate'],
-      categoryIds: [],
-      isRequired: false,
-      isFilterable: true,
-      articlesCount: 20,
-      createdAt: '2026-11-12T15:45:00.000Z',
-      updatedAt: '2026-11-12T15:45:00.000Z',
-      createdBy: 'ADMIN',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'char-garantie',
-      name: 'Garantie Constructeur',
-      nameAr: 'الضمان المصنعي',
-      code: 'garantie_annees',
-      type: 'NUMBER',
-      unit: 'années',
-      categoryIds: [],
-      isRequired: true,
-      isFilterable: true,
-      articlesCount: 25,
-      createdAt: '2026-11-08T09:15:00.000Z',
-      updatedAt: '2026-11-08T09:15:00.000Z',
-      createdBy: 'ADMIN',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'char-compatibilite-four',
-      name: 'Compatible Lave-Vaisselle & Four',
-      nameAr: 'متوافق مع غسالة الأطباق والفرن',
-      code: 'compatibilite_four_lavevaisselle',
-      type: 'BOOLEAN',
-      categoryIds: ['cat-cuisine-prepa', 'cat-coutellerie'],
-      isRequired: false,
-      isFilterable: true,
-      articlesCount: 8,
-      createdAt: '2026-10-30T11:00:00.000Z',
-      updatedAt: '2026-10-30T11:00:00.000Z',
-      createdBy: 'SYSTEM',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'char-dimensions',
-      name: 'Dimensions (L x l x H)',
-      nameAr: 'الأبعاد',
-      code: 'dimensions_cm',
-      type: 'TEXT',
-      categoryIds: ['cat-gros-electro'],
-      isRequired: false,
-      isFilterable: false,
-      articlesCount: 6,
-      createdAt: '2026-10-18T14:20:00.000Z',
-      updatedAt: '2026-10-18T14:20:00.000Z',
-      createdBy: 'SYSTEM',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'char-date-sortie',
-      name: 'Date de Lancement Collection',
-      nameAr: 'تاريخ إطلاق المجموعة',
-      code: 'date_lancement',
-      type: 'DATE',
-      categoryIds: [],
-      isRequired: false,
-      isFilterable: true,
-      articlesCount: 14,
-      createdAt: '2026-09-25T16:00:00.000Z',
-      updatedAt: '2026-09-25T16:00:00.000Z',
-      createdBy: 'SYSTEM',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'char-certifications',
-      name: 'Certifications & Normes',
-      nameAr: 'الشهادات والمطابقة',
-      code: 'normes_certifications',
-      type: 'MULTI_SELECT',
-      options: ['CE', 'RoHS', 'NF', 'Certifié Contact Alimentaire', 'Éco-conception A+++'],
-      categoryIds: [],
-      isRequired: false,
-      isFilterable: true,
-      articlesCount: 19,
-      createdAt: '2026-08-10T12:00:00.000Z',
-      updatedAt: '2026-08-10T12:00:00.000Z',
-      createdBy: 'SYSTEM',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-  ];
-
-  const defaultCategories: CategoryOption[] = [
-    { id: 'cat-gros-electro', name: 'Gros Électroménager', slug: 'gros-electromenager' },
-    { id: 'cat-petit-electro', name: 'Petit Électroménager', slug: 'petit-electromenager' },
-    { id: 'cat-cuisine-prepa', name: 'Cuisine & Préparation', slug: 'cuisine-preparation' },
-    { id: 'cat-art-table', name: 'Art de la Table', slug: 'art-de-la-table' },
-    { id: 'cat-coutellerie', name: 'Coutellerie Haute Précision', slug: 'coutellerie' },
-    { id: 'cat-maison', name: 'Maison & Entretien', slug: 'maison-entretien' },
-  ];
-
   const showToast = (type: 'success' | 'error', text: string) => {
     setFeedbackMessage({ type, text });
     setTimeout(() => setFeedbackMessage(null), 3500);
@@ -356,29 +202,22 @@ export default function DashboardCharacteristicsPage() {
         .catch(() => null);
 
       const [charRes, catRes] = await Promise.all([
-        fetchApi('/characteristics').catch(() => null),
-        fetchApi('/categories?tree=false').catch(() => null),
+        fetchApi('/characteristics'),
+        fetchApi('/categories?tree=false'),
       ]);
 
-      if (catRes) {
-        const cList = Array.isArray(catRes) ? catRes : catRes.data || [];
-        setCategories(cList.length > 0 ? cList : defaultCategories);
-      } else {
-        setCategories(defaultCategories);
-      }
+      const cList = Array.isArray(catRes) ? catRes : catRes?.data || [];
+      setCategories(Array.isArray(cList) ? cList : []);
 
-      if (charRes) {
-        const chList = Array.isArray(charRes) ? charRes : charRes.data || [];
-        setCharacteristics(chList);
-      } else {
-        setCharacteristics(defaultCharacteristics);
-      }
+      const chList = Array.isArray(charRes) ? charRes : charRes?.data || [];
+      setCharacteristics(Array.isArray(chList) ? chList : []);
       setIsLoading(false);
       await productsPromise;
     } catch {
-      setCharacteristics(defaultCharacteristics);
-      setCategories(defaultCategories);
+      setCharacteristics([]);
+      setCategories([]);
       setIsLoading(false);
+      showToast('error', 'Erreur lors du chargement des caractéristiques depuis le serveur.');
     }
   }, []);
 

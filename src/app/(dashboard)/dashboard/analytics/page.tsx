@@ -52,55 +52,20 @@ export interface TrafficRow {
   createdAt: string;
 }
 
-const INITIAL_TRAFFIC: TrafficRow[] = [
-  {
-    id: 'trf-1',
-    pagePath: '/',
-    pageTitle: 'Accueil VIP — Royal Luxury Living',
-    viewsCount: 14250,
-    uniqueVisitors: 8900,
-    avgTimeSeconds: 145,
-    bounceRatePercent: 28.4,
-    conversionRatePercent: 4.8,
-    createdAt: '2026-11-15T00:00:00Z',
-  },
-  {
-    id: 'trf-2',
-    pagePath: '/products/airfryer-double-tiroir-8-5l-2400w',
-    pageTitle: 'Airfryer Double Tiroir 8.5L — Fiche Produit',
-    viewsCount: 3890,
-    uniqueVisitors: 2650,
-    avgTimeSeconds: 210,
-    bounceRatePercent: 19.2,
-    conversionRatePercent: 8.6,
-    createdAt: '2026-11-15T00:00:00Z',
-  },
-  {
-    id: 'trf-3',
-    pagePath: '/products',
-    pageTitle: 'Catalogue Général Électroménager',
-    viewsCount: 7850,
-    uniqueVisitors: 4900,
-    avgTimeSeconds: 180,
-    bounceRatePercent: 22.1,
-    conversionRatePercent: 5.2,
-    createdAt: '2026-11-15T00:00:00Z',
-  },
-  {
-    id: 'trf-4',
-    pagePath: '/checkout',
-    pageTitle: 'Tunnel de Commande & Paiement',
-    viewsCount: 840,
-    uniqueVisitors: 780,
-    avgTimeSeconds: 320,
-    bounceRatePercent: 12.0,
-    conversionRatePercent: 68.4,
-    createdAt: '2026-11-15T00:00:00Z',
-  },
-];
-
 export default function AnalyticsPage() {
   const [traffic, setTraffic] = useState<TrafficRow[]>([]);
+  const [analyticsSummary, setAnalyticsSummary] = useState<{
+    totalViews: number;
+    totalVisitors: number;
+    avgBounce: number;
+    avgConversion: number;
+  } | null>(null);
+  const [analyticsCharts, setAnalyticsCharts] = useState<{
+    dailyMomentum?: Array<{ label: string; value: number; secondaryValue?: number }>;
+    acquisitionChannels?: Array<{ label: string; value: number; color?: string }>;
+    deviceMonthlySegments?: Array<{ label: string; primary: number; secondary: number; tertiary?: number }>;
+    conversionFunnel?: Array<{ label: string; value: number; unit?: string }>;
+  } | null>(null);
   const [selectedTrafficIds, setSelectedTrafficIds] = useState<string[]>([]);
   const { isRecapEnabled, runAiJob } = useAiAssistant();
   const [aiInsights, setAiInsights] = useState<{
@@ -145,21 +110,35 @@ export default function AnalyticsPage() {
   React.useEffect(() => {
     fetchApi('/storefront-cms/analytics-report')
       .then((res) => {
-        const list = Array.isArray(res) ? res : res?.data || [];
-        if (Array.isArray(list)) setTraffic(list);
+        const payload = res?.items || res?.charts ? res : res?.data || res;
+        const list = Array.isArray(payload) ? payload : payload?.items || [];
+        setTraffic(Array.isArray(list) ? list : []);
+        if (payload?.summary) setAnalyticsSummary(payload.summary);
+        if (payload?.charts) setAnalyticsCharts(payload.charts);
       })
-      .catch(() => {});
+      .catch(() => {
+        setTraffic([]);
+      });
   }, []);
 
   // Stats KPIs
   const stats = useMemo(() => {
-    const count = Math.max(1, traffic.length);
+    if (analyticsSummary) {
+      return {
+        totalViews: Number(analyticsSummary.totalViews || 0),
+        totalVisitors: Number(analyticsSummary.totalVisitors || 0),
+        avgBounce: Number(analyticsSummary.avgBounce || 0),
+        avgConversion: Number(analyticsSummary.avgConversion || 0).toFixed(1),
+      };
+    }
+    const count = traffic.length;
     const totalViews = traffic.reduce((acc, t) => acc + t.viewsCount, 0);
     const totalVisitors = traffic.reduce((acc, t) => acc + t.uniqueVisitors, 0);
-    const avgBounce = Math.round(traffic.reduce((acc, t) => acc + t.bounceRatePercent, 0) / count);
-    const avgConversion = (traffic.reduce((acc, t) => acc + t.conversionRatePercent, 0) / count).toFixed(1);
+    const avgBounce = count > 0 ? Math.round(traffic.reduce((acc, t) => acc + t.bounceRatePercent, 0) / count) : 0;
+    const avgConversion =
+      count > 0 ? (traffic.reduce((acc, t) => acc + t.conversionRatePercent, 0) / count).toFixed(1) : '0.0';
     return { totalViews, totalVisitors, avgBounce, avgConversion };
-  }, [traffic]);
+  }, [traffic, analyticsSummary]);
 
   // Colonnes DataTable Master
   const columns: ColumnDef<TrafficRow>[] = [
@@ -406,15 +385,7 @@ export default function AnalyticsPage() {
             deltaLabel={`${stats.avgConversion}% conv.`}
             seriesName="Pages Vues"
             secondarySeriesName="Visiteurs Uniques"
-            points={[
-              { label: 'Lun', value: 1840, secondaryValue: 780 },
-              { label: 'Mar', value: 2210, secondaryValue: 960 },
-              { label: 'Mer', value: 2650, secondaryValue: 1120 },
-              { label: 'Jeu', value: 2490, secondaryValue: 1090 },
-              { label: 'Ven', value: 3120, secondaryValue: 1410 },
-              { label: 'Sam', value: 3480, secondaryValue: 1620 },
-              { label: 'Dim', value: 2940, secondaryValue: 1320 },
-            ]}
+            points={analyticsCharts?.dailyMomentum || []}
           />
         </div>
         <div className="lg:col-span-5">
@@ -423,12 +394,7 @@ export default function AnalyticsPage() {
             subtitle="Répartition du trafic entrant par canal"
             centerLabel="Visiteurs"
             centerValue={stats.totalVisitors.toLocaleString('fr-FR')}
-            slices={[
-              { label: 'Recherche Google SEO', value: Math.round(stats.totalVisitors * 0.44), color: '#C59B27' },
-              { label: 'Réseaux Sociaux (FB/IG/TT)', value: Math.round(stats.totalVisitors * 0.31), color: '#64748B' },
-              { label: 'Accès Direct Royal', value: Math.round(stats.totalVisitors * 0.16), color: '#059669' },
-              { label: 'Campagnes Email & Promo', value: Math.round(stats.totalVisitors * 0.09), color: '#D97706' },
-            ]}
+            slices={analyticsCharts?.acquisitionChannels || []}
           />
         </div>
         <div className="lg:col-span-5">
@@ -438,33 +404,22 @@ export default function AnalyticsPage() {
             primaryLabel="Mobile"
             secondaryLabel="Desktop"
             tertiaryLabel="Tablette"
-            data={[
-              { label: 'Jul', primary: 1400, secondary: 820, tertiary: 240 },
-              { label: 'Aoû', primary: 1680, secondary: 890, tertiary: 260 },
-              { label: 'Sep', primary: 1920, secondary: 940, tertiary: 290 },
-              { label: 'Oct', primary: 2240, secondary: 1080, tertiary: 310 },
-              { label: 'Nov', primary: 2680, secondary: 1210, tertiary: 380 },
-            ]}
+            data={analyticsCharts?.deviceMonthlySegments || []}
           />
         </div>
         <div className="lg:col-span-3">
           <RoyalGaugeChart
             title="Indice d'Engagement"
             subtitle="Qualité sessions sans rebond"
-            score={Math.max(10, Math.round(100 - Number(stats.avgBounce)))}
-            statusText={`Taux de rebond contenu à ${stats.avgBounce}% sur la période.`}
+            score={stats.totalViews > 0 || stats.totalVisitors > 0 ? Math.max(0, Math.round(100 - Number(stats.avgBounce))) : 0}
+            statusText={`Taux de rebond mesuré à ${stats.avgBounce}% sur la période.`}
           />
         </div>
         <div className="lg:col-span-4">
           <RoyalSegmentedBarsChart
             title="Tunnel de Conversion Pages"
             subtitle="Progression par étape e-commerce"
-            items={[
-              { label: 'Consultation Fiche Produit', value: 78, unit: '%' },
-              { label: 'Ajout au Panier', value: 42, unit: '%' },
-              { label: 'Ouverture Checkout', value: 24, unit: '%' },
-              { label: 'Commande Validée', value: Math.min(100, Math.round(Number(stats.avgConversion) * 10)), unit: '%' },
-            ]}
+            items={analyticsCharts?.conversionFunnel || []}
           />
         </div>
         <div className="lg:col-span-12">
@@ -474,7 +429,7 @@ export default function AnalyticsPage() {
             items={traffic.slice(0, 5).map((r) => ({
               label: r.pageTitle,
               value: r.conversionRatePercent,
-              maxValue: 12,
+              maxValue: 100,
               unit: '%',
             }))}
           />

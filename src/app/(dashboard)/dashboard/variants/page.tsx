@@ -122,100 +122,6 @@ export default function DashboardVariantsPage() {
   const [valLabelAr, setValLabelAr] = React.useState('');
   const [valColorHex, setValColorHex] = React.useState('#18181b');
 
-  // Fallback initial data
-  const defaultFamilies: VariantFamily[] = [
-    {
-      id: 'fam-coloris',
-      name: 'Coloris & Nuances',
-      nameAr: 'الألوان والدرجات',
-      code: 'couleur',
-      visualType: 'COLOR_SWATCH',
-      description: 'Nuancier officiel pour appareils, petit électroménager et vaisselle.',
-      articlesCount: 18,
-      isActive: true,
-      createdAt: '2026-11-15T09:30:00.000Z',
-      updatedAt: '2026-11-15T09:30:00.000Z',
-      createdBy: 'SUPER_ADMIN',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-      values: [
-        { id: 'v-black', label: 'Noir Mat Intense', labelAr: 'أسود مطفي', colorHex: '#18181b' },
-        { id: 'v-silver', label: 'Inox Brossé', labelAr: 'فولاذ مصقول', colorHex: '#94a3b8' },
-        { id: 'v-white', label: 'Blanc Pur Émaillé', labelAr: 'أبيض ناصع', colorHex: '#f8fafc' },
-        { id: 'v-red', label: 'Rouge Cerise Passion', labelAr: 'أحمر كرزي', colorHex: '#dc2626' },
-        { id: 'v-cream', label: 'Crème Vintage', labelAr: 'كريمي كلاسيكي', colorHex: '#fef3c7' },
-        { id: 'v-blue', label: 'Bleu Nuit Saphir', labelAr: 'أزرق ياقوتي', colorHex: '#1e3a8a' },
-      ],
-    },
-    {
-      id: 'fam-tailles',
-      name: 'Tailles & Formats',
-      nameAr: 'المقاسات والأحجام',
-      code: 'taille',
-      visualType: 'TEXT_PILL',
-      description: 'Formats standardisés pour batteries, plats de cuisson et couteaux.',
-      articlesCount: 14,
-      isActive: true,
-      createdAt: '2026-11-12T11:00:00.000Z',
-      updatedAt: '2026-11-12T11:00:00.000Z',
-      createdBy: 'ADMIN',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-      values: [
-        { id: 'v-s', label: '20 cm (1.5L)', labelAr: 'صغير 20 سم' },
-        { id: 'v-m', label: '24 cm (3.0L)', labelAr: 'متوسط 24 سم' },
-        { id: 'v-l', label: '28 cm (5.0L)', labelAr: 'كبير 28 سم' },
-        { id: 'v-xl', label: '32 cm (7.5L)', labelAr: 'كبير جدا 32 سم' },
-      ],
-    },
-    {
-      id: 'fam-capacite',
-      name: 'Capacité & Volume Réservoir',
-      nameAr: 'السعة وحجم الخزان',
-      code: 'capacite',
-      visualType: 'TEXT_PILL',
-      description: 'Volumes pour robots pétrins, cuves airfryer et cafetières.',
-      articlesCount: 9,
-      isActive: true,
-      createdAt: '2026-11-04T15:30:00.000Z',
-      updatedAt: '2026-11-04T15:30:00.000Z',
-      createdBy: 'ADMIN',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-      values: [
-        { id: 'v-cap-1', label: '1.2 Litres', labelAr: '1.2 لتر' },
-        { id: 'v-cap-2', label: '2.5 Litres', labelAr: '2.5 لتر' },
-        { id: 'v-cap-3', label: '5.0 Litres (Grand Format)', labelAr: '5.0 لتر' },
-        { id: 'v-cap-4', label: '8.5 Litres (Double Tiroir)', labelAr: '8.5 لتر' },
-      ],
-    },
-    {
-      id: 'fam-puissance',
-      name: 'Puissance Moteur / Chauffante',
-      nameAr: 'القوة والأداء',
-      code: 'puissance',
-      visualType: 'TEXT_PILL',
-      description: 'Niveaux de motorisation et watts pour hachoirs, blenders et fours.',
-      articlesCount: 12,
-      isActive: true,
-      createdAt: '2026-10-10T14:00:00.000Z',
-      updatedAt: '2026-10-10T14:00:00.000Z',
-      createdBy: 'SYSTEM',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-      values: [
-        { id: 'v-p-500', label: '500 Watts (Éco)' },
-        { id: 'v-p-1000', label: '1000 Watts' },
-        { id: 'v-p-1600', label: '1600 Watts (Pro)' },
-        { id: 'v-p-2400', label: '2400 Watts (Haute Puissance)' },
-      ],
-    },
-  ];
-
   const showToast = (type: 'success' | 'error', text: string) => {
     setFeedbackMessage({ type, text });
     setTimeout(() => setFeedbackMessage(null), 3500);
@@ -230,18 +136,15 @@ export default function DashboardVariantsPage() {
         })
         .catch(() => null);
 
-      const varRes = await fetchApi('/variants').catch(() => null);
-      if (varRes) {
-        const vList = Array.isArray(varRes) ? varRes : varRes.data || [];
-        setFamilies(vList);
-      } else {
-        setFamilies(defaultFamilies);
-      }
+      const varRes = await fetchApi('/variants');
+      const vList = Array.isArray(varRes) ? varRes : varRes?.data || [];
+      setFamilies(Array.isArray(vList) ? vList : []);
       setIsLoading(false);
       await productsPromise;
     } catch {
-      setFamilies(defaultFamilies);
+      setFamilies([]);
       setIsLoading(false);
+      showToast('error', 'Impossible de charger les variantes depuis PostgreSQL.');
     }
   }, []);
 

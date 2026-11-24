@@ -54,6 +54,8 @@ interface DashboardKpis {
   salesCount: number;
   salesTotal: number;
   lowStockCount: number;
+  warehousesCount?: number;
+  primaryWarehouseCode?: string;
   topCategories?: Array<{ id: string; name: string; count: number }>;
   ordersByStatus?: Array<{ status: string; count: number; amount: number }>;
   recentOrders?: Array<{
@@ -391,7 +393,7 @@ export default function DashboardPage() {
 
               <div className="space-y-3">
                 {(kpis.topCategories || []).length === 0 ? (
-                  <p className="text-xs text-neutral-400">Chargement des données catégories...</p>
+                  <p className="text-xs text-neutral-400">Aucune catégorie active.</p>
                 ) : (
                   (kpis.topCategories || []).map((cat) => {
                     const pct = Math.round((cat.count / maxCatCount) * 100);
@@ -633,7 +635,9 @@ export default function DashboardPage() {
               <div className="text-xl font-heading font-black text-neutral-900 font-mono">{kpis.lowStockCount}</div>
               <div className="text-[11px] text-neutral-500 flex items-center justify-between">
                 <span>Seuil &le; 5 unités</span>
-                <span className="text-blue-700 font-bold">WH-CENTRAL</span>
+                <span className="text-blue-700 font-bold">
+                  {kpis.primaryWarehouseCode || `${kpis.warehousesCount ?? 0} dépôt(s)`}
+                </span>
               </div>
             </div>
 

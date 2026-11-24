@@ -8,12 +8,9 @@ interface BrandMarqueeProps {
 }
 
 export function BrandMarquee({ brands: propBrands }: BrandMarqueeProps) {
-  const defaultBrands = [
-    { name: 'ROYAL', slug: '' },
-    { name: 'DSP', slug: 'dsp' },
-  ];
+  if (!propBrands || propBrands.length === 0) return null;
 
-  const rawBrands = propBrands && propBrands.length > 0 ? propBrands : defaultBrands;
+  const rawBrands = propBrands;
   // Ensure smooth infinite marquee across active catalog brands
   const brands = rawBrands.length < 6 ? Array.from({ length: Math.ceil(10 / rawBrands.length) }, () => rawBrands).flat() : rawBrands;
 

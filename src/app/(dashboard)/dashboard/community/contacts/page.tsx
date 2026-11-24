@@ -80,55 +80,6 @@ const ROOT_REPLY_TEMPLATES = [
   },
 ];
 
-const INITIAL_CONTACTS: ContactMessage[] = [
-  {
-    id: 'contact-1',
-    fullName: 'Anis Trabelsi',
-    email: 'anis.trabelsi@gmail.com',
-    phone: '+216 98 440 210',
-    subject: 'Demande de devis équipement cuisine complète',
-    message: 'Bonjour, je souhaite équiper une villa à Ennasr avec four encastrable, table de cuisson induction et hotte décorative. Proposez-vous une remise sur pack complet ainsi qu’une installation par vos techniciens agréés ?',
-    status: 'NEW',
-    isRead: false,
-    createdAt: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'contact-1-followup',
-    fullName: 'Anis Trabelsi',
-    email: 'anis.trabelsi@gmail.com',
-    phone: '+216 98 440 210',
-    subject: 'Précision sur dimensions niche four',
-    message: 'Pour compléter ma demande, la niche de mon meuble fait exactement 60cm de large sur 59cm de haut. Vos modèles Bosch Série 8 sont-ils compatibles ?',
-    status: 'NEW',
-    isRead: false,
-    createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'contact-2',
-    fullName: 'Sonia Khelifi',
-    email: 'sonia.khelifi@yahoo.fr',
-    phone: '+216 22 119 883',
-    subject: 'Disponibilité Robot pâtissier Kenwood Titanium XL',
-    message: 'Le modèle Chef Titanium XL est-il immédiatement disponible pour retrait au showroom du Lac 2 ou de La Marsa ? Pouvez-vous me confirmer le tarif promotionnel affiché en vitrine ?',
-    status: 'REPLIED',
-    isRead: true,
-    replyContent: 'Bonjour Mme Khelifi, oui le produit est disponible en 3 exemplaires au Showroom Lac 2. Vous pouvez le réserver directement en ligne avec retrait offert sous 2h.',
-    repliedAt: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
-    createdAt: new Date(Date.now() - 8 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'contact-3',
-    fullName: 'Mohamed Bouazizi',
-    email: 'm.bouazizi@outlook.com',
-    phone: '+216 55 900 120',
-    subject: 'Demande de facture proforma pour société',
-    message: 'Nous souhaitons commander 4 machines à café expresso DeLonghi pour nos bureaux à Montplaisir. Merci de nous envoyer une proforma avec timbre fiscal.',
-    status: 'ARCHIVED',
-    isRead: true,
-    createdAt: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString(),
-  },
-];
-
 function formatRelativeTime(dateString: string): string {
   const diffMs = Date.now() - new Date(dateString).getTime();
   const diffMins = Math.floor(diffMs / (1000 * 60));
@@ -172,7 +123,7 @@ export default function ContactsPage() {
 
   const loadContacts = React.useCallback(async () => {
     try {
-      const res = await fetchApi('/storefront-cms/contacts').catch(() => null);
+      const res = await fetchApi('/storefront-cms/contacts');
       const list = Array.isArray(res) ? res : res?.data || [];
       if (Array.isArray(list)) {
         setContacts(
@@ -190,9 +141,13 @@ export default function ContactsPage() {
             createdAt: c.createdAt,
           }))
         );
+      } else {
+        setContacts([]);
       }
     } catch {
-      setContacts(INITIAL_CONTACTS);
+      setContacts([]);
+      setToastType('error');
+      setToastMessage('Impossible de charger les messages de contact depuis le serveur.');
     }
   }, []);
 

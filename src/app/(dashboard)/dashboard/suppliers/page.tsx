@@ -79,160 +79,6 @@ export interface SupplierItem {
   deletedBy?: string | null;
 }
 
-// Fallback high-end default suppliers
-const DEFAULT_SUPPLIERS: SupplierItem[] = [
-  {
-    id: 'cmwdbq4on000ehlrs2iu87jsi',
-    name: "Manufacture Européenne d'Orfèvrerie & Fonte",
-    code: 'SUP-MEOF-01',
-    email: 'contact@meof-distribution.eu',
-    phone: '+33 1 42 68 55 00',
-    address: '14 Boulevard Haussmann',
-    city: 'Paris',
-    country: 'FR',
-    taxId: 'FR-89218291033',
-    paymentTerms: 60,
-    leadTimeDays: 7,
-    notes: 'Fournisseur exclusif cocottes en fonte et orfèvrerie haute gastronomie.',
-    isActive: true,
-    productsCount: 7,
-    createdAt: '2026-11-12T09:06:40.055Z',
-    updatedAt: '2026-11-12T18:55:35.230Z',
-    createdBy: 'SYSTEM',
-    isUpdated: false,
-    isDeleted: false,
-  },
-  {
-    id: 'cmwdbq4os000fhlrstwroxg7j',
-    name: 'Solingen Cutlery Import',
-    code: 'SUP-SOLINGEN-02',
-    email: 'sales@solingen-export.de',
-    phone: '+49 212 88200',
-    address: 'Grünewalder Straße 29',
-    city: 'Solingen',
-    country: 'DE',
-    taxId: 'DE-120492819',
-    paymentTerms: 45,
-    leadTimeDays: 5,
-    notes: 'Aciers damassés, blocs de couteaux professionnels et fusils d’aiguisage.',
-    isActive: true,
-    productsCount: 4,
-    createdAt: '2026-11-12T09:06:40.060Z',
-    updatedAt: '2026-11-12T18:55:35.244Z',
-    createdBy: 'SYSTEM',
-    isUpdated: false,
-    isDeleted: false,
-  },
-  {
-    id: 'cmwdo1znk000do559n0wxybvk',
-    name: 'Comptoir Tunisien de l’Électroménager (CTE)',
-    code: 'SUP-CTE-01',
-    email: 'commercial@cte.tn',
-    phone: '+216 71 200 300',
-    address: 'Zone Industrielle Charguia II',
-    city: 'Tunis',
-    country: 'TN',
-    taxId: '0482910/B/A/M/000',
-    paymentTerms: 30,
-    leadTimeDays: 3,
-    notes: 'Distribution officielle gros & petit électroménager premium en Tunisie.',
-    isActive: true,
-    productsCount: 4,
-    createdAt: '2026-11-12T14:51:48.800Z',
-    updatedAt: '2026-11-12T18:56:01.209Z',
-    createdBy: 'SYSTEM',
-    isUpdated: false,
-    isDeleted: false,
-  },
-  {
-    id: 'cmwdo1zny000eo559abr7n273',
-    name: 'Distribution Moderne d’Équipement (DME)',
-    code: 'SUP-DME-02',
-    email: 'appro@dme-distrib.com',
-    phone: '+216 71 400 500',
-    address: 'Route de La Marsa Km 9',
-    city: 'Tunis',
-    country: 'TN',
-    taxId: '0918234/A/M/000',
-    paymentTerms: 45,
-    leadTimeDays: 7,
-    notes: 'Importateur machines espresso et robots culinaires italiens.',
-    isActive: true,
-    productsCount: 2,
-    createdAt: '2026-11-12T14:51:48.814Z',
-    updatedAt: '2026-11-12T18:56:01.281Z',
-    createdBy: 'SYSTEM',
-    isUpdated: false,
-    isDeleted: false,
-  },
-  {
-    id: 'cmwdo1zo5000fo559pldn0tlm',
-    name: 'Alliance Technique Maghreb (ATM)',
-    code: 'SUP-ATM-03',
-    email: 'ventes@atm-sahel.tn',
-    phone: '+216 73 500 600',
-    address: 'Avenue Léopold Senghor',
-    city: 'Sousse',
-    country: 'TN',
-    taxId: '1284910/C/P/000',
-    paymentTerms: 60,
-    leadTimeDays: 4,
-    notes: 'Composants techniques, pièces de rechange et accessoires certifiés.',
-    isActive: true,
-    productsCount: 2,
-    createdAt: '2026-11-12T14:51:48.821Z',
-    updatedAt: '2026-11-12T18:56:01.351Z',
-    createdBy: 'SYSTEM',
-    isUpdated: false,
-    isDeleted: false,
-  },
-  {
-    id: 'cmwdbq4ot000ghlrsrmigy0yi',
-    name: 'Comptoir Gastronomique Méditerranéen',
-    code: 'SUP-CGM-TN',
-    email: 'direction@cgm.tn',
-    phone: '+216 71 880 990',
-    address: 'Avenue Habib Bourguiba',
-    city: 'La Goulette',
-    country: 'TN',
-    taxId: '0192834/K/N/000',
-    paymentTerms: 30,
-    leadTimeDays: 2,
-    notes: 'Équipements de service et coutellerie de table méditerranéenne.',
-    isActive: true,
-    productsCount: 1,
-    createdAt: '2026-11-12T09:06:40.061Z',
-    updatedAt: '2026-11-12T18:55:35.249Z',
-    createdBy: 'SYSTEM',
-    isUpdated: false,
-    isDeleted: false,
-  },
-  {
-    id: 'cmw-artisan-benna-01',
-    name: 'Mounir El Benna',
-    code: 'ART-BENNA-TN',
-    supplierType: 'INDIVIDUAL',
-    cin: '08429184',
-    contactPerson: 'Mounir El Benna (Artisan Forgeron)',
-    email: 'mounir.benna.artisan@gmail.com',
-    phone: '+216 98 440 220',
-    address: 'Souk des Forgerons, Médina',
-    city: 'Sousse',
-    country: 'TN',
-    taxId: null,
-    paymentTerms: 0,
-    leadTimeDays: 5,
-    notes: 'Artisan d’art indépendant, forge manuelle de couteaux traditionnels et pièces d’orfèvrerie personnalisées.',
-    isActive: true,
-    productsCount: 1,
-    createdAt: '2026-11-14T10:00:00.000Z',
-    updatedAt: '2026-11-14T10:00:00.000Z',
-    createdBy: 'ROOT',
-    isUpdated: false,
-    isDeleted: false,
-  },
-];
-
 const COUNTRY_OPTIONS = [
   { code: 'TN', name: 'Tunisie', flag: '🇹🇳' },
   { code: 'FR', name: 'France', flag: '🇫🇷' },
@@ -245,7 +91,7 @@ const COUNTRY_OPTIONS = [
 ];
 
 export default function DashboardSuppliersPage() {
-  const [suppliers, setSuppliers] = React.useState<SupplierItem[]>(DEFAULT_SUPPLIERS);
+  const [suppliers, setSuppliers] = React.useState<SupplierItem[]>([]);
   const [products, setProducts] = React.useState<any[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [feedbackMessage, setFeedbackMessage] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -357,19 +203,19 @@ export default function DashboardSuppliersPage() {
       ]);
       const productsRes = { data: productsList };
 
-      if (suppliersRes && Array.isArray(suppliersRes) && suppliersRes.length > 0) {
+      if (suppliersRes && Array.isArray(suppliersRes)) {
         setSuppliers(suppliersRes);
-      } else if (suppliersRes && suppliersRes.data && Array.isArray(suppliersRes.data) && suppliersRes.data.length > 0) {
+      } else if (suppliersRes && suppliersRes.data && Array.isArray(suppliersRes.data)) {
         setSuppliers(suppliersRes.data);
       } else {
-        setSuppliers(DEFAULT_SUPPLIERS);
+        setSuppliers([]);
       }
 
       if (productsRes && productsRes.data && Array.isArray(productsRes.data)) {
         setProducts(productsRes.data);
       }
     } catch {
-      setSuppliers(DEFAULT_SUPPLIERS);
+      setSuppliers([]);
     } finally {
       setIsLoading(false);
     }

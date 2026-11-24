@@ -59,41 +59,6 @@ const ROOT_CAMPAIGN_TEMPLATES = [
   },
 ];
 
-const INITIAL_SUBSCRIBERS: NewsletterSubscriber[] = [
-  {
-    id: 'sub-1',
-    email: 'khalil.mansour@topnet.tn',
-    source: 'Footer Boutique Publique',
-    isActive: true,
-    campaignsReceived: 4,
-    createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'sub-2',
-    email: 'rim.boussetta@gmail.com',
-    source: 'Pop-up Bienvenue 10%',
-    isActive: true,
-    campaignsReceived: 2,
-    createdAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'sub-3',
-    email: 'tarik.driss@gnet.tn',
-    source: 'Validation Commande Invité',
-    isActive: false,
-    campaignsReceived: 5,
-    createdAt: new Date(Date.now() - 4 * 24 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 'sub-4',
-    email: 'nadia.benyoussef@hexabyte.tn',
-    source: 'Footer Boutique Publique',
-    isActive: true,
-    campaignsReceived: 1,
-    createdAt: new Date(Date.now() - 6 * 24 * 3600 * 1000).toISOString(),
-  },
-];
-
 function formatRelativeTime(dateString: string): string {
   const diffMs = Date.now() - new Date(dateString).getTime();
   const diffMins = Math.floor(diffMs / (1000 * 60));

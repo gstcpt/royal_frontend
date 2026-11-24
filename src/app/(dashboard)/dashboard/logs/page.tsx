@@ -59,186 +59,6 @@ import {
 import { fetchApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
-// Fallback Rich Historical Audit Log Entries
-const DEFAULT_AUDIT_LOGS: AuditLogItem[] = [
-  {
-    id: 'log-101',
-    actorId: 'usr-root-01',
-    actorEmail: 'root@royal.com.tn',
-    actorName: 'Root Administrator',
-    action: 'CREATE',
-    resourceType: 'PRODUCT',
-    resourceId: 'prod-airfryer-double',
-    tableName: 'products',
-    description: 'Création du produit Airfryer XXL Double Tiroir DualZone 8.5L',
-    before: null,
-    after: {
-      sku: 'PHL-AF-XXL-2T',
-      name: 'Airfryer XXL Double Tiroir DualZone 8.5L',
-      sellingPrice: 599,
-      categoryId: 'cat-petit-electro',
-      brandId: 'brand-tefal',
-      status: 'ACTIVE',
-      createdBy: 'SUPER_ADMIN',
-    },
-    diffJson: {
-      createdFields: ['sku', 'name', 'sellingPrice', 'categoryId', 'brandId', 'status'],
-    },
-    ipAddress: '192.168.1.100',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/128.0.0.0',
-    createdAt: '2026-11-15T13:45:00.000Z',
-  },
-  {
-    id: 'log-102',
-    actorId: 'usr-admin-02',
-    actorEmail: 'admin@royal.com.tn',
-    actorName: 'Mohamed Zitouni',
-    action: 'TOGGLE_VISIBILITY',
-    resourceType: 'BRAND',
-    resourceId: 'brand-beko',
-    tableName: 'brands',
-    description: 'Bascule de visibilité en ligne : Marque Beko activée sur le storefront',
-    before: { id: 'brand-beko', name: 'Beko', isActive: false },
-    after: { id: 'brand-beko', name: 'Beko', isActive: true, isUpdated: true, updatedBy: 'Mohamed Zitouni' },
-    diffJson: {
-      field: 'isActive',
-      oldValue: false,
-      newValue: true,
-    },
-    ipAddress: '197.3.24.15',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Brave/1.68.0',
-    createdAt: '2026-11-15T11:20:00.000Z',
-  },
-  {
-    id: 'log-103',
-    actorId: 'usr-admin-02',
-    actorEmail: 'admin@royal.com.tn',
-    actorName: 'Mohamed Zitouni',
-    action: 'UPDATE',
-    resourceType: 'CATEGORY',
-    resourceId: 'cat-gros-electro',
-    tableName: 'categories',
-    description: 'Mise à jour des caractéristiques rattachées au rayon Gros Électroménager',
-    before: { characteristicsCount: 6, updatedAt: '2026-11-10T09:00:00Z' },
-    after: { characteristicsCount: 8, isUpdated: true, updatedBy: 'Mohamed Zitouni' },
-    diffJson: {
-      characteristicsCount: { from: 6, to: 8 },
-      addedCharacteristics: ['spec-puissance', 'spec-capacite'],
-    },
-    ipAddress: '197.3.24.15',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Brave/1.68.0',
-    createdAt: '2026-11-14T16:15:00.000Z',
-  },
-  {
-    id: 'log-104',
-    actorId: 'usr-root-01',
-    actorEmail: 'root@royal.com.tn',
-    actorName: 'Root Administrator',
-    action: 'DELETE',
-    resourceType: 'VARIANT_OPTION',
-    resourceId: 'opt-obsolete-yellow',
-    tableName: 'variant_options',
-    description: 'Suppression logique (Soft Delete) de la nuance Jaune Moutarde',
-    before: { id: 'opt-obsolete-yellow', label: 'Jaune Moutarde', isDeleted: false },
-    after: { isDeleted: true, deletedAt: '2026-11-13T10:00:00Z', deletedBy: 'root@royal.com.tn' },
-    diffJson: {
-      isDeleted: true,
-      deletedAt: '2026-11-13T10:00:00Z',
-      deletedBy: 'ROOT',
-    },
-    ipAddress: '127.0.0.1',
-    userAgent: 'Royal-Admin-Terminal/1.0',
-    createdAt: '2026-11-13T10:00:00.000Z',
-  },
-  {
-    id: 'log-105',
-    actorId: 'usr-cashier-04',
-    actorEmail: 'caisse.lac@royal.com.tn',
-    actorName: 'Ahmed Ben Ali (Caisse Lac)',
-    action: 'CREATE',
-    resourceType: 'ORDER',
-    resourceId: 'ord-flr-2026-8841',
-    tableName: 'orders',
-    description: 'Nouvelle commande comptoir POS validée (Total: 1 450,000 TND)',
-    before: null,
-    after: {
-      reference: 'ORD-FLR-2026-8841',
-      channel: 'POS',
-      totalAmount: 1450,
-      status: 'CONFIRMED',
-      createdBy: 'caisse.lac@royal.com.tn',
-    },
-    diffJson: {
-      itemsCount: 3,
-      paymentMethod: 'POS_CASH',
-    },
-    ipAddress: '192.168.10.45',
-    userAgent: 'Royal-POS-Terminal/3.2',
-    createdAt: '2026-11-12T17:30:00.000Z',
-  },
-  {
-    id: 'log-106',
-    actorId: 'usr-root-01',
-    actorEmail: 'root@royal.com.tn',
-    actorName: 'Root Administrator',
-    action: 'LOGIN',
-    resourceType: 'USER',
-    resourceId: 'usr-root-01',
-    tableName: 'users',
-    description: 'Connexion réussie avec élévation des privilèges système (ROOT)',
-    before: null,
-    after: { email: 'root@royal.com.tn', roles: ['ROOT'] },
-    diffJson: null,
-    ipAddress: '127.0.0.1',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/128.0.0.0',
-    createdAt: '2026-11-12T08:00:00.000Z',
-  },
-  {
-    id: 'log-107',
-    actorId: 'usr-admin-02',
-    actorEmail: 'admin@royal.com.tn',
-    actorName: 'Mohamed Zitouni',
-    action: 'CREATE',
-    resourceType: 'CHARACTERISTIC',
-    resourceId: 'char-garantie',
-    tableName: 'characteristics',
-    description: 'Création de la caractéristique technique globale Garantie Constructeur (Ans)',
-    before: null,
-    after: {
-      name: 'Garantie Constructeur',
-      code: 'garantie_annees',
-      type: 'NUMBER',
-      unit: 'années',
-      isRequired: true,
-      createdBy: 'SUPER_ADMIN',
-    },
-    diffJson: null,
-    ipAddress: '197.3.24.15',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Brave/1.68.0',
-    createdAt: '2026-11-08T09:15:00.000Z',
-  },
-  {
-    id: 'log-108',
-    actorId: 'usr-root-01',
-    actorEmail: 'root@royal.com.tn',
-    actorName: 'Root Administrator',
-    action: 'UPDATE',
-    resourceType: 'PRODUCT',
-    resourceId: 'prod-espresso-barista',
-    tableName: 'products',
-    description: 'Ajustement du prix public promotionnel DeLonghi Barista Specialista',
-    before: { sellingPrice: 2450, discountPrice: null },
-    after: { sellingPrice: 2450, discountPrice: 2290, isUpdated: true, updatedBy: 'ROOT' },
-    diffJson: {
-      discountPrice: { from: null, to: 2290 },
-      discountPercent: 7,
-    },
-    ipAddress: '127.0.0.1',
-    userAgent: 'Royal-Admin-Client/2.4',
-    createdAt: '2026-10-25T14:00:00.000Z',
-  },
-];
-
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -388,7 +208,7 @@ export default function DashboardLogsPage() {
   const { user, hasRole, isInitialized } = useAuthStore();
   const isRoot = hasRole(SystemRole.ROOT);
 
-  const [logs, setLogs] = React.useState<AuditLogItem[]>(DEFAULT_AUDIT_LOGS);
+  const [logs, setLogs] = React.useState<AuditLogItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [inspectModalLog, setInspectModalLog] = React.useState<AuditLogItem | null>(null);
   const [activeInspectTab, setActiveInspectTab] = React.useState<'summary' | 'diff' | 'raw'>('summary');
@@ -464,8 +284,8 @@ export default function DashboardLogsPage() {
         setLogs(res.data);
         setTotalCount(Number(res.meta?.total ?? res.data.length));
       } else {
-        setLogs(DEFAULT_AUDIT_LOGS);
-        setTotalCount(DEFAULT_AUDIT_LOGS.length);
+        setLogs([]);
+        setTotalCount(0);
       }
 
       if (statsRes) {
@@ -473,14 +293,14 @@ export default function DashboardLogsPage() {
           totalLogs: Number(statsRes.totalLogs ?? 0),
           todayLogs: Number(statsRes.todayLogs ?? 0),
           criticalActions: Number(statsRes.criticalActions ?? 0),
-          uniqueActorsCount: Number(statsRes.uniqueActorsCount ?? 1),
+          uniqueActorsCount: Number(statsRes.uniqueActorsCount ?? 0),
           actions: Array.isArray(statsRes.actions) ? statsRes.actions : [],
           resourceTypes: Array.isArray(statsRes.resourceTypes) ? statsRes.resourceTypes : [],
         });
       }
     } catch {
-      setLogs(DEFAULT_AUDIT_LOGS);
-      setTotalCount(DEFAULT_AUDIT_LOGS.length);
+      setLogs([]);
+      setTotalCount(0);
     } finally {
       setIsLoading(false);
     }

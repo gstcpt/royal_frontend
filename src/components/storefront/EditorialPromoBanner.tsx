@@ -12,7 +12,7 @@ import { useI18nStore } from '@/stores/i18n.store';
 const DEFAULT_ECARDS = [
   { title: '24–48h Express', desc: 'Livraison rapide à domicile sur tous les gouvernorats tunisiens avec suivi de commande.' },
   { title: 'Garantie Officielle', desc: 'Garantie constructeur officielle selon la fiche de chaque article avec SAV dédié.' },
-  { title: '387 Références', desc: 'Large choix d’appareils et équipements Royal en stock réel et prêts à être expédiés.' },
+  { title: 'Catalogue Officiel', desc: 'Appareils et équipements Royal en stock réel, contrôlés et prêts à être expédiés.' },
 ];
 
 export function EditorialPromoBanner({ highlightProduct }: { highlightProduct?: StorefrontProduct | null }) {

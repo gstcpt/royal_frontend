@@ -129,143 +129,6 @@ export default function DashboardCategoriesPage() {
 
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
-  // Initial demo data fallback
-  const defaultDemoCategories: CategoryItem[] = [
-    {
-      id: 'cat-gros-electro',
-      name: 'Gros Électroménager',
-      nameAr: 'الأجهزة الكهرومنزلية الكبيرة',
-      slug: 'gros-electromenager',
-      description: 'Cuisinières, fours encastrables, réfrigérateurs et lave-linges professionnels.',
-      imageUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=400&auto=format&fit=crop',
-      parentId: null,
-      showinmenu: true,
-      isActive: true,
-      productCount: 42,
-      characteristicsCount: 8,
-      createdAt: '2026-11-15T09:00:00.000Z',
-      updatedAt: '2026-11-15T09:00:00.000Z',
-      createdBy: 'SUPER_ADMIN',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'cat-petit-electro',
-      name: 'Petit Électroménager',
-      nameAr: 'الأجهزة الكهرومنزلية الصغيرة',
-      slug: 'petit-electromenager',
-      description: 'Airfryers double tiroir, robots culinaires, cafetières espresso et hachoirs.',
-      imageUrl: 'https://images.unsplash.com/photo-1588854337236-6889d631faa8?q=80&w=400&auto=format&fit=crop',
-      parentId: null,
-      showinmenu: true,
-      isActive: true,
-      productCount: 68,
-      characteristicsCount: 9,
-      createdAt: '2026-11-14T11:30:00.000Z',
-      updatedAt: '2026-11-14T11:30:00.000Z',
-      createdBy: 'SUPER_ADMIN',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'cat-cuisine-prepa',
-      name: 'Cuisine & Préparation',
-      nameAr: 'الطبخ والتحضير',
-      slug: 'cuisine-et-preparation',
-      description: 'Batteries granit antiadhésif, faitouts inox 18/10 et plats céramique.',
-      imageUrl: 'https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?q=80&w=400&auto=format&fit=crop',
-      parentId: null,
-      showinmenu: true,
-      isActive: true,
-      productCount: 35,
-      characteristicsCount: 6,
-      createdAt: '2026-11-11T14:15:00.000Z',
-      updatedAt: '2026-11-11T14:15:00.000Z',
-      createdBy: 'ADMIN',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'cat-art-table',
-      name: 'Art de la Table',
-      nameAr: 'فن السفرة والتقديم',
-      slug: 'art-de-la-table',
-      description: 'Services d’assiettes porcelaine, ménagères forgées et carafes cristal.',
-      imageUrl: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?q=80&w=400&auto=format&fit=crop',
-      parentId: null,
-      showinmenu: true,
-      isActive: true,
-      productCount: 29,
-      characteristicsCount: 5,
-      createdAt: '2026-11-05T10:00:00.000Z',
-      updatedAt: '2026-11-05T10:00:00.000Z',
-      createdBy: 'ADMIN',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'cat-coutellerie',
-      name: 'Coutellerie Haute Précision',
-      nameAr: 'السكاكين والأدوات الحادة',
-      slug: 'coutellerie-haute-precision',
-      description: 'Couteaux de chef japonais, fusils d’affûtage et blocs bois massif.',
-      imageUrl: 'https://images.unsplash.com/photo-1593618998160-e34014e67546?q=80&w=400&auto=format&fit=crop',
-      parentId: null,
-      showinmenu: true,
-      isActive: true,
-      productCount: 19,
-      characteristicsCount: 7,
-      createdAt: '2026-10-28T16:20:00.000Z',
-      updatedAt: '2026-10-28T16:20:00.000Z',
-      createdBy: 'SYSTEM',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'cat-maison',
-      name: 'Maison & Entretien',
-      nameAr: 'المنزل والعناية',
-      slug: 'maison-et-entretien',
-      description: 'Aspirateurs traîneaux multicyloniques et centrales vapeur haute pression.',
-      imageUrl: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?q=80&w=400&auto=format&fit=crop',
-      parentId: null,
-      showinmenu: true,
-      isActive: true,
-      productCount: 24,
-      characteristicsCount: 6,
-      createdAt: '2026-10-15T08:45:00.000Z',
-      updatedAt: '2026-10-15T08:45:00.000Z',
-      createdBy: 'SYSTEM',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'cat-fours',
-      name: 'Fours & Encastrables',
-      nameAr: 'أفران مدمجة',
-      slug: 'fours-et-encastrables',
-      description: 'Fours pyrolyse 70L et tables de cuisson vitrocéramiques.',
-      imageUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=400&auto=format&fit=crop',
-      parentId: 'cat-gros-electro',
-      showinmenu: true,
-      isActive: true,
-      productCount: 15,
-      characteristicsCount: 8,
-      createdAt: '2026-09-20T12:00:00.000Z',
-      updatedAt: '2026-09-20T12:00:00.000Z',
-      createdBy: 'SYSTEM',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-  ];
-
   const showToast = (type: 'success' | 'error', text: string) => {
     setFeedbackMessage({ type, text });
     setTimeout(() => setFeedbackMessage(null), 3500);
@@ -332,18 +195,15 @@ export default function DashboardCategoriesPage() {
         })
         .catch(() => null);
 
-      const catRes = await fetchApi('/categories?tree=false').catch(() => null);
-      if (catRes) {
-        const list = Array.isArray(catRes) ? catRes : catRes.data || [];
-        setCategories(list);
-      } else {
-        setCategories(defaultDemoCategories);
-      }
+      const catRes = await fetchApi('/categories?tree=false');
+      const list = Array.isArray(catRes) ? catRes : catRes?.data || [];
+      setCategories(Array.isArray(list) ? list : []);
       setIsLoading(false);
       await productsPromise;
     } catch {
-      setCategories(defaultDemoCategories);
+      setCategories([]);
       setIsLoading(false);
+      showToast('error', 'Impossible de charger les catégories depuis PostgreSQL.');
     }
   }, []);
 

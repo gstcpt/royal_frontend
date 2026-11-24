@@ -164,7 +164,7 @@ export function DashboardAnalyticsPack({
 
   const selectedDayEvent = selectedDayKey ? calendarEventMap.get(selectedDayKey) : undefined;
   const unreadMessages = data?.unreadMessages || [];
-  const satisfactionScore = Math.min(100, Math.max(0, data?.satisfactionScore ?? 92));
+  const satisfactionScore = Math.min(100, Math.max(0, data?.satisfactionScore ?? 0));
   const completionRate = Math.min(100, Math.max(0, data?.orderCompletionRate ?? 0));
 
   // Build SVG smooth line points for Sales Momentum
@@ -259,10 +259,10 @@ export function DashboardAnalyticsPack({
           <div className="relative pt-4">
             <div className="grid grid-cols-6 gap-3 sm:gap-5 items-end h-44 px-2 border-b border-slate-100 pb-3">
               {series.map((pt, idx) => {
-                const totalHeightPct = pt.total > 0 ? Math.max(12, Math.round((pt.total / maxMonthlyTotal) * 100)) : 6;
-                const onlineRatio = pt.total > 0 ? Math.round((pt.online / pt.total) * 100) : 60;
-                const posRatio = pt.total > 0 ? Math.round((pt.pos / pt.total) * 100) : 25;
-                const promoRatio = Math.max(0, 100 - onlineRatio - posRatio);
+                const totalHeightPct = pt.total > 0 ? Math.max(12, Math.round((pt.total / maxMonthlyTotal) * 100)) : 4;
+                const onlineRatio = pt.total > 0 ? Math.round((pt.online / pt.total) * 100) : 0;
+                const posRatio = pt.total > 0 ? Math.round((pt.pos / pt.total) * 100) : 0;
+                const promoRatio = pt.total > 0 ? Math.max(0, 100 - onlineRatio - posRatio) : 0;
                 const isHovered = activeHoverIdx === idx;
                 return (
                   <div
@@ -361,7 +361,7 @@ export function DashboardAnalyticsPack({
             {/* Segmented tick bar inspired by SoulOut */}
             <div className="grid grid-cols-20 gap-1 pt-1" style={{ gridTemplateColumns: 'repeat(20, minmax(0, 1fr))' }}>
               {Array.from({ length: 20 }).map((_, idx) => {
-                const active = (idx + 1) * 5 <= Math.max(5, completionRate);
+                const active = completionRate > 0 && (idx + 1) * 5 <= completionRate;
                 return (
                   <div
                     key={idx}

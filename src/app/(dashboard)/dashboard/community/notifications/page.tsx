@@ -34,49 +34,6 @@ interface NotificationItem {
   recipient?: string;
 }
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: 'notif-1',
-    type: 'ALERT',
-    title: 'Alerte Stock Faible — Airfryer Double Tiroir 8.5L',
-    message: 'Le stock dans le Dépôt Sousse est descendu sous le seuil critique (2 unités restantes). Réapprovisionnement urgent requis.',
-    channel: 'STOCK',
-    isRead: false,
-    createdAt: new Date(Date.now() - 25 * 60 * 1000).toISOString(), // 25 mins ago
-    recipient: 'Magasiniers & Direction',
-  },
-  {
-    id: 'notif-2',
-    type: 'SUCCESS',
-    title: 'Paiement Confirmé — Commande #CMD-2026-0042',
-    message: 'Règlement ClicToPay validé avec succès pour un montant de 2 450,000 DT. Colis prêt pour préparation logistique.',
-    channel: 'ORDER',
-    isRead: false,
-    createdAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(), // 2 hours ago
-    recipient: 'Financier & Caissier',
-  },
-  {
-    id: 'notif-3',
-    type: 'INFO',
-    title: 'Nouvelle Inscription Client VIP',
-    message: 'Le client VIP Slim Ben Amor a activé son compte sur la boutique et cumulé 50 points de fidélité de bienvenue.',
-    channel: 'SYSTEM',
-    isRead: true,
-    createdAt: new Date(Date.now() - 14 * 3600 * 1000).toISOString(), // 14 hours ago
-    recipient: 'Website Manager',
-  },
-  {
-    id: 'notif-4',
-    type: 'WARNING',
-    title: 'Tentative de Connexion Suspecte Détectée',
-    message: '3 échecs consécutifs d’authentification détectés pour l’adresse IP 197.3.24.11. Compte temporairement temporisé.',
-    channel: 'AUTH',
-    isRead: true,
-    createdAt: new Date(Date.now() - 28 * 3600 * 1000).toISOString(), // 28 hours ago
-    recipient: 'ROOT Admin',
-  },
-];
-
 function formatRelativeTime(dateString: string): string {
   const diffMs = Date.now() - new Date(dateString).getTime();
   const diffMins = Math.floor(diffMs / (1000 * 60));

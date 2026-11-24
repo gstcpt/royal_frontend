@@ -54,68 +54,6 @@ export interface StockTransferMasterItem {
   items: TransferLine[];
 }
 
-const INITIAL_TRANSFERS: StockTransferMasterItem[] = [
-  {
-    id: 'trf-001',
-    reference: 'TRF-2026-012',
-    sourceWarehouseName: 'Dépôt Sousse — Hub Central',
-    targetWarehouseName: 'Showroom Tunis — Les Berges du Lac',
-    status: 'IN_TRANSIT',
-    carrierName: 'Flotte Interne Royal (Camionnette 02)',
-    totalPieces: 3,
-    requestedBy: 'Kamel Mansour (Resp. Lac)',
-    createdAt: '2026-11-15T14:00:00Z',
-    items: [
-      {
-        id: 'tl-1',
-        name: 'Machine Espresso DeLonghi Magnifica S',
-        sku: 'DELONG-MAGNIFICA-S',
-        quantity: 3,
-      },
-    ],
-  },
-  {
-    id: 'trf-002',
-    reference: 'TRF-2026-011',
-    sourceWarehouseName: 'Dépôt Sousse — Hub Central',
-    targetWarehouseName: 'Showroom La Marsa VIP',
-    status: 'COMPLETED',
-    carrierName: 'Flotte Interne Royal (Camion 01)',
-    totalPieces: 2,
-    requestedBy: 'Direction Commerciale',
-    createdAt: '2026-11-13T09:30:00Z',
-    completedAt: '2026-11-13T17:00:00Z',
-    items: [
-      {
-        id: 'tl-2',
-        name: 'Four Encastrable Beko Multifonction',
-        sku: 'BEKO-OVEN-71L',
-        quantity: 2,
-      },
-    ],
-  },
-  {
-    id: 'trf-003',
-    reference: 'TRF-2026-010',
-    sourceWarehouseName: 'Showroom Tunis — Les Berges du Lac',
-    targetWarehouseName: 'Dépôt Sousse — Hub Central',
-    status: 'COMPLETED',
-    carrierName: 'Retour Véhicule',
-    totalPieces: 1,
-    requestedBy: 'SAV Central',
-    createdAt: '2026-11-10T11:00:00Z',
-    completedAt: '2026-11-11T10:00:00Z',
-    items: [
-      {
-        id: 'tl-3',
-        name: 'Friteuse Sans Huile Tefal Easy Fry',
-        sku: 'TEFAL-AIRFRY-EY505',
-        quantity: 1,
-      },
-    ],
-  },
-];
-
 export default function StockTransfersPage() {
   const sysDoc = useSystemDocumentConfig();
   const [transfers, setTransfers] = useState<StockTransferMasterItem[]>([]);

@@ -46,35 +46,6 @@ interface ReturnOrderItem {
   createdAt: string;
 }
 
-const INITIAL_RETURNS: ReturnOrderItem[] = [
-  {
-    id: 'ret-1',
-    returnNumber: 'RET-2026-0012',
-    deliveryNumber: 'LIV-2026-0042',
-    orderNumber: 'CMD-2026-0042',
-    customerName: 'Kamel Riahi',
-    reason: 'CUSTOMER_CHANGE_OF_MIND',
-    action: 'VOUCHER',
-    refundAmount: 850.0,
-    warehouseDestination: 'Dépôt Central Sousse (Zone SAV)',
-    status: 'RESTOCKED',
-    createdAt: '2026-11-15T11:00:00Z',
-  },
-  {
-    id: 'ret-2',
-    returnNumber: 'RET-2026-0011',
-    deliveryNumber: 'LIV-2026-0039',
-    orderNumber: 'CMD-2026-0039',
-    customerName: 'Samira Belhadj',
-    reason: 'DEFECTIVE',
-    action: 'CREDIT_NOTE',
-    refundAmount: 2400.0,
-    warehouseDestination: 'Dépôt Annexe Lac II (SAV)',
-    status: 'INSPECTED',
-    createdAt: '2026-11-14T16:20:00Z',
-  },
-];
-
 export default function ReturnsPage() {
   const sysDoc = useSystemDocumentConfig();
   const [returns, setReturns] = React.useState<ReturnOrderItem[]>([]);
@@ -86,8 +57,8 @@ export default function ReturnsPage() {
   const [bulkDeleteIds, setBulkDeleteIds] = React.useState<string[]>([]);
 
   // New Return form
-  const [newDeliveryRef, setNewDeliveryRef] = React.useState('LIV-2026-001');
-  const [newOrderRef, setNewOrderRef] = React.useState('CMD-20261119-3042');
+  const [newDeliveryRef, setNewDeliveryRef] = React.useState('');
+  const [newOrderRef, setNewOrderRef] = React.useState('');
   const [newCustomer, setNewCustomer] = React.useState('');
   const [newAmount, setNewAmount] = React.useState('');
   const [newReason, setNewReason] = React.useState<ReturnOrderItem['reason']>('DEFECTIVE');

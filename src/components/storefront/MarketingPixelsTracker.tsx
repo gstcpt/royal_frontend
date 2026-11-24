@@ -74,11 +74,78 @@ function upsertMetaTag(name: string, content: string) {
   el.setAttribute('content', content.trim());
 }
 
+function getTelemetrySessionHash(): string {
+  if (typeof window === 'undefined') return 'ssr';
+  try {
+    const existing = window.sessionStorage.getItem('royal_telemetry_sid');
+    if (existing) return existing;
+    const generated = `sid_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+    window.sessionStorage.setItem('royal_telemetry_sid', generated);
+    return generated;
+  } catch {
+    return `sid_${Date.now().toString(36)}`;
+  }
+}
+
+function detectDeviceType(): 'MOBILE' | 'TABLET' | 'DESKTOP' {
+  if (typeof window === 'undefined') return 'DESKTOP';
+  const w = window.innerWidth;
+  if (w < 640) return 'MOBILE';
+  if (w < 1024) return 'TABLET';
+  return 'DESKTOP';
+}
+
+function sendInternalTelemetry(payload: {
+  eventType: 'PAGE_VIEW' | 'PAGE_LEAVE' | 'PRODUCT_VIEW' | 'ADD_TO_CART' | 'BEGIN_CHECKOUT' | 'PURCHASE';
+  pagePath?: string;
+  pageTitle?: string;
+  durationSeconds?: number;
+  metadata?: Record<string, any>;
+}) {
+  if (typeof window === 'undefined') return;
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const body = JSON.stringify({
+      sessionHash: getTelemetrySessionHash(),
+      eventType: payload.eventType,
+      pagePath: payload.pagePath || window.location.pathname,
+      pageTitle: payload.pageTitle || (typeof document !== 'undefined' ? document.title : ''),
+      referrer: typeof document !== 'undefined' ? document.referrer || undefined : undefined,
+      utmSource: urlParams.get('utm_source') || undefined,
+      utmMedium: urlParams.get('utm_medium') || undefined,
+      utmCampaign: urlParams.get('utm_campaign') || undefined,
+      deviceType: detectDeviceType(),
+      durationSeconds: payload.durationSeconds,
+      metadata: payload.metadata,
+    });
+    fetch('/api/v1/storefront-cms/telemetry/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+      keepalive: true,
+    }).catch(() => null);
+  } catch {
+    // Non-blocking telemetry
+  }
+}
+
 export function trackMarketingEvent(
   eventName: 'ViewContent' | 'AddToCart' | 'AddToWishlist' | 'InitiateCheckout' | 'Purchase' | 'PageView',
   payload?: Record<string, any>,
 ) {
   if (typeof window === 'undefined') return;
+
+  // Record internal PostgreSQL TrafficEvent metrics cleanly even without external pixels
+  if (eventName === 'ViewContent') {
+    sendInternalTelemetry({ eventType: 'PRODUCT_VIEW', pagePath: window.location.pathname, metadata: payload });
+  } else if (eventName === 'AddToCart') {
+    sendInternalTelemetry({ eventType: 'ADD_TO_CART', pagePath: window.location.pathname, metadata: payload });
+  } else if (eventName === 'InitiateCheckout') {
+    sendInternalTelemetry({ eventType: 'BEGIN_CHECKOUT', pagePath: window.location.pathname, metadata: payload });
+  } else if (eventName === 'Purchase') {
+    sendInternalTelemetry({ eventType: 'PURCHASE', pagePath: window.location.pathname, metadata: payload });
+  }
+
   const cfg = window.__royalPixelsConfig;
   if (!cfg) return;
 
@@ -286,10 +353,25 @@ export function MarketingPixelsTracker() {
     }
   }, [cfg]);
 
-  // Fire PageView on storefront route navigations (exclude dashboard routes)
+  // Fire PageView & real first-party TrafficEvent + duration on storefront route navigations (exclude dashboard/account)
   useEffect(() => {
-    if (!pathname || pathname.startsWith('/dashboard')) return;
+    if (!pathname || pathname.startsWith('/dashboard') || pathname.startsWith('/account')) return;
     trackMarketingEvent('PageView', { page_path: pathname });
+    const enteredAt = Date.now();
+    sendInternalTelemetry({
+      eventType: 'PAGE_VIEW',
+      pagePath: pathname,
+    });
+    return () => {
+      const durationSeconds = Math.max(0, Math.round((Date.now() - enteredAt) / 1000));
+      if (durationSeconds >= 1) {
+        sendInternalTelemetry({
+          eventType: 'PAGE_LEAVE',
+          pagePath: pathname,
+          durationSeconds: Math.min(durationSeconds, 3600),
+        });
+      }
+    };
   }, [pathname, searchParams, cfg.metaPixelEnabled, cfg.tiktokPixelEnabled, cfg.ga4Enabled, cfg.snapPixelEnabled]);
 
   return null;

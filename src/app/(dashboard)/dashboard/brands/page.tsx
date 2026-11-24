@@ -112,138 +112,6 @@ export default function DashboardBrandsPage() {
   const [isDraggingLogo, setIsDraggingLogo] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
-  // Fallback brand catalog
-  const defaultBrands: BrandItem[] = [
-    {
-      id: 'brand-bosch',
-      name: 'Bosch',
-      slug: 'bosch',
-      description: 'Ingénierie allemande de précision et électroménager haute durabilité, réputé pour sa fiabilité et sa sobriété énergétique dans les cuisines modernes.',
-      logoUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=200&auto=format&crop=entropy',
-      website: 'https://www.bosch-home.com',
-      isActive: true,
-      productCount: 18,
-      createdAt: '2026-11-15T10:00:00.000Z',
-      updatedAt: '2026-11-15T10:00:00.000Z',
-      createdBy: 'SUPER_ADMIN',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'brand-delonghi',
-      name: 'DeLonghi',
-      slug: 'delonghi',
-      description: 'Maître italien de l’espresso barista et du confort culinaire, créateur de machines à café à grain reconnues mondialement.',
-      logoUrl: 'https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?q=80&w=200&auto=format&crop=entropy',
-      website: 'https://www.delonghi.com',
-      isActive: true,
-      productCount: 14,
-      createdAt: '2026-11-13T14:30:00.000Z',
-      updatedAt: '2026-11-13T14:30:00.000Z',
-      createdBy: 'SUPER_ADMIN',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'brand-tefal',
-      name: 'Tefal',
-      slug: 'tefal',
-      description: 'Inventeur du poêle antiadhésif et pionnier du petit électroménager convivial facilitant la cuisine saine et rapide.',
-      logoUrl: 'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?q=80&w=200&auto=format&crop=entropy',
-      website: 'https://www.tefal.com',
-      isActive: true,
-      productCount: 22,
-      createdAt: '2026-11-10T09:15:00.000Z',
-      updatedAt: '2026-11-10T09:15:00.000Z',
-      createdBy: 'ADMIN',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'brand-kenwood',
-      name: 'Kenwood',
-      slug: 'kenwood',
-      description: 'Robots pâtissiers d’exception et mixeurs haute performance depuis 1947, conçus pour durer des générations en cuisine.',
-      logoUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=200&auto=format&crop=entropy',
-      website: 'https://www.kenwoodworld.com',
-      isActive: true,
-      productCount: 11,
-      createdAt: '2026-11-03T11:20:00.000Z',
-      updatedAt: '2026-11-03T11:20:00.000Z',
-      createdBy: 'ADMIN',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'brand-moulinex',
-      name: 'Moulinex',
-      slug: 'moulinex',
-      description: 'Solutions culinaires simples, rapides et conviviales pour le quotidien avec des robots cuiseurs et friteuses sans huile innovants.',
-      logoUrl: 'https://images.unsplash.com/photo-1588854337236-6889d631faa8?q=80&w=200&auto=format&crop=entropy',
-      website: 'https://www.moulinex.com',
-      isActive: true,
-      productCount: 16,
-      createdAt: '2026-10-25T16:45:00.000Z',
-      updatedAt: '2026-10-25T16:45:00.000Z',
-      createdBy: 'ADMIN',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'brand-beko',
-      name: 'Beko',
-      slug: 'beko',
-      description: 'Gros électroménager innovant et éco-énergétique pour toute la maison, leader européen du rapport qualité-prix.',
-      logoUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?q=80&w=200&auto=format&crop=entropy',
-      website: 'https://www.beko.com',
-      isActive: true,
-      productCount: 19,
-      createdAt: '2026-10-05T08:00:00.000Z',
-      updatedAt: '2026-10-05T08:00:00.000Z',
-      createdBy: 'SYSTEM',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'brand-zwilling',
-      name: 'Zwilling J.A. Henckels',
-      slug: 'zwilling',
-      description: 'Coutellerie d’excellence de Solingen depuis 1731, aciers damassés et ustensiles de découpe haute précision.',
-      logoUrl: 'https://images.unsplash.com/photo-1593618998160-e34014e67546?q=80&w=200&auto=format&crop=entropy',
-      website: 'https://www.zwilling.com',
-      isActive: true,
-      productCount: 9,
-      createdAt: '2026-09-15T12:00:00.000Z',
-      updatedAt: '2026-09-15T12:00:00.000Z',
-      createdBy: 'SYSTEM',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-    {
-      id: 'brand-christofle',
-      name: 'Christofle Paris',
-      slug: 'christofle',
-      description: 'Orfèvrerie et arts de la table de haute couture parisienne, carafes en cristal soufflé et argenterie impériale.',
-      logoUrl: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?q=80&w=200&auto=format&crop=entropy',
-      website: 'https://www.christofle.com',
-      isActive: true,
-      productCount: 7,
-      createdAt: '2026-08-01T10:30:00.000Z',
-      updatedAt: '2026-08-01T10:30:00.000Z',
-      createdBy: 'SYSTEM',
-      updatedBy: null,
-      isUpdated: false,
-      isDeleted: false,
-    },
-  ];
-
   // Monogram initials fallback
   const getInitials = (text: string) => {
     if (!text) return 'BR';
@@ -262,7 +130,7 @@ export default function DashboardBrandsPage() {
           (p.brand?.name && p.brand.name.toLowerCase() === brand.name.toLowerCase())
       );
       if (matched.length > 0) return matched.length;
-      return brand.productCount || 3;
+      return Number(brand.productCount || 0);
     },
     [products]
   );
@@ -298,18 +166,15 @@ export default function DashboardBrandsPage() {
         .then(({ items }) => setProducts(Array.isArray(items) ? items : []))
         .catch(() => null);
 
-      const brandsRes = await fetchApi('/brands').catch(() => null);
-      if (brandsRes) {
-        const list = Array.isArray(brandsRes) ? brandsRes : brandsRes.data || [];
-        setBrands(list);
-      } else {
-        setBrands(defaultBrands);
-      }
+      const brandsRes = await fetchApi('/brands');
+      const list = Array.isArray(brandsRes) ? brandsRes : brandsRes?.data || [];
+      setBrands(Array.isArray(list) ? list : []);
       setIsLoading(false);
       await productsPromise;
     } catch {
-      setBrands(defaultBrands);
+      setBrands([]);
       setIsLoading(false);
+      showToast('error', 'Impossible de charger les marques depuis PostgreSQL.');
     }
   }, []);
 
@@ -503,70 +368,12 @@ export default function DashboardBrandsPage() {
   // Filter products for the active brand in the consultation modal
   const articlesForBrand = React.useMemo(() => {
     if (!articlesModalBrand) return [];
-    const direct = products.filter(
+    return products.filter(
       (p) =>
         p.brand?.id === articlesModalBrand.id ||
         (p as any).brandId === articlesModalBrand.id ||
         p.brand?.name?.toLowerCase() === articlesModalBrand.name.toLowerCase()
     );
-    if (direct.length > 0) return direct;
-    // Fallback demo products for brand
-    return [
-      {
-        id: `demo-${articlesModalBrand.slug}-1`,
-        sku: `${articlesModalBrand.slug.toUpperCase().slice(0, 3)}-MOD-01`,
-        name: `${articlesModalBrand.name} Appareil Haute Performance Série Élite`,
-        sellingPrice: 420.0,
-        category: { name: 'Électroménager & Cuisson' },
-        brand: { id: articlesModalBrand.id, name: articlesModalBrand.name },
-        dimensionsJson: { stockQuantity: 18 },
-      },
-      {
-        id: `demo-${articlesModalBrand.slug}-2`,
-        sku: `${articlesModalBrand.slug.toUpperCase().slice(0, 3)}-PRO-02`,
-        name: `${articlesModalBrand.name} Équipement Professionnel Inox 304`,
-        sellingPrice: 790.0,
-        category: { name: 'Petit Électroménager' },
-        brand: { id: articlesModalBrand.id, name: articlesModalBrand.name },
-        dimensionsJson: { stockQuantity: 12 },
-      },
-      {
-        id: `demo-${articlesModalBrand.slug}-3`,
-        sku: `${articlesModalBrand.slug.toUpperCase().slice(0, 3)}-ECO-03`,
-        name: `${articlesModalBrand.name} Modèle Éco-Énergie A+++ Silencieux`,
-        sellingPrice: 289.0,
-        category: { name: 'Maison & Entretien' },
-        brand: { id: articlesModalBrand.id, name: articlesModalBrand.name },
-        dimensionsJson: { stockQuantity: 27 },
-      },
-      {
-        id: `demo-${articlesModalBrand.slug}-4`,
-        sku: `${articlesModalBrand.slug.toUpperCase().slice(0, 3)}-PREM-04`,
-        name: `${articlesModalBrand.name} Édition Limitée Finition Platinum`,
-        sellingPrice: 610.0,
-        category: { name: 'Cuisine & Art de la Table' },
-        brand: { id: articlesModalBrand.id, name: articlesModalBrand.name },
-        dimensionsJson: { stockQuantity: 14 },
-      },
-      {
-        id: `demo-${articlesModalBrand.slug}-5`,
-        sku: `${articlesModalBrand.slug.toUpperCase().slice(0, 3)}-SLIM-05`,
-        name: `${articlesModalBrand.name} Compact Line Ultra-Slim Connecté`,
-        sellingPrice: 345.0,
-        category: { name: 'Petit Électroménager' },
-        brand: { id: articlesModalBrand.id, name: articlesModalBrand.name },
-        dimensionsJson: { stockQuantity: 9 },
-      },
-      {
-        id: `demo-${articlesModalBrand.slug}-6`,
-        sku: `${articlesModalBrand.slug.toUpperCase().slice(0, 3)}-ACC-06`,
-        name: `${articlesModalBrand.name} Pack Accessoires & Pièces d'Origine`,
-        sellingPrice: 85.0,
-        category: { name: 'Accessoires & Pièces' },
-        brand: { id: articlesModalBrand.id, name: articlesModalBrand.name },
-        dimensionsJson: { stockQuantity: 40 },
-      },
-    ];
   }, [articlesModalBrand, products]);
 
   const filteredBrandArticles = React.useMemo(() => {

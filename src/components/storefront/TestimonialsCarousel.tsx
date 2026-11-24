@@ -6,49 +6,6 @@ import { useDragScroll } from '@/hooks/useDragScroll';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
 
-const clientReviews = [
-  {
-    id: 'rev-1',
-    name: 'Sami Ben Salem',
-    city: 'Tunis, Les Berges du Lac',
-    date: 'Il y a 2 jours',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
-    stars: 5,
-    comment:
-      'Airfryer 8.5L reçu en moins de 24h à Tunis. La cuisson des viandes et des frites sans huile est tout simplement bluffante. Emballage parfait et facture en règle.',
-  },
-  {
-    id: 'rev-2',
-    name: 'Inès Trabelsi',
-    city: 'Sousse Sahloul',
-    date: 'Il y a 5 jours',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-    stars: 5,
-    comment:
-      'J’ai acheté le robot pétrin DSP 1800W. Très robuste, les pâtes à pain et brioches montent merveilleusement bien. Le retrait au showroom de La Marsa s’est fait en 10 minutes.',
-  },
-  {
-    id: 'rev-3',
-    name: 'Mohamed Ali Gharbi',
-    city: 'Sfax, Route de Téniour',
-    date: 'Il y a 1 semaine',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80',
-    stars: 5,
-    comment:
-      'Four encastrable Royal acheté en ligne. Livraison soignée et conseils précieux du service client par téléphone. Je recommande vivement Royal !',
-  },
-  {
-    id: 'rev-4',
-    name: 'Amira Khelil',
-    city: 'Monastir, Marina',
-    date: 'Il y a 2 semaines',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80',
-    stars: 5,
-    comment:
-      'Machine Expresso Royal 5 en 1 livrée en 24h à Monastir. Extraction parfaite dès le premier café, service après-vente à l’écoute.',
-  },
-];
-
 export function TestimonialsCarousel() {
   const { scrollRef, isDragging, dragProps } = useDragScroll<HTMLDivElement>();
   const { config } = useCmsConfig();
@@ -56,16 +13,16 @@ export function TestimonialsCarousel() {
   const [isHovered, setIsHovered] = React.useState(false);
   const displayReviews =
     config.testimonials && config.testimonials.length > 0
-      ? config.testimonials.map((t) => ({
-          id: t.id,
-          name: t.name,
-          city: t.city,
-          date: t.dateLabel || 'Vérifié',
-          avatar: t.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
-          stars: t.stars || 5,
-          comment: t.comment,
+      ? config.testimonials.map((item) => ({
+          id: item.id,
+          name: item.name,
+          city: item.city,
+          date: item.dateLabel || 'Vérifié',
+          avatar: item.avatar || '',
+          stars: item.stars || 5,
+          comment: item.comment,
         }))
-      : clientReviews;
+      : [];
 
   React.useEffect(() => {
     if (isHovered || isDragging || displayReviews.length <= 1) return;
@@ -87,6 +44,10 @@ export function TestimonialsCarousel() {
       scrollRef.current.scrollBy({ left: direction === 'left' ? -380 : 380, behavior: 'smooth' });
     }
   };
+
+  if (displayReviews.length === 0) {
+    return null;
+  }
 
   return (
     <section className="py-16 md:py-24 bg-white border-b border-slate-100">
@@ -141,7 +102,14 @@ export function TestimonialsCarousel() {
           }`}
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {displayReviews.map((rev) => (
+          {displayReviews.map((rev) => {
+            const initials = rev.name
+              .split(' ')
+              .filter(Boolean)
+              .slice(0, 2)
+              .map((s) => s[0]?.toUpperCase() || '')
+              .join('') || 'CL';
+            return (
             <div
               key={rev.id}
               className="flex-shrink-0 w-[290px] sm:w-[380px] lg:w-[410px] snap-start p-5 sm:p-6 rounded-2xl bg-[#F8F9FA] border border-slate-200/80 shadow-sm flex flex-col justify-between"
@@ -149,11 +117,17 @@ export function TestimonialsCarousel() {
               <div>
                 <div className="flex items-center justify-between gap-3 mb-4">
                   <div className="flex items-center gap-3">
-                    <img
-                      src={rev.avatar}
-                      alt={rev.name}
-                      className="w-10 h-10 rounded-full object-cover border border-slate-200"
-                    />
+                    {rev.avatar ? (
+                      <img
+                        src={rev.avatar}
+                        alt={rev.name}
+                        className="w-10 h-10 rounded-full object-cover border border-slate-200"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-[#FBF6E8] border border-[#E6D6A6] text-[#9A7414] flex items-center justify-center font-heading font-bold text-xs shrink-0">
+                        {initials}
+                      </div>
+                    )}
                     <div>
                       <h4 className="font-heading font-bold text-sm text-slate-900">{rev.name}</h4>
                       <p className="text-[11px] text-slate-500">{rev.city}</p>
@@ -178,7 +152,8 @@ export function TestimonialsCarousel() {
                 <span>{t('common.verified')}</span>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

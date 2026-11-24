@@ -39,57 +39,27 @@ interface SalesMetricItem {
   marginPercentage: number; // Marge en %
 }
 
-const INITIAL_SALES_METRICS: SalesMetricItem[] = [
-  {
-    id: 'sm-1',
-    articleName: 'Airfryer Double Tiroir 8.5L 2400W',
-    categoryName: 'Petit Électroménager',
-    unitsSold: 42,
-    totalCostPrice: 12600.0,
-    totalGrossSales: 18900.0,
-    totalNetSales: 17850.0,
-    totalTtcSales: 21241.5,
-    marginAmount: 5250.0,
-    marginPercentage: 29.4,
-  },
-  {
-    id: 'sm-2',
-    articleName: 'Four Encastrable Bosch Série 6 Pyrolyse',
-    categoryName: 'Gros Électroménager',
-    unitsSold: 18,
-    totalCostPrice: 27000.0,
-    totalGrossSales: 37800.0,
-    totalNetSales: 36500.0,
-    totalTtcSales: 43435.0,
-    marginAmount: 9500.0,
-    marginPercentage: 26.0,
-  },
-  {
-    id: 'sm-3',
-    articleName: 'Robot Pâtissier Kenwood Titanium XL 1700W',
-    categoryName: 'Cuisine & Préparation',
-    unitsSold: 25,
-    totalCostPrice: 22500.0,
-    totalGrossSales: 32500.0,
-    totalNetSales: 31000.0,
-    totalTtcSales: 36890.0,
-    marginAmount: 8500.0,
-    marginPercentage: 27.4,
-  },
-];
-
 export default function SalesReportPage() {
   const [sales, setSales] = React.useState<SalesMetricItem[]>([]);
+  const [monthlyTrend, setMonthlyTrend] = React.useState<Array<{ label: string; value: number; secondaryValue?: number }>>([]);
+  const [deltaLabel, setDeltaLabel] = React.useState<string>('0.0% vs M-1');
+  const [categoryBreakdown, setCategoryBreakdown] = React.useState<Array<{ label: string; value: number }>>([]);
   const [selectedSaleIds, setSelectedSaleIds] = React.useState<string[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
     fetchApi('/storefront-cms/sales-report')
       .then((res) => {
-        const list = Array.isArray(res) ? res : res?.data || [];
-        if (Array.isArray(list) && list.length > 0) setSales(list);
+        const payload = res?.items || res?.monthlyTrend ? res : res?.data || res;
+        const list = Array.isArray(payload) ? payload : payload?.items || [];
+        setSales(Array.isArray(list) ? list : []);
+        if (Array.isArray(payload?.monthlyTrend)) setMonthlyTrend(payload.monthlyTrend);
+        if (typeof payload?.deltaLabel === 'string') setDeltaLabel(payload.deltaLabel);
+        if (Array.isArray(payload?.categoryBreakdown)) setCategoryBreakdown(payload.categoryBreakdown);
       })
-      .catch(() => {})
+      .catch(() => {
+        setSales([]);
+      })
       .finally(() => setIsLoading(false));
   }, []);
 
@@ -251,18 +221,12 @@ export default function SalesReportPage() {
         <div className="lg:col-span-6">
           <RoyalAreaTrendChart
             title="Dynamique Ventes & Marge Commerciale"
-            subtitle="Progression mensuelle cumulée (TND)"
+            subtitle="Progression mensuelle réelle (TND)"
             headlineValue={formatTndCurrency(sales.reduce((a, s) => a + s.totalTtcSales, 0))}
-            deltaLabel="+14.8% vs N-1"
+            deltaLabel={deltaLabel}
             seriesName="CA TTC"
             secondarySeriesName="Marge HT"
-            points={[
-              { label: 'Jul', value: 64000, secondaryValue: 16200 },
-              { label: 'Aoû', value: 71500, secondaryValue: 18400 },
-              { label: 'Sep', value: 82900, secondaryValue: 20100 },
-              { label: 'Oct', value: 93200, secondaryValue: 22000 },
-              { label: 'Nov', value: 101566, secondaryValue: 23250 },
-            ]}
+            points={monthlyTrend}
           />
         </div>
         <div className="lg:col-span-4">
@@ -270,19 +234,30 @@ export default function SalesReportPage() {
             title="Contribution par Catégorie"
             subtitle="Part du chiffre d'affaires HT"
             centerLabel="CA Net"
-            centerValue={`${Math.round(sales.reduce((a, s) => a + s.totalNetSales, 0) / 1000)}K`}
-            slices={sales.map((s) => ({
-              label: s.categoryName,
-              value: Math.round(s.totalNetSales),
-            }))}
+            centerValue={formatTndCurrency(sales.reduce((a, s) => a + s.totalNetSales, 0))}
+            slices={categoryBreakdown}
           />
         </div>
         <div className="lg:col-span-3">
           <RoyalGaugeChart
             title="Score Rentabilité Globale"
-            subtitle="Ratio marge sur coût cible"
-            score={Math.round(sales.reduce((a, s) => a + s.marginPercentage, 0) / Math.max(1, sales.length) * 3)}
-            statusText="Marge moyenne saine (> 25%) sur les familles clés."
+            subtitle="Taux de marge net moyen (%)"
+            score={
+              sales.length > 0
+                ? Math.min(
+                    100,
+                    Math.max(
+                      0,
+                      Math.round(sales.reduce((a, s) => a + s.marginPercentage, 0) / sales.length),
+                    ),
+                  )
+                : 0
+            }
+            statusText={
+              sales.length > 0
+                ? `Marge moyenne calculée sur ${sales.length} article(s) vendu(s).`
+                : 'Aucune vente enregistrée sur la période.'
+            }
           />
         </div>
         <div className="lg:col-span-5">
@@ -292,7 +267,7 @@ export default function SalesReportPage() {
             items={sales.map((s) => ({
               label: s.articleName,
               value: Math.round(s.marginPercentage),
-              maxValue: 40,
+              maxValue: 100,
               unit: '%',
             }))}
           />

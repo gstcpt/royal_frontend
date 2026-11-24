@@ -93,7 +93,7 @@ export default function InteractionsReportPage() {
 
   const positiveRatio = React.useMemo(() => {
     const totalReactions = summary.totalLikes + summary.totalDislikes;
-    if (totalReactions === 0) return 100;
+    if (totalReactions === 0) return 0;
     return Math.round((summary.totalLikes / totalReactions) * 100);
   }, [summary]);
 

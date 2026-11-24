@@ -55,7 +55,7 @@ const INITIAL_STATE: MarketingPixelsConfig = {
   seoDescription:
     'Découvrez notre collection d’électroménager, robots culinaires, cuisson et art de la table en Tunisie. Livraison 24–48h et garantie officielle.',
   seoKeywords: 'électroménager tunisie, cuisine tunisie, airfryer, robot pétrin, royal tunisie',
-  canonicalBaseUrl: 'https://royalfrontend.vercel.app',
+  canonicalBaseUrl: '',
   robotsIndex: true,
   trackAddToCart: true,
   trackPurchase: true,
