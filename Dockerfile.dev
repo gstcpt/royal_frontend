@@ -1,8 +1,13 @@
+# ==============================================================================
+# ROYAL FRONTEND — LOCAL DOCKER CONTAINER DOCKERFILE
+# ==============================================================================
+
 FROM node:24-alpine
 
 WORKDIR /app
 RUN npm install -g pnpm@10.15.0
 
+# Copy manifests & Prisma schema first (for workspace postinstall hook cache)
 COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml turbo.json tsconfig.base.json ./
 COPY packages ./packages
 COPY apps/backend/package.json ./apps/backend/
@@ -23,5 +28,6 @@ WORKDIR /app/apps/frontend
 EXPOSE 3100
 ENV PORT=3100
 ENV HOSTNAME="0.0.0.0"
+ENV NEXT_TELEMETRY_DISABLED=1
 
 CMD ["pnpm", "dev"]

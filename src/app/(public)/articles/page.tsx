@@ -721,18 +721,20 @@ function ArticlesContent() {
             </button>
           </div>
 
-          <LuxuryDropdown
-            ariaLabel={t('catalog.per_page_aria')}
-            value={String(perPage)}
-            onChange={(val) => updateQuery({ limit: val })}
-            options={[
-              { value: '6', label: `6 ${t('catalog.per_page_suffix')}` },
-              { value: '12', label: `12 ${t('catalog.per_page_suffix')}` },
-              { value: '24', label: `24 ${t('catalog.per_page_suffix')}` },
-              { value: '48', label: `48 ${t('catalog.per_page_suffix')}` },
-              { value: '96', label: `96 ${t('catalog.per_page_suffix')}` },
-            ]}
-          />
+          {articlesCfg.showPageSizeSelector !== false && (
+            <LuxuryDropdown
+              ariaLabel={t('catalog.per_page_aria')}
+              value={String(perPage)}
+              onChange={(val) => updateQuery({ limit: val })}
+              options={[
+                { value: '6', label: `6 ${t('catalog.per_page_suffix')}` },
+                { value: '12', label: `12 ${t('catalog.per_page_suffix')}` },
+                { value: '24', label: `24 ${t('catalog.per_page_suffix')}` },
+                { value: '48', label: `48 ${t('catalog.per_page_suffix')}` },
+                { value: '96', label: `96 ${t('catalog.per_page_suffix')}` },
+              ]}
+            />
+          )}
 
           <LuxuryDropdown
             ariaLabel={t('catalog.sort_aria')}
