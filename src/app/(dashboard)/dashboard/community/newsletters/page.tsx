@@ -11,15 +11,14 @@ import {
   RefreshCw,
   Search,
   Calendar,
-  Sparkles,
   ToggleLeft,
   ToggleRight,
   CheckCircle2,
   XCircle,
-  Eye,
 } from 'lucide-react';
 import { fetchApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { EmailTemplateComposer, EmailComposerLocale } from '@/components/dashboard/EmailTemplateComposer';
 import {
   Button,
   Badge,
@@ -41,24 +40,6 @@ interface NewsletterSubscriber {
   createdAt: string;
 }
 
-const ROOT_CAMPAIGN_TEMPLATES = [
-  {
-    title: 'Nouvelle Collection Électroménager Luxe',
-    subject: 'Découvrez notre nouvelle collection exclusive — Royal Design',
-    body: 'Chère cliente, cher client,\n\nNous avons le plaisir de vous dévoiler nos nouveaux arrivages haut de gamme pour équiper votre intérieur avec élégance et performance.\nProfitez d’un accompagnement personnalisé en showroom et de conditions privilégiées.',
-  },
-  {
-    title: 'Invitation Exclusive — Vente Privée VIP',
-    subject: 'Accès VIP : Votre remise exclusive de 15% chez Royal',
-    body: 'En tant qu’abonné privilégié, nous vous ouvrons les portes de nos ventes privées. Bénéficiez d’une remise exceptionnelle de 15% sur une sélection de marques prestigieuses.',
-  },
-  {
-    title: 'Offre Flash Week-End',
-    subject: 'Offre Flash : Livraison et installation offertes ce week-end',
-    body: 'Pour toute commande validée ce samedi ou dimanche, la livraison sécurisée et la pose par nos techniciens qualifiés vous sont offertes sur l’ensemble du territoire.',
-  },
-];
-
 function formatRelativeTime(dateString: string): string {
   const diffMs = Date.now() - new Date(dateString).getTime();
   const diffMins = Math.floor(diffMs / (1000 * 60));
@@ -76,8 +57,15 @@ export default function NewslettersPage() {
   const [subscribers, setSubscribers] = React.useState<NewsletterSubscriber[]>([]);
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [isCampaignModalOpen, setIsCampaignModalOpen] = React.useState(false);
+  const [campaignLocale, setCampaignLocale] = React.useState<EmailComposerLocale>('FR');
+  const [campaignTemplateId, setCampaignTemplateId] = React.useState<string>('');
   const [campaignSubject, setCampaignSubject] = React.useState('');
   const [campaignBody, setCampaignBody] = React.useState('');
+  const [campaignPromoCode, setCampaignPromoCode] = React.useState('ROYALVIP');
+  const [campaignDiscountPercent, setCampaignDiscountPercent] = React.useState('15');
+  const [campaignUrl, setCampaignUrl] = React.useState('https://royal.com.tn/articles');
+  const [campaignTarget, setCampaignTarget] = React.useState<'ACTIVE' | 'SELECTED' | 'TEST'>('ACTIVE');
+  const [campaignTestEmail, setCampaignTestEmail] = React.useState('');
   const [isSending, setIsSending] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
   const [toastType, setToastType] = React.useState<'success' | 'info' | 'error'>('success');
@@ -135,27 +123,42 @@ export default function NewslettersPage() {
     }
   };
 
-  const handleSelectTemplate = (template: typeof ROOT_CAMPAIGN_TEMPLATES[0]) => {
-    setCampaignSubject(template.subject);
-    setCampaignBody(template.body);
-  };
-
-  const handleSendCampaign = () => {
+  const handleSendCampaign = async () => {
     if (!campaignSubject.trim() || !campaignBody.trim()) return;
+    if (campaignTarget === 'TEST' && !campaignTestEmail.trim()) {
+      setToastType('error');
+      setToastMessage('Saisissez une adresse e-mail de test.');
+      return;
+    }
     setIsSending(true);
-    setTimeout(() => {
-      setSubscribers((prev) =>
-        prev.map((s) =>
-          s.isActive ? { ...s, campaignsReceived: s.campaignsReceived + 1 } : s
-        )
-      );
-      setIsSending(false);
-      setIsCampaignModalOpen(false);
-      setCampaignSubject('');
-      setCampaignBody('');
+    try {
+      const res = await fetchApi('/storefront-cms/newsletters/send-campaign', {
+        method: 'POST',
+        body: JSON.stringify({
+          templateId: campaignTemplateId || undefined,
+          locale: campaignLocale,
+          subject: campaignSubject.trim(),
+          bodyHtml: campaignBody.trim(),
+          promoCode: campaignPromoCode.trim() || undefined,
+          discountPercent: campaignDiscountPercent.trim() || undefined,
+          campaignUrl: campaignUrl.trim() || undefined,
+          target: campaignTarget,
+          subscriberIds: campaignTarget === 'SELECTED' ? selectedIds : undefined,
+          testEmail: campaignTarget === 'TEST' ? campaignTestEmail.trim() : undefined,
+        }),
+      });
+      await loadSubscribers();
+      if (campaignTarget !== 'TEST') {
+        setIsCampaignModalOpen(false);
+      }
       setToastType('success');
-      setToastMessage(`Campagne envoyée avec succès à ${activeCount} abonnés actifs.`);
-    }, 700);
+      setToastMessage(res?.message || `Campagne (${campaignLocale}) envoyée avec succès.`);
+    } catch (err: any) {
+      setToastType('error');
+      setToastMessage(err?.message || 'Erreur lors de la diffusion SMTP de la campagne.');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -605,7 +608,7 @@ export default function NewslettersPage() {
                   Diffuser une Nouvelle Campagne Marketing
                 </h2>
                 <p className="text-xs text-neutral-500 mt-0.5">
-                  Diffusion ciblée à <strong>{activeCount} abonnés actifs</strong>.
+                  Diffusion SMTP réelle (FR / AR RTL) — <strong>{activeCount} abonnés actifs</strong>{selectedIds.length > 0 ? ` • ${selectedIds.length} sélectionné(s)` : ''}.
                 </p>
               </div>
             </div>
@@ -625,143 +628,148 @@ export default function NewslettersPage() {
                 variant="gold"
                 size="sm"
                 onClick={handleSendCampaign}
-                disabled={isSending || !campaignSubject.trim() || !campaignBody.trim()}
+                disabled={
+                  isSending ||
+                  !campaignSubject.trim() ||
+                  !campaignBody.trim() ||
+                  (campaignTarget === 'TEST' && !campaignTestEmail.trim()) ||
+                  (campaignTarget === 'SELECTED' && selectedIds.length === 0)
+                }
                 className="text-xs"
               >
                 <Send className="w-3.5 h-3.5 mr-1.5" />
-                <span>{isSending ? 'Diffusion en cours...' : 'Diffuser la campagne maintenant'}</span>
+                <span>
+                  {isSending
+                    ? 'Transmission SMTP en cours...'
+                    : campaignTarget === 'TEST'
+                    ? 'Envoyer E-mail Test'
+                    : campaignTarget === 'SELECTED'
+                    ? `Envoyer à ${selectedIds.length} sélectionné(s)`
+                    : `Diffuser à ${activeCount} abonné(s)`}
+                </span>
               </Button>
             </div>
           }
         >
-          <div className="p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-              {/* Left Column: Form & ROOT Templates */}
-              <div className="space-y-4 text-xs">
-                {/* ROOT Campaign Templates Selector */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="font-bold text-neutral-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Modèles de Campagnes Marketing (Console ROOT)</span>
-                    </label>
-                    <span className="text-[10px] text-neutral-400">Cliquez pour appliquer</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {ROOT_CAMPAIGN_TEMPLATES.map((tmpl, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => handleSelectTemplate(tmpl)}
-                        className="p-2.5 text-left rounded-xl border border-neutral-200 hover:border-neutral-900 hover:bg-neutral-50 transition cursor-pointer group"
-                      >
-                        <span className="font-bold text-neutral-900 block group-hover:text-neutral-950 text-[11px] leading-snug">
-                          {tmpl.title}
-                        </span>
-                        <span className="text-[10px] text-neutral-400 block mt-0.5 line-clamp-1">
-                          {tmpl.subject}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+          <div className="p-6 space-y-4 text-xs">
+            {/* Target & Campaign Promo Params */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 p-3.5 rounded-2xl bg-[#FBF9F4] border border-[#E6E1D6] items-end">
+              <div className="md:col-span-4 space-y-1">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                  Destinataires *
+                </label>
+                <div className="grid grid-cols-3 gap-1">
+                  {([
+                    { id: 'ACTIVE', label: `Actifs (${activeCount})` },
+                    { id: 'SELECTED', label: `Coche (${selectedIds.length})` },
+                    { id: 'TEST', label: 'Test' },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      disabled={opt.id === 'SELECTED' && selectedIds.length === 0}
+                      onClick={() => setCampaignTarget(opt.id)}
+                      className={cn(
+                        'py-2 px-1.5 rounded-xl border text-[11px] font-bold transition cursor-pointer disabled:opacity-40',
+                        campaignTarget === opt.id
+                          ? 'bg-[#C59B27] border-[#C59B27] text-white'
+                          : 'bg-white border-[#E6E1D6] text-slate-700',
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
+              </div>
 
-                {/* Campaign Subject */}
-                <div className="space-y-1.5">
-                  <label className="font-bold text-neutral-800 uppercase tracking-wider text-[11px]">
-                    Objet du Courriel (Ligne d’accroche) *
+              {campaignTarget === 'TEST' ? (
+                <div className="md:col-span-4 space-y-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                    Adresse E-mail de Test *
+                  </label>
+                  <input
+                    type="email"
+                    value={campaignTestEmail}
+                    onChange={(e) => setCampaignTestEmail(e.target.value)}
+                    placeholder="exemple@domaine.tn"
+                    className="w-full h-9 px-3 rounded-xl border border-[#E6E1D6] bg-white text-xs"
+                  />
+                </div>
+              ) : (
+                <div className="md:col-span-3 space-y-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                    Code Promo
                   </label>
                   <input
                     type="text"
-                    value={campaignSubject}
-                    onChange={(e) => setCampaignSubject(e.target.value)}
-                    placeholder="Ex: Invitation VIP : Nouvelle collection électroménager Royal"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 focus:outline-none focus:border-neutral-950 text-xs bg-white text-neutral-900"
+                    value={campaignPromoCode}
+                    onChange={(e) => setCampaignPromoCode(e.target.value)}
+                    placeholder="ROYALVIP"
+                    className="w-full h-9 px-3 rounded-xl border border-[#E6E1D6] bg-white text-xs font-mono"
                   />
                 </div>
+              )}
 
-                {/* Campaign Body */}
-                <div className="space-y-1.5">
-                  <label className="font-bold text-neutral-800 uppercase tracking-wider text-[11px]">
-                    Corps du Message (HTML / Texte) *
-                  </label>
-                  <textarea
-                    rows={8}
-                    value={campaignBody}
-                    onChange={(e) => setCampaignBody(e.target.value)}
-                    placeholder="Rédigez le contenu ou appliquez un modèle ci-dessus..."
-                    className="w-full p-3.5 rounded-xl border border-neutral-200 focus:outline-none focus:border-neutral-950 text-xs bg-white text-neutral-900 leading-relaxed resize-none"
-                  />
-                </div>
+              <div className="md:col-span-2 space-y-1">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                  Remise %
+                </label>
+                <input
+                  type="text"
+                  value={campaignDiscountPercent}
+                  onChange={(e) => setCampaignDiscountPercent(e.target.value)}
+                  placeholder="15"
+                  className="w-full h-9 px-3 rounded-xl border border-[#E6E1D6] bg-white text-xs"
+                />
               </div>
 
-              {/* Right Column: Live Email Preview */}
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center justify-between">
-                  <label className="font-bold text-neutral-800 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                    <Eye className="w-3.5 h-3.5 text-neutral-500" />
-                    <span>Aperçu de l'Email Officiel (Temps Réel)</span>
-                  </label>
-                  <span className="text-[10px] font-mono text-neutral-400">Template Newsletter Royal</span>
-                </div>
-
-                <div className="bg-neutral-50 rounded-2xl border border-neutral-200 p-4 space-y-3 shadow-2xs">
-                  {/* Email Meta header */}
-                  <div className="space-y-1 pb-3 border-b border-neutral-200 text-[11px]">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-neutral-500 w-16">De :</span>
-                      <span className="font-medium text-neutral-900">Royal Showroom &lt;newsletter@royal.com.tn&gt;</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-neutral-500 w-16">À :</span>
-                      <span className="font-medium text-neutral-900">{activeCount} abonnés actifs</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-neutral-500 w-16">Objet :</span>
-                      <span className="font-bold text-neutral-950">
-                        {campaignSubject.trim() || 'Aperçu de votre objet...'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Email Body Frame */}
-                  <div className="bg-white rounded-xl border border-neutral-200 p-5 space-y-4">
-                    <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
-                      <div>
-                        <span className="font-extrabold tracking-tight text-neutral-950 text-sm block">
-                          ROYAL MAISON D’ART & CUISINE
-                        </span>
-                        <span className="text-[10px] text-neutral-400 tracking-widest uppercase block mt-0.5">
-                          Électroménager Haut de Gamme & Robinetterie
-                        </span>
-                      </div>
-                      <Badge variant="outline" className="text-[10px] font-mono">
-                        CAMPAGNE OFFICIELLE
-                      </Badge>
-                    </div>
-
-                    <div className="text-xs text-neutral-800 leading-relaxed whitespace-pre-wrap font-sans min-h-[140px]">
-                      {campaignBody.trim() ? (
-                        campaignBody
-                      ) : (
-                        <span className="text-neutral-400 italic">
-                          Le contenu rédigé ou le modèle sélectionné s'affichera ici en temps réel tel qu'il sera reçu par vos clients...
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="pt-3 border-t border-neutral-100 flex items-center justify-between text-[10px] text-neutral-400">
-                      <span>Service Marketing & Showroom Privé — Royal Tunisie</span>
-                      <span>contact@royal.com.tn</span>
-                    </div>
-
-                    <div className="pt-2 text-[9px] text-neutral-400 text-center border-t border-dashed border-neutral-100">
-                      Vous recevez cet email car vous êtes inscrit à la newsletter Royal. Pour vous désabonner, cliquez sur ce lien.
-                    </div>
-                  </div>
-                </div>
+              <div className={campaignTarget === 'TEST' ? 'md:col-span-2 space-y-1' : 'md:col-span-3 space-y-1'}>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                  Lien Offre (URL)
+                </label>
+                <input
+                  type="text"
+                  value={campaignUrl}
+                  onChange={(e) => setCampaignUrl(e.target.value)}
+                  placeholder="https://royal.com.tn/articles"
+                  className="w-full h-9 px-3 rounded-xl border border-[#E6E1D6] bg-white text-xs"
+                />
               </div>
             </div>
+
+            <EmailTemplateComposer
+              category="campaign"
+              locale={campaignLocale}
+              onLocaleChange={setCampaignLocale}
+              selectedTemplateId={campaignTemplateId}
+              onTemplateChange={(tpl) => {
+                setCampaignTemplateId(tpl?.id || '');
+                if (tpl && !campaignSubject.trim()) {
+                  setCampaignSubject(campaignLocale === 'AR' ? tpl.subjectAr || tpl.subject : tpl.subject);
+                }
+                if (tpl && !campaignBody.trim()) {
+                  setCampaignBody(campaignLocale === 'AR' ? tpl.bodyHtmlAr || tpl.bodyHtml : tpl.bodyHtml);
+                }
+              }}
+              subject={campaignSubject}
+              onSubjectChange={setCampaignSubject}
+              bodyText={campaignBody}
+              onBodyTextChange={setCampaignBody}
+              bodyRows={6}
+              recipientSummary={
+                campaignTarget === 'TEST'
+                  ? `Test -> ${campaignTestEmail || '...'}`
+                  : campaignTarget === 'SELECTED'
+                  ? `${selectedIds.length} sélectionné(s)`
+                  : `${activeCount} abonnés actifs`
+              }
+              previewVariables={{
+                firstName: campaignLocale === 'AR' ? 'حريفنا الكريم' : 'Sami',
+                promoCode: campaignPromoCode || 'ROYALVIP',
+                discountPercent: campaignDiscountPercent || '15',
+                campaignUrl: campaignUrl || 'https://royal.com.tn/articles',
+              }}
+            />
           </div>
         </Modal>
       )}

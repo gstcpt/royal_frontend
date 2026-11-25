@@ -22,6 +22,7 @@ import {
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Modal, Toast } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
+import { EmailTemplateComposer, EmailComposerLocale } from '@/components/dashboard/EmailTemplateComposer';
 import {
   NINE_ORDER_STATUSES,
   ORDER_STATUS_LABEL_MAP,
@@ -44,6 +45,10 @@ export default function OrderDetailsPage() {
   const [emailRecipient, setEmailRecipient] = useState('');
   const [sendInvoiceChecked, setSendInvoiceChecked] = useState(true);
   const [sendBlChecked, setSendBlChecked] = useState(true);
+  const [emailLocale, setEmailLocale] = useState<EmailComposerLocale>('FR');
+  const [emailTemplateId, setEmailTemplateId] = useState('');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailCustomNote, setEmailCustomNote] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -70,6 +75,15 @@ export default function OrderDetailsPage() {
   useEffect(() => {
     fetchOrder();
   }, [orderId]);
+
+  const openEmailPromptForOrder = () => {
+    if (!order) return;
+    setEmailRecipient(order.customer?.email || order.guestEmail || '');
+    setSendInvoiceChecked(true);
+    setSendBlChecked(true);
+    setEmailCustomNote('');
+    setShowEmailPrompt(true);
+  };
 
   const handleUpdateStatus = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,10 +113,7 @@ export default function OrderDetailsPage() {
         setStatusComment('');
         fetchOrder();
         if (selectedStatus === 'DELIVERED' && !wasDelivered) {
-          setEmailRecipient(order.customer?.email || order.guestEmail || '');
-          setSendInvoiceChecked(true);
-          setSendBlChecked(true);
-          setShowEmailPrompt(true);
+          openEmailPromptForOrder();
         }
       } else {
         setErrorMsg(data.message || 'Impossible de mettre à jour le statut.');
@@ -125,6 +136,10 @@ export default function OrderDetailsPage() {
           sendInvoice: sendInvoiceChecked,
           sendDeliverySlip: sendBlChecked,
           customEmail: emailRecipient.trim() || undefined,
+          customNote: emailCustomNote.trim() || undefined,
+          locale: emailLocale,
+          templateId: emailTemplateId || undefined,
+          customSubject: emailSubject.trim() || undefined,
         }),
       });
       setShowEmailPrompt(false);
@@ -200,13 +215,21 @@ export default function OrderDetailsPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => window.print()}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition shadow-xs cursor-pointer"
           >
             <Printer className="w-3.5 h-3.5 text-gray-500" />
             <span>Imprimer Bon de Préparation</span>
+          </button>
+          <button
+            type="button"
+            onClick={openEmailPromptForOrder}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FBF6E8] border border-[#E6D6A6] text-xs font-bold text-[#9A7414] hover:bg-[#C59B27] hover:text-white transition shadow-xs cursor-pointer"
+          >
+            <Mail className="w-3.5 h-3.5" />
+            <span>E-mail Client / PDF</span>
           </button>
           <button
             onClick={() => setShowStatusModal(true)}
@@ -426,10 +449,10 @@ export default function OrderDetailsPage() {
       <Modal
         isOpen={showEmailPrompt}
         onClose={() => setShowEmailPrompt(false)}
-        title="Envoi Manuel — Facture & Bon de Livraison"
-        subtitle={`Commande ${order.reference} livrée`}
+        title="Envoi E-mail Client — Documents & Modèle Light Luxury"
+        subtitle={`Commande ${order.reference} (${order.status})`}
         type="details"
-        size="md"
+        size="3xl"
         footer={
           <div className="flex justify-end gap-2 w-full">
             <button
@@ -437,7 +460,7 @@ export default function OrderDetailsPage() {
               onClick={() => setShowEmailPrompt(false)}
               className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-semibold cursor-pointer"
             >
-              Ignorer
+              Annuler
             </button>
             <button
               type="submit"
@@ -446,45 +469,71 @@ export default function OrderDetailsPage() {
               className="px-4 py-2 rounded-xl bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-semibold hover:bg-[var(--royal-primary-hover)] transition cursor-pointer inline-flex items-center gap-1.5"
             >
               <Mail className="w-3.5 h-3.5" />
-              <span>{sendingEmail ? 'Envoi...' : 'Envoyer par E-mail'}</span>
+              <span>{sendingEmail ? 'Envoi...' : `Envoyer (${emailLocale})`}</span>
             </button>
           </div>
         }
       >
         <form id="order-detail-docs-form" onSubmit={handleSendDeliveryDocs} className="p-6 space-y-4 text-xs">
-          <p className="text-gray-600">
-            Cochez les documents PDF à joindre à l&apos;e-mail de confirmation de livraison :
-          </p>
-          <div>
-            <label className="block text-gray-700 font-medium mb-1">Email Destinataire *</label>
-            <input
-              type="email"
-              required
-              value={emailRecipient}
-              onChange={(e) => setEmailRecipient(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white"
-            />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label className="p-3 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center gap-2 cursor-pointer">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+            <div className="md:col-span-6">
+              <label className="block text-gray-700 font-medium mb-1">Email Destinataire *</label>
+              <input
+                type="email"
+                required
+                value={emailRecipient}
+                onChange={(e) => setEmailRecipient(e.target.value)}
+                className="w-full h-9 px-3 rounded-xl border border-gray-200 bg-white"
+              />
+            </div>
+            <label className="md:col-span-3 h-9 px-3 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={sendInvoiceChecked}
                 onChange={(e) => setSendInvoiceChecked(e.target.checked)}
                 className="accent-[#C59B27] h-4 w-4"
               />
-              <span className="font-bold text-gray-900">Facture Client (FAC)</span>
+              <span className="font-bold text-gray-900">Facture (FAC)</span>
             </label>
-            <label className="p-3 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center gap-2 cursor-pointer">
+            <label className="md:col-span-3 h-9 px-3 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={sendBlChecked}
                 onChange={(e) => setSendBlChecked(e.target.checked)}
                 className="accent-[#C59B27] h-4 w-4"
               />
-              <span className="font-bold text-gray-900">Bon de Livraison (BL)</span>
+              <span className="font-bold text-gray-900">Livraison (BL)</span>
             </label>
           </div>
+
+          <EmailTemplateComposer
+            category="orders"
+            locale={emailLocale}
+            onLocaleChange={setEmailLocale}
+            selectedTemplateId={emailTemplateId}
+            onTemplateChange={(tpl) => {
+              setEmailTemplateId(tpl?.id || '');
+              if (tpl) {
+                setEmailSubject(emailLocale === 'AR' ? tpl.subjectAr || tpl.subject : tpl.subject);
+              }
+            }}
+            subject={emailSubject}
+            onSubjectChange={setEmailSubject}
+            bodyText={emailCustomNote}
+            onBodyTextChange={setEmailCustomNote}
+            bodyRows={3}
+            compact
+            recipientSummary={emailRecipient || clientEmail}
+            previewVariables={{
+              customerName: clientName,
+              orderNumber: order.reference,
+              statusLabel: ORDER_STATUS_LABEL_MAP[order.status] || order.status,
+              totalAmount: `${Number(order.totalAmount || 0).toFixed(3)} TND`,
+              documentsList: [sendInvoiceChecked ? 'Facture (FAC)' : '', sendBlChecked ? 'Bon de Livraison (BL)' : '']
+                .filter(Boolean)
+                .join(' + ') || 'Aucun PDF',
+            }}
+          />
         </form>
       </Modal>
 

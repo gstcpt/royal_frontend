@@ -19,6 +19,8 @@ import {
   CheckSquare,
   Square,
   Eye,
+  Wand2,
+  Cpu,
 } from 'lucide-react';
 import {
   Button,
@@ -34,10 +36,17 @@ import {
   ViewGuideStep,
 } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
-import { RoleStudioPanel } from '@/components/dashboard/RoleStudioPanel';
 import {
+  RoleStudioPanel,
+  StudioPermissionViewMeta,
+} from '@/components/dashboard/RoleStudioPanel';
+import {
+  ACTION_FRENCH_TITLES,
   applyPresetToRoleState,
   DASHBOARD_VIEW_SECTIONS,
+  formatModuleLabel,
+  formatPermissionFrenchTitle,
+  PERMISSION_DOMAINS,
   RolePresetId,
 } from '@/lib/rbac-catalog';
 
@@ -57,6 +66,8 @@ interface ApiPermission {
   resource: string;
   action: string;
   description?: string | null;
+  actionTitleFr?: string | null;
+  views?: StudioPermissionViewMeta[];
 }
 
 const EXCEL_ROLE_ORDER = [
@@ -91,19 +102,9 @@ const ROLE_META: Record<string, { full: string; short: string; group: 'BACKOFFIC
   CLIENT: { full: 'Clients', short: 'Client', group: 'OPERATIONS' },
 };
 
-const ACTION_LABELS: Record<string, string> = {
-  create: 'Ajouter',
-  read_list: 'Liste',
-  read_detail: 'Détail ID',
-  update: 'Modifier',
-  delete: 'Supprimer',
-  read: 'Lecture',
-  manage: 'Gestion',
-  adjust: 'Ajuster',
-  reserve: 'Réserver',
-  operate: 'Opérer',
-  'permissions.assign': 'Assigner',
-};
+const MODULE_ORDER_INDEX = new Map<string, number>(
+  PERMISSION_DOMAINS.flatMap((d) => d.modules).map((m, idx) => [m, idx]),
+);
 
 const RBAC_GUIDE_STEPS: ViewGuideStep[] = [
   {
@@ -196,6 +197,8 @@ export default function RolesPermissionsPage() {
   const [savedRoleViewsMap, setSavedRoleViewsMap] = React.useState<Record<string, string[]>>({});
   const [dirtyViewRoles, setDirtyViewRoles] = React.useState<Set<string>>(new Set());
   const [visibilityMap, setVisibilityMap] = React.useState<Record<string, 'PUBLIC' | 'PRIVATE'>>({});
+  const [permissionViews, setPermissionViews] = React.useState<StudioPermissionViewMeta[]>([]);
+  const [syncingScanner, setSyncingScanner] = React.useState(false);
 
   const [viewMode, setViewMode] = React.useState<'matrix' | 'by-role'>('by-role');
   const [activeRoleName, setActiveRoleName] = React.useState<string>('MARKETING');
@@ -239,9 +242,10 @@ export default function RolesPermissionsPage() {
   const loadMatrix = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [rolesRes, permsRes, roleViewsRes, visibilityRes] = await Promise.all([
+      const [rolesRes, permsRes, viewsRes, roleViewsRes, visibilityRes] = await Promise.all([
         fetchApi('/roles'),
         fetchApi('/permissions'),
+        fetchApi('/permissions/views').catch(() => null),
         fetchApi('/storefront-cms/sys-config/roleViews').catch(() => null),
         fetchApi('/storefront-cms/sys-config/visibility').catch(() => null),
       ]);
@@ -268,6 +272,10 @@ export default function RolesPermissionsPage() {
       setGroupedPerms(permModules);
       const firstMod = Object.keys(permModules).sort()[0] || '';
       setSelectedModule((prev) => (prev && permModules[prev] ? prev : firstMod));
+
+      const pvItems: StudioPermissionViewMeta[] =
+        viewsRes?.items || viewsRes?.data?.items || [];
+      setPermissionViews(Array.isArray(pvItems) ? pvItems : []);
 
       const detailResponses = await Promise.all(
         sortedRoles.map((r) => fetchApi(`/roles/${r.id}`).catch(() => null)),
@@ -314,6 +322,41 @@ export default function RolesPermissionsPage() {
       setLoading(false);
     }
   }, []);
+
+  const handleScanAndSyncViews = async () => {
+    setSyncingScanner(true);
+    try {
+      const res: any = await fetchApi('/permissions/scan-sync-views', { method: 'POST' });
+      const data = res?.data || res;
+      const upserted = data?.scan?.upsertedCount ?? data?.totalStored ?? 0;
+      setToastType('success');
+      setToastMsg(`Scanner MCP synchronisé : ${upserted} liaisons permissions_views à jour.`);
+      await loadMatrix();
+    } catch (err: any) {
+      setToastType('error');
+      setToastMsg(err?.message || 'Erreur lors du scan permissions_views.');
+    } finally {
+      setSyncingScanner(false);
+    }
+  };
+
+  const handleAssignDeliveryDefaults = async () => {
+    setSyncingScanner(true);
+    try {
+      await fetchApi('/permissions/assign-delivery-defaults', {
+        method: 'POST',
+        body: JSON.stringify({ force: false }),
+      });
+      setToastType('success');
+      setToastMsg('Droits par défaut appliqués sur Responsable Livraison & Livreur (si vides).');
+      await loadMatrix();
+    } catch (err: any) {
+      setToastType('error');
+      setToastMsg(err?.message || "Impossible d'initialiser les droits livraison.");
+    } finally {
+      setSyncingScanner(false);
+    }
+  };
 
   React.useEffect(() => {
     loadMatrix();
@@ -558,7 +601,13 @@ export default function RolesPermissionsPage() {
   };
 
   const allModulesList = React.useMemo(
-    () => Object.keys(groupedPerms).sort((a, b) => a.localeCompare(b)),
+    () =>
+      Object.keys(groupedPerms).sort((a, b) => {
+        const idxA = MODULE_ORDER_INDEX.get(a) ?? 999;
+        const idxB = MODULE_ORDER_INDEX.get(b) ?? 999;
+        if (idxA !== idxB) return idxA - idxB;
+        return a.localeCompare(b);
+      }),
     [groupedPerms],
   );
 
@@ -569,7 +618,12 @@ export default function RolesPermissionsPage() {
 
   const filteredModules = React.useMemo(() => {
     const q = moduleSearch.trim().toLowerCase();
-    return allModulesList.filter((m) => !q || m.toLowerCase().includes(q));
+    return allModulesList.filter(
+      (m) =>
+        !q ||
+        m.toLowerCase().includes(q) ||
+        formatModuleLabel(m).toLowerCase().includes(q),
+    );
   }, [allModulesList, moduleSearch]);
 
   const visibleMatrixRoles = React.useMemo(() => {
@@ -588,7 +642,10 @@ export default function RolesPermissionsPage() {
       if (
         q &&
         !p.code.toLowerCase().includes(q) &&
-        !cleanUtf8Label(p.description).toLowerCase().includes(q)
+        !cleanUtf8Label(p.description).toLowerCase().includes(q) &&
+        !formatPermissionFrenchTitle(selectedModule, p.action, p.actionTitleFr)
+          .toLowerCase()
+          .includes(q)
       ) {
         return false;
       }
@@ -632,14 +689,40 @@ export default function RolesPermissionsPage() {
                 <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6]">
                   {totalPermissionsCount} permissions
                 </span>
+                {permissionViews.length > 0 && (
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    {permissionViews.length} liaisons permissions_views
+                  </span>
+                )}
               </div>
             </div>
             <p className="text-xs text-slate-500 max-w-3xl">
-              Pilotez les accès de chaque profil Royal module par module ou par fiche rôle dédiée, avec protection stricte du compte ROOT.
+              Pilotez les accès de chaque profil Royal selon les 13 sections de la barre latérale, avec titres d&apos;action en français, table SQL permissions_views et scanner MCP local.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleScanAndSyncViews}
+              isLoading={syncingScanner}
+              disabled={loading}
+              title="Scanner les vues Next.js et les contrôleurs NestJS pour synchroniser permissions_views"
+            >
+              <Cpu className="h-3.5 w-3.5 text-[#C59B27]" />
+              <span>Scanner MCP</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAssignDeliveryDefaults}
+              disabled={loading || syncingScanner}
+              title="Initialiser les droits par défaut de Responsable Livraison & Livreur s'ils sont vides"
+            >
+              <Wand2 className="h-3.5 w-3.5 text-[#C59B27]" />
+              <span>Init. Livraison</span>
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setShowRoleModal(true)}>
               <Plus className="h-3.5 w-3.5" />
               <span>Nouveau Rôle</span>
@@ -856,7 +939,10 @@ export default function RolesPermissionsPage() {
                         : 'bg-[#FBF9F4] text-[#1D232E] border-[#E6E1D6] hover:border-[#C59B27]'
                     }`}
                   >
-                    <span className="truncate">{mod}</span>
+                    <span className="truncate">
+                      <span className="block truncate">{formatModuleLabel(mod)}</span>
+                      <span className="block text-[9.5px] font-mono opacity-75 truncate">{mod}</span>
+                    </span>
                     <span
                       className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full shrink-0 ${
                         active
@@ -877,10 +963,10 @@ export default function RolesPermissionsPage() {
             <div className="p-4 bg-[#FBF9F4] border-b border-[#E6E1D6] flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-3">
               <div className="min-w-0">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#9A7414] block">
-                  Module Sélectionné
+                  Module Sélectionné ({selectedModule || '—'})
                 </span>
                 <h2 className="text-base font-heading font-black text-[#1D232E] flex items-center gap-2 flex-wrap">
-                  <span>{selectedModule || '—'}</span>
+                  <span>{selectedModule ? formatModuleLabel(selectedModule) : '—'}</span>
                   <span className="text-xs font-bold text-slate-500 whitespace-nowrap">
                     ({activeModulePerms.length} actions)
                   </span>
@@ -949,19 +1035,17 @@ export default function RolesPermissionsPage() {
                     <div key={perm.id} className="p-4 space-y-3 text-xs">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 space-y-1">
+                          <div className="text-xs font-bold text-[#1D232E]">
+                            {formatPermissionFrenchTitle(selectedModule, perm.action, perm.actionTitleFr)}
+                          </div>
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="font-mono font-bold text-[#1D232E] break-all">
+                            <span className="font-mono text-[10px] text-slate-500 break-all">
                               {perm.code}
                             </span>
                             <Badge variant="warning" size="sm" className="whitespace-nowrap">
-                              {ACTION_LABELS[perm.action] || perm.action}
+                              {ACTION_FRENCH_TITLES[perm.action] || perm.action}
                             </Badge>
                           </div>
-                          {perm.description && (
-                            <p className="text-[11px] text-slate-500">
-                              {cleanUtf8Label(perm.description)}
-                            </p>
-                          )}
                         </div>
                         <button
                           type="button"
@@ -1062,14 +1146,25 @@ export default function RolesPermissionsPage() {
 
                         return (
                           <tr key={perm.id} className="hover:bg-[#FBF9F4]/80 transition-colors">
-                            <td className="px-3 py-2.5 max-w-[230px]">
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                <span className="font-mono font-bold text-[#1D232E] text-[11px] truncate">
-                                  {perm.code}
-                                </span>
-                                <Badge variant="warning" size="sm" className="whitespace-nowrap shrink-0">
-                                  {ACTION_LABELS[perm.action] || perm.action}
-                                </Badge>
+                            <td className="px-3 py-2.5 max-w-[260px]">
+                              <div className="flex items-start gap-1.5 min-w-0">
+                                <div className="min-w-0 flex-1">
+                                  <div className="font-bold text-[#1D232E] text-[11px] leading-snug">
+                                    {formatPermissionFrenchTitle(
+                                      selectedModule,
+                                      perm.action,
+                                      perm.actionTitleFr,
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                    <span className="font-mono text-[10px] text-slate-400 truncate">
+                                      {perm.code}
+                                    </span>
+                                    <Badge variant="warning" size="sm" className="whitespace-nowrap shrink-0">
+                                      {ACTION_FRENCH_TITLES[perm.action] || perm.action}
+                                    </Badge>
+                                  </div>
+                                </div>
                                 <button
                                   type="button"
                                   title="Supprimer cette permission"
@@ -1079,11 +1174,6 @@ export default function RolesPermissionsPage() {
                                   <Trash2 className="h-3 w-3" />
                                 </button>
                               </div>
-                              {perm.description && (
-                                <div className="text-[10.5px] text-slate-500 mt-0.5 truncate">
-                                  {cleanUtf8Label(perm.description)}
-                                </div>
-                              )}
                             </td>
 
                             {visibleMatrixRoles.map((role) => {
@@ -1156,10 +1246,11 @@ export default function RolesPermissionsPage() {
           roleDisplayName={getRoleFullLabel(selectedRoleObj)}
           roleDescription={cleanUtf8Label(selectedRoleObj.description)}
           groupedPerms={groupedPerms}
+          permissionViews={permissionViews}
           rolePermSet={rolePermSets[selectedRoleObj.name] || new Set<string>()}
           roleViews={roleViewsMap[selectedRoleObj.name] || ['/dashboard']}
           visibilityMap={visibilityMap}
-          actionLabels={ACTION_LABELS}
+          actionLabels={ACTION_FRENCH_TITLES}
           onTogglePermission={(permId) => togglePermission(selectedRoleObj.name, permId)}
           onSetModulePerms={(permIds, enabled) =>
             setModulePermissionsForRole(selectedRoleObj.name, permIds, enabled)

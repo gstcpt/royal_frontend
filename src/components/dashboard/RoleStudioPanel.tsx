@@ -5,6 +5,8 @@ import {
   CheckSquare,
   ChevronDown,
   ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
   Eye,
   LayoutGrid,
   Layers,
@@ -16,13 +18,26 @@ import {
 } from 'lucide-react';
 import { Badge, Button, Toggle } from '@/components/ui';
 import {
+  ACTION_FRENCH_TITLES,
   applyPresetToRoleState,
   DASHBOARD_VIEW_SECTIONS,
   formatModuleLabel,
+  formatPermissionFrenchTitle,
   PERMISSION_DOMAINS,
   ROLE_PRESETS,
   RolePresetId,
 } from '@/lib/rbac-catalog';
+
+export interface StudioPermissionViewMeta {
+  id?: string;
+  permissionCode?: string;
+  viewPath: string;
+  viewLabelFr: string;
+  sectionKey?: string;
+  sectionOrder?: number;
+  actionTitleFr?: string;
+  backendRoute?: string | null;
+}
 
 export interface StudioPermissionItem {
   id: string;
@@ -30,6 +45,8 @@ export interface StudioPermissionItem {
   resource: string;
   action: string;
   description?: string | null;
+  actionTitleFr?: string | null;
+  views?: StudioPermissionViewMeta[];
 }
 
 export interface StudioRoleItem {
@@ -46,10 +63,11 @@ interface RoleStudioPanelProps {
   roleDisplayName: string;
   roleDescription?: string | null;
   groupedPerms: Record<string, StudioPermissionItem[]>;
+  permissionViews?: StudioPermissionViewMeta[];
   rolePermSet: Set<string>;
   roleViews: string[];
   visibilityMap: Record<string, 'PUBLIC' | 'PRIVATE'>;
-  actionLabels: Record<string, string>;
+  actionLabels?: Record<string, string>;
   onTogglePermission: (permId: string) => void;
   onSetModulePerms: (permIds: string[], enabled: boolean) => void;
   onSetRoleState: (permIds: Set<string>, views: string[]) => void;
@@ -64,20 +82,22 @@ export function RoleStudioPanel({
   roleDisplayName,
   roleDescription,
   groupedPerms,
+  permissionViews = [],
   rolePermSet,
   roleViews,
   visibilityMap,
-  actionLabels,
+  actionLabels = ACTION_FRENCH_TITLES,
   onTogglePermission,
   onSetModulePerms,
   onSetRoleState,
   onToggleViewRoute,
   onToggleViewSection,
 }: RoleStudioPanelProps) {
-  const [studioTab, setStudioTab] = React.useState<'permissions' | 'views'>('permissions');
+  const [studioTab, setStudioTab] = React.useState<'unified' | 'views'>('unified');
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [expandedRawModules, setExpandedRawModules] = React.useState<Record<string, boolean>>({});
-  const [activeDomainId, setActiveDomainId] = React.useState<string>('ALL');
+  // Par défaut : les 13 accordéons sont TOUS fermés au chargement
+  const [openSections, setOpenSections] = React.useState<Record<string, boolean>>({});
+  const [activeSectionFilter, setActiveSectionFilter] = React.useState<string>('ALL');
 
   const isRootRole = role.name === 'ROOT';
   const roleViewsSet = React.useMemo(() => new Set(roleViews), [roleViews]);
@@ -86,43 +106,95 @@ export function RoleStudioPanel({
     [groupedPerms],
   );
 
-  // Build domain buckets dynamically including any custom modules in DB
-  const domainBuckets = React.useMemo(() => {
+  // Index permissions_views par route pour enrichir les tooltips/badges d'API backend
+  const viewMetaByPath = React.useMemo(() => {
+    const map = new Map<string, { permCodes: Set<string>; backendRoutes: Set<string> }>();
+    for (const pv of permissionViews) {
+      if (!pv?.viewPath) continue;
+      const cur = map.get(pv.viewPath) || { permCodes: new Set(), backendRoutes: new Set() };
+      if (pv.permissionCode) cur.permCodes.add(pv.permissionCode);
+      if (pv.backendRoute) {
+        pv.backendRoute
+          .split('|')
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .forEach((ep) => cur.backendRoutes.add(ep));
+      }
+      map.set(pv.viewPath, cur);
+    }
+    return map;
+  }, [permissionViews]);
+
+  // Index des 13 sections canoniques 1..13 (modules + vues unifiés)
+  const canonicalSections = React.useMemo(() => {
     const knownSet = new Set(PERMISSION_DOMAINS.flatMap((d) => d.modules));
     const customModules = allModulesList.filter((m) => !knownSet.has(m));
-    const base = PERMISSION_DOMAINS.map((d) => ({
-      ...d,
-      modules: d.modules.filter((m) => Boolean(groupedPerms[m]?.length)),
-    })).filter((d) => d.modules.length > 0);
+    const viewBySectionId = new Map(DASHBOARD_VIEW_SECTIONS.map((s) => [s.id, s]));
+
+    const ordered = PERMISSION_DOMAINS.map((dom) => {
+      const viewSec = viewMetaOrFallback(viewBySectionId.get(dom.id));
+      return {
+        order: dom.order,
+        id: dom.id,
+        label: dom.label,
+        description: dom.description,
+        modules: dom.modules.filter((m) => Boolean(groupedPerms[m]?.length)),
+        routes: viewSec?.routes || [],
+      };
+    });
 
     if (customModules.length > 0) {
-      base.push({
+      ordered.push({
+        order: 14,
         id: 'custom',
-        label: 'Modules Personnalisés / Autres',
+        label: '14. Modules personnalisés',
         description: 'Modules ajoutés manuellement ou spécifiques.',
         modules: customModules,
+        routes: [],
       });
     }
-    return base;
+
+    return ordered;
+
+    function viewMetaOrFallback(sec: (typeof DASHBOARD_VIEW_SECTIONS)[number] | undefined) {
+      return sec;
+    }
   }, [allModulesList, groupedPerms]);
 
-  const visibleDomains = React.useMemo(() => {
+  const visibleSections = React.useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return domainBuckets
-      .filter((d) => activeDomainId === 'ALL' || d.id === activeDomainId)
-      .map((d) => ({
-        ...d,
-        modules: d.modules.filter((m) => {
-          if (!q) return true;
-          return (
-            m.toLowerCase().includes(q) ||
-            formatModuleLabel(m).toLowerCase().includes(q) ||
-            d.label.toLowerCase().includes(q)
+    return canonicalSections
+      .filter((sec) => activeSectionFilter === 'ALL' || sec.id === activeSectionFilter)
+      .map((sec) => {
+        if (!q) return sec;
+        const secMatches =
+          sec.label.toLowerCase().includes(q) || sec.description.toLowerCase().includes(q);
+        if (secMatches) return sec;
+
+        const matchingModules = sec.modules.filter((m) => {
+          if (m.toLowerCase().includes(q) || formatModuleLabel(m).toLowerCase().includes(q)) {
+            return true;
+          }
+          const perms = groupedPerms[m] || [];
+          return perms.some(
+            (p) =>
+              p.code.toLowerCase().includes(q) ||
+              formatPermissionFrenchTitle(m, p.action, p.actionTitleFr).toLowerCase().includes(q),
           );
-        }),
-      }))
-      .filter((d) => d.modules.length > 0);
-  }, [domainBuckets, activeDomainId, searchQuery]);
+        });
+
+        const matchingRoutes = sec.routes.filter(
+          (r) => r.label.toLowerCase().includes(q) || r.path.toLowerCase().includes(q),
+        );
+
+        return {
+          ...sec,
+          modules: matchingModules,
+          routes: matchingRoutes,
+        };
+      })
+      .filter((sec) => sec.modules.length > 0 || sec.routes.length > 0);
+  }, [canonicalSections, activeSectionFilter, searchQuery, groupedPerms]);
 
   const visibleViewSections = React.useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -137,6 +209,24 @@ export function RoleStudioPanel({
       ),
     })).filter((sec) => sec.routes.length > 0);
   }, [searchQuery]);
+
+  const toggleAccordion = (sectionId: string) => {
+    setOpenSections((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }));
+  };
+
+  const anySectionExpanded = React.useMemo(
+    () => visibleSections.some((s) => Boolean(openSections[s.id])),
+    [visibleSections, openSections],
+  );
+
+  const toggleExpandAll = () => {
+    const nextState: Record<string, boolean> = {};
+    const targetOpen = !anySectionExpanded;
+    for (const s of canonicalSections) {
+      nextState[s.id] = targetOpen;
+    }
+    setOpenSections(nextState);
+  };
 
   const handleApplyPreset = (presetId: RolePresetId) => {
     if (isRootRole) return;
@@ -204,7 +294,7 @@ export function RoleStudioPanel({
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#9A7414]">
-                Assistant Simple par Profil
+                Assistant Simple par Profil — 13 Sections Sidebar
               </span>
               {isRootRole ? (
                 <Badge variant="warning" size="sm">
@@ -228,11 +318,7 @@ export function RoleStudioPanel({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={
-                  studioTab === 'permissions'
-                    ? 'Rechercher un module (ex: articles, contact...)'
-                    : 'Rechercher une vue ou URL...'
-                }
+                placeholder="Rechercher action FR, module ou URL..."
                 className="pl-9 pr-3 py-2 rounded-xl bg-white border border-[#E6E1D6] text-xs w-64 focus:outline-none focus:border-[#C59B27]"
               />
             </div>
@@ -240,15 +326,15 @@ export function RoleStudioPanel({
             <div className="inline-flex p-1 rounded-xl bg-white border border-[#E6E1D6]">
               <button
                 type="button"
-                onClick={() => setStudioTab('permissions')}
+                onClick={() => setStudioTab('unified')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition cursor-pointer ${
-                  studioTab === 'permissions'
+                  studioTab === 'unified'
                     ? 'bg-[var(--royal-primary)] text-white shadow-2xs'
                     : 'text-slate-600 hover:text-[#1D232E]'
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>1. Droits &amp; Actions</span>
+                <span>1..13 Sections &amp; Droits</span>
               </button>
               <button
                 type="button"
@@ -260,7 +346,7 @@ export function RoleStudioPanel({
                 }`}
               >
                 <Eye className="w-3.5 h-3.5" />
-                <span>2. Vues Dashboard ({roleViews.length})</span>
+                <span>Vues rapides ({roleViews.length})</span>
               </button>
             </div>
           </div>
@@ -296,188 +382,333 @@ export function RoleStudioPanel({
         )}
       </div>
 
-      {/* TAB 1: SIMPLIFIED PERMISSIONS */}
-      {studioTab === 'permissions' && (
-        <div className="p-5 space-y-5">
-          {/* Domain Quick Filter Pills */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setActiveDomainId('ALL')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
-                activeDomainId === 'ALL'
-                  ? 'bg-[#1D232E] text-white border-[#1D232E]'
-                  : 'bg-[#F8F9FA] text-slate-600 border-[#E6E1D6] hover:border-[#C59B27]'
-              }`}
-            >
-              Tous les domaines ({domainBuckets.length})
-            </button>
-            {domainBuckets.map((dom) => (
+      {/* TAB 1: 13 NUMBERED ACCORDIONS (CLOSED BY DEFAULT) */}
+      {studioTab === 'unified' && (
+        <div className="p-5 space-y-4">
+          {/* Section Filter Bar + Expand/Collapse All */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               <button
-                key={dom.id}
                 type="button"
-                onClick={() => setActiveDomainId(dom.id)}
+                onClick={() => setActiveSectionFilter('ALL')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
-                  activeDomainId === dom.id
-                    ? 'bg-[var(--royal-primary)] text-white border-[var(--royal-primary)]'
-                    : 'bg-white text-slate-600 border-[#E6E1D6] hover:border-[#C59B27]'
+                  activeSectionFilter === 'ALL'
+                    ? 'bg-[#1D232E] text-white border-[#1D232E]'
+                    : 'bg-[#F8F9FA] text-slate-600 border-[#E6E1D6] hover:border-[#C59B27]'
                 }`}
               >
-                {dom.label}
+                Toutes les sections ({canonicalSections.length})
               </button>
-            ))}
+              {canonicalSections.map((sec) => (
+                <button
+                  key={sec.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveSectionFilter(sec.id);
+                    setOpenSections((prev) => ({ ...prev, [sec.id]: true }));
+                  }}
+                  className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
+                    activeSectionFilter === sec.id
+                      ? 'bg-[var(--royal-primary)] text-white border-[var(--royal-primary)]'
+                      : 'bg-white text-slate-600 border-[#E6E1D6] hover:border-[#C59B27]'
+                  }`}
+                >
+                  {sec.label}
+                </button>
+              ))}
+            </div>
+
+            <Button variant="outline" size="sm" onClick={toggleExpandAll} className="shrink-0">
+              {anySectionExpanded ? (
+                <>
+                  <ChevronsDownUp className="w-3.5 h-3.5 text-[#C59B27]" />
+                  <span>Tout replier</span>
+                </>
+              ) : (
+                <>
+                  <ChevronsUpDown className="w-3.5 h-3.5 text-[#C59B27]" />
+                  <span>Tout déplier</span>
+                </>
+              )}
+            </Button>
           </div>
 
-          {/* Domain Sections */}
-          <div className="space-y-4">
-            {visibleDomains.map((dom) => {
-              const domainPerms = dom.modules.flatMap((m) => groupedPerms[m] || []);
-              const domainNoDeleteIds = domainPerms
+          {/* 1..13 Separate Accordions */}
+          <div className="space-y-2.5">
+            {visibleSections.map((sec) => {
+              const sectionPerms = sec.modules.flatMap((m) => groupedPerms[m] || []);
+              const sectionNoDeleteIds = sectionPerms
                 .filter((p) => p.action !== 'delete' && p.action !== 'manage')
                 .map((p) => p.id);
-              const domainEnabledCount = domainPerms.filter((p) => rolePermSet.has(p.id)).length;
+              const enabledPermsCount = isRootRole
+                ? sectionPerms.length
+                : sectionPerms.filter((p) => rolePermSet.has(p.id)).length;
+
+              const routePaths = sec.routes.map((r) => r.path);
+              const enabledViewsCount = isRootRole
+                ? routePaths.length
+                : routePaths.filter((p) => roleViewsSet.has(p)).length;
+              const allViewsChecked =
+                routePaths.length > 0 && enabledViewsCount === routePaths.length;
+
+              const isExpanded = Boolean(openSections[sec.id]) || Boolean(searchQuery.trim());
 
               return (
                 <div
-                  key={dom.id}
-                  className="rounded-2xl border border-[#E6E1D6] bg-white overflow-hidden"
+                  key={sec.id}
+                  className={`rounded-2xl border transition overflow-hidden ${
+                    isExpanded
+                      ? 'border-[#C59B27]/60 bg-white shadow-2xs'
+                      : 'border-[#E6E1D6] bg-white hover:border-[#C59B27]/50'
+                  }`}
                 >
-                  <div className="px-4 py-3 bg-[#FBF9F4] border-b border-[#E6E1D6] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-black text-[#1D232E]">{dom.label}</h3>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white border border-[#E6E1D6] text-[#9A7414]">
-                          {domainEnabledCount}/{domainPerms.length}
-                        </span>
+                  {/* Accordion Header */}
+                  <div className="px-4 py-3 bg-[#FBF9F4] flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => toggleAccordion(sec.id)}
+                      aria-expanded={isExpanded}
+                      className="flex items-start sm:items-center gap-3 text-left min-w-0 flex-1 cursor-pointer"
+                    >
+                      <span className="w-7 h-7 rounded-xl bg-white border border-[#E6E1D6] flex items-center justify-center text-[#9A7414] shrink-0">
+                        {isExpanded ? (
+                          <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4" />
+                        )}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm font-black text-[#1D232E]">{sec.label}</h3>
+                          {sectionPerms.length > 0 && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white border border-[#E6E1D6] text-[#9A7414]">
+                              {enabledPermsCount}/{sectionPerms.length} droits
+                            </span>
+                          )}
+                          {routePaths.length > 0 && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white border border-[#E6E1D6] text-slate-600">
+                              {enabledViewsCount}/{routePaths.length} vues
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                          {sec.description}
+                        </p>
                       </div>
-                      <p className="text-[11px] text-slate-500">{dom.description}</p>
-                    </div>
+                    </button>
+
                     {!isRootRole && (
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {domainNoDeleteIds.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 shrink-0 pl-10 md:pl-0">
+                        {sectionNoDeleteIds.length > 0 && (
                           <button
                             type="button"
-                            onClick={() => onSetModulePerms(domainNoDeleteIds, true)}
+                            onClick={() => onSetModulePerms(sectionNoDeleteIds, true)}
                             className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 text-[11px] font-bold cursor-pointer"
                           >
-                            + Tout sans Supprimer
+                            + Droits sans Supprimer
                           </button>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const allActive =
-                              domainPerms.length > 0 &&
-                              domainPerms.every((p) => rolePermSet.has(p.id));
-                            onSetModulePerms(
-                              domainPerms.map((p) => p.id),
-                              !allActive,
-                            );
-                          }}
-                          className="px-2.5 py-1 rounded-lg bg-white text-slate-700 border border-[#E6E1D6] hover:border-[#C59B27] text-[11px] font-bold cursor-pointer"
-                        >
-                          Tout basculer
-                        </button>
+                        {sectionPerms.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const allActive = sectionPerms.every((p) => rolePermSet.has(p.id));
+                              onSetModulePerms(
+                                sectionPerms.map((p) => p.id),
+                                !allActive,
+                              );
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-white text-slate-700 border border-[#E6E1D6] hover:border-[#C59B27] text-[11px] font-bold cursor-pointer"
+                          >
+                            Basculer droits
+                          </button>
+                        )}
+                        {routePaths.length > 0 && (
+                          <div className="inline-flex items-center gap-1.5 pl-1.5 border-l border-[#E6E1D6]">
+                            <span className="text-[10px] font-bold text-slate-500">Vues</span>
+                            <Toggle
+                              compact
+                              size="sm"
+                              checked={allViewsChecked}
+                              onChange={() => onToggleViewSection(routePaths, !allViewsChecked)}
+                              ariaLabel={`Basculer toutes les vues ${sec.label}`}
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
 
-                  <div className="divide-y divide-slate-100">
-                    {dom.modules.map((mod) => {
-                      const modPerms = groupedPerms[mod] || [];
-                      const enabledCount = isRootRole
-                        ? modPerms.length
-                        : modPerms.filter((p) => rolePermSet.has(p.id)).length;
-                      const isRawOpen = Boolean(expandedRawModules[mod]);
-                      const extraActions = modPerms.filter(
-                        (p) =>
-                          !READ_ACTIONS.includes(p.action) &&
-                          !['create', 'update', 'delete', 'manage'].includes(p.action),
-                      );
-
-                      return (
-                        <div key={mod} className="px-4 py-3 hover:bg-[#FBF9F4]/50 transition">
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-xs font-bold text-[#1D232E]">
-                                  {formatModuleLabel(mod)}
-                                </span>
-                                <span className="text-[10px] font-mono text-slate-400 bg-[#F8F9FA] px-1.5 py-0.5 rounded border border-slate-200">
-                                  {mod}
-                                </span>
-                                <span className="text-[10px] font-mono font-bold text-[#9A7414]">
-                                  {enabledCount}/{modPerms.length}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              {renderQuickPill('Voir', modPerms, READ_ACTIONS)}
-                              {renderQuickPill('Ajouter', modPerms, ['create'])}
-                              {renderQuickPill('Modifier', modPerms, ['update'])}
-                              {renderQuickPill('Supprimer', modPerms, ['delete'], 'danger')}
-                              {renderQuickPill('Gestion complète', modPerms, ['manage'], 'amber')}
-                              {extraActions.map((extra) =>
-                                renderQuickPill(
-                                  actionLabels[extra.action] || extra.action,
-                                  modPerms,
-                                  [extra.action],
-                                ),
-                              )}
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setExpandedRawModules((prev) => ({ ...prev, [mod]: !prev[mod] }))
-                                }
-                                className="px-2 py-1 rounded-lg border border-transparent hover:border-[#E6E1D6] text-[10px] font-semibold text-slate-400 hover:text-slate-700 inline-flex items-center gap-0.5 cursor-pointer"
-                                title="Voir le détail technique des actions"
-                              >
-                                {isRawOpen ? (
-                                  <ChevronDown className="w-3 h-3" />
-                                ) : (
-                                  <ChevronRight className="w-3 h-3" />
-                                )}
-                                <span>Détails</span>
-                              </button>
-                            </div>
+                  {/* Accordion Body */}
+                  {isExpanded && (
+                    <div className="border-t border-[#E6E1D6] divide-y divide-slate-100">
+                      {/* Sub-block A: Vues du Menu (permissions_views) */}
+                      {sec.routes.length > 0 && (
+                        <div className="p-4 bg-[#F8F9FA]/60 space-y-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#9A7414] flex items-center gap-1.5">
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Vues du Menu Sidebar &amp; Routes ({sec.routes.length})</span>
+                            </span>
                           </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+                            {sec.routes.map((route) => {
+                              const isGlobalPrivate = visibilityMap[route.path] === 'PRIVATE';
+                              const checked = isRootRole || roleViewsSet.has(route.path);
+                              const meta = viewMetaByPath.get(route.path);
+                              const linkedPermHint = meta
+                                ? Array.from(meta.permCodes).slice(0, 2).join(', ')
+                                : null;
 
-                          {isRawOpen && (
-                            <div className="mt-2.5 pt-2.5 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                              {modPerms.map((perm) => {
-                                const checked = isRootRole || rolePermSet.has(perm.id);
-                                return (
-                                  <div
-                                    key={perm.id}
-                                    className="px-3 py-2 rounded-xl bg-[#F8F9FA] border border-[#E6E1D6]/70 flex items-center justify-between gap-2"
-                                  >
-                                    <div className="min-w-0">
-                                      <div className="text-[11px] font-bold text-[#1D232E]">
-                                        {actionLabels[perm.action] || perm.action}
-                                      </div>
-                                      <div className="text-[10px] font-mono text-slate-400 truncate">
-                                        {perm.code}
-                                      </div>
+                              return (
+                                <div
+                                  key={route.path}
+                                  className="px-3 py-2 rounded-xl bg-white border border-[#E6E1D6]/80 hover:border-[#C59B27]/60 flex items-center justify-between gap-2 transition"
+                                >
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-xs font-bold text-[#1D232E] truncate">
+                                        {route.label}
+                                      </span>
+                                      {isGlobalPrivate && (
+                                        <span
+                                          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[9px] font-bold text-amber-800 shrink-0"
+                                          title="Route globalement privée dans Visibilité des vues"
+                                        >
+                                          <Lock className="w-2.5 h-2.5" />
+                                          <span>PRIVÉ</span>
+                                        </span>
+                                      )}
                                     </div>
-                                    <Toggle
-                                      compact
-                                      size="sm"
-                                      disabled={isRootRole}
-                                      checked={checked}
-                                      onChange={() => onTogglePermission(perm.id)}
-                                      ariaLabel={perm.code}
-                                    />
+                                    <div className="text-[10px] font-mono text-slate-400 truncate">
+                                      {route.path}
+                                      {linkedPermHint ? ` · [${linkedPermHint}]` : ''}
+                                    </div>
                                   </div>
-                                );
-                              })}
-                            </div>
-                          )}
+
+                                  <Toggle
+                                    compact
+                                    size="sm"
+                                    disabled={isRootRole}
+                                    checked={checked}
+                                    onChange={() => onToggleViewRoute(route.path)}
+                                    ariaLabel={`${route.label} pour ${roleDisplayName}`}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
+                      )}
+
+                      {/* Sub-block B: Modules & Permissions Actions FR */}
+                      {sec.modules.length > 0 && (
+                        <div className="divide-y divide-slate-100">
+                          {sec.modules.map((mod) => {
+                            const modPerms = groupedPerms[mod] || [];
+                            const enabledCount = isRootRole
+                              ? modPerms.length
+                              : modPerms.filter((p) => rolePermSet.has(p.id)).length;
+
+                            return (
+                              <div key={mod} className="p-4 space-y-3 hover:bg-[#FBF9F4]/30">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-xs font-black text-[#1D232E]">
+                                      {formatModuleLabel(mod)}
+                                    </span>
+                                    <span className="text-[10px] font-mono text-slate-500 bg-[#F8F9FA] px-1.5 py-0.5 rounded border border-[#E6E1D6]">
+                                      {mod}
+                                    </span>
+                                    <span className="text-[10px] font-mono font-bold text-[#9A7414]">
+                                      {enabledCount}/{modPerms.length}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    {renderQuickPill('Voir', modPerms, READ_ACTIONS)}
+                                    {renderQuickPill('Ajouter', modPerms, ['create'])}
+                                    {renderQuickPill('Modifier', modPerms, ['update'])}
+                                    {renderQuickPill('Supprimer', modPerms, ['delete'], 'danger')}
+                                    {renderQuickPill(
+                                      'Gestion complète',
+                                      modPerms,
+                                      ['manage'],
+                                      'amber',
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+                                  {modPerms.map((perm) => {
+                                    const checked = isRootRole || rolePermSet.has(perm.id);
+                                    const titleFr = formatPermissionFrenchTitle(
+                                      mod,
+                                      perm.action,
+                                      perm.actionTitleFr,
+                                    );
+                                    const linkedViews = perm.views || [];
+
+                                    return (
+                                      <div
+                                        key={perm.id}
+                                        className={`px-3 py-2.5 rounded-xl border flex items-start justify-between gap-2.5 transition ${
+                                          checked
+                                            ? 'bg-[#FBF6E8]/45 border-[#C59B27]/50'
+                                            : 'bg-[#F8F9FA] border-[#E6E1D6]/80'
+                                        }`}
+                                      >
+                                        <div className="min-w-0 flex-1 space-y-1">
+                                          <div className="text-[11.5px] font-bold text-[#1D232E] leading-snug">
+                                            {titleFr}
+                                          </div>
+                                          <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className="text-[10px] font-mono text-slate-500">
+                                              {perm.code}
+                                            </span>
+                                            <span className="text-[9.5px] px-1.5 py-0.2 rounded bg-white border border-[#E6E1D6] text-[#9A7414] font-semibold">
+                                              {actionLabels[perm.action] || perm.action}
+                                            </span>
+                                          </div>
+                                          {linkedViews.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 pt-0.5">
+                                              {linkedViews.slice(0, 2).map((v) => (
+                                                <span
+                                                  key={`${perm.id}-${v.viewPath}`}
+                                                  title={v.backendRoute || v.viewPath}
+                                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-600 truncate max-w-[200px]"
+                                                >
+                                                  {v.viewPath}
+                                                </span>
+                                              ))}
+                                              {linkedViews.length > 2 && (
+                                                <span className="text-[9px] font-mono text-slate-400">
+                                                  +{linkedViews.length - 2}
+                                                </span>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        <Toggle
+                                          compact
+                                          size="sm"
+                                          disabled={isRootRole}
+                                          checked={checked}
+                                          onChange={() => onTogglePermission(perm.id)}
+                                          ariaLabel={titleFr}
+                                        />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -485,20 +716,20 @@ export function RoleStudioPanel({
         </div>
       )}
 
-      {/* TAB 2: DYNAMIC DASHBOARD VIEWS PER ROLE */}
+      {/* TAB 2: COMPACT GRID OF ALL 78 VIEWS */}
       {studioTab === 'views' && (
         <div className="p-5 space-y-4">
           <div className="p-4 rounded-2xl bg-[#FBF6E8] border border-[#E6D6A6] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="space-y-0.5">
               <div className="text-xs font-extrabold text-[#1D232E] flex items-center gap-1.5">
                 <LayoutGrid className="w-4 h-4 text-[#C59B27]" />
-                <span>Accès Dynamique aux Vues &amp; Sections du Dashboard</span>
+                <span>Accès Dynamique aux Vues &amp; Sections du Dashboard (78 vues)</span>
               </div>
               <p className="text-[11px] text-slate-600">
                 Activez exactement les pages visibles dans le menu gauche et accessibles par URL pour{' '}
                 <strong>{roleDisplayName}</strong>. Les pages marquées{' '}
-                <span className="font-bold text-amber-800">PRIVÉ (ROOT)</span> doivent également être passées en{' '}
-                <strong>PUBLIC</strong> dans <em>Visibilité des vues</em> pour les utilisateurs non-ROOT.
+                <span className="font-bold text-amber-800">PRIVÉ</span> doivent également être passées en{' '}
+                <strong>PUBLIC</strong> dans <em>Visibilité des vues</em> pour les comptes non-ROOT.
               </p>
             </div>
             {!isRootRole && (

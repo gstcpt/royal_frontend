@@ -1,18 +1,25 @@
 export interface DashboardViewSectionDef {
+  order: number;
   id: string;
   label: string;
   routes: Array<{ path: string; label: string; rootOnly?: boolean }>;
 }
 
+/**
+ * Ordre canonique strict 1..13 aligné sur apps/frontend/src/app/(dashboard)/layout.tsx
+ * + Registre complet des 78 vues de apps/frontend/src/app/(dashboard)/dashboard/root/visibility/page.tsx
+ */
 export const DASHBOARD_VIEW_SECTIONS: DashboardViewSectionDef[] = [
   {
+    order: 1,
     id: 'overview',
-    label: 'Tableau de bord',
+    label: '1. Tableau de bord',
     routes: [{ path: '/dashboard', label: 'Vue principale Tableau de bord' }],
   },
   {
+    order: 2,
     id: 'community',
-    label: 'Communauté',
+    label: '2. Communauté',
     routes: [
       { path: '/dashboard/community/notifications', label: 'Notifications (Staff)' },
       { path: '/dashboard/community/contacts', label: 'Contact (Formulaire Public)' },
@@ -22,44 +29,11 @@ export const DASHBOARD_VIEW_SECTIONS: DashboardViewSectionDef[] = [
     ],
   },
   {
-    id: 'catalogue',
-    label: 'Catalogue',
-    routes: [
-      { path: '/dashboard/brands', label: 'Marques' },
-      { path: '/dashboard/categories', label: 'Catégories' },
-      { path: '/dashboard/characteristics', label: 'Caractéristiques' },
-      { path: '/dashboard/variants', label: 'Variantes' },
-      { path: '/dashboard/articles', label: 'Articles' },
-      { path: '/dashboard/coupons', label: 'Codes promotionnels' },
-    ],
-  },
-  {
-    id: 'client',
-    label: 'Espace Client',
-    routes: [
-      { path: '/account/home', label: 'Accueil Client' },
-      { path: '/account/orders', label: 'Suivi des commandes' },
-      { path: '/account/favorites', label: 'Liste de souhaits' },
-      { path: '/account/profile', label: 'Mon profil' },
-      { path: '/account/loyalty', label: 'Mes points de fidélité' },
-      { path: '/account/coupons', label: 'Mes codes privilèges' },
-    ],
-  },
-  {
-    id: 'sales',
-    label: 'Ventes & Distribution',
-    routes: [
-      { path: '/dashboard/customers', label: 'Fiches clients' },
-      { path: '/dashboard/orders', label: 'Commandes clients' },
-      { path: '/dashboard/deliveries', label: 'Bon de livraison (BL)' },
-      { path: '/dashboard/returns', label: 'Bon de retour (BR)' },
-      { path: '/dashboard/invoices', label: 'Factures' },
-    ],
-  },
-  {
+    order: 3,
     id: 'users',
-    label: 'Gestion des Utilisateurs',
+    label: '3. Gestion des utilisateurs',
     routes: [
+      { path: '/dashboard/section/users', label: "Vue d'ensemble — Utilisateurs" },
       { path: '/dashboard/users', label: 'Tous les utilisateurs' },
       { path: '/dashboard/root/superadmins', label: 'Super admin' },
       { path: '/dashboard/users/admins', label: 'Administrateurs' },
@@ -76,30 +50,22 @@ export const DASHBOARD_VIEW_SECTIONS: DashboardViewSectionDef[] = [
     ],
   },
   {
-    id: 'stock',
-    label: 'Stock & Entrepôts',
+    order: 4,
+    id: 'catalogue',
+    label: '4. Catalogue',
     routes: [
-      { path: '/dashboard/warehouses', label: 'Dépôts' },
-      { path: '/dashboard/stock-in', label: "Bon d'entrée" },
-      { path: '/dashboard/stock-out', label: 'Bon de sortie' },
-      { path: '/dashboard/inventory', label: 'Inventaire physique' },
-      { path: '/dashboard/inventory-documents', label: 'Ajustement' },
-      { path: '/dashboard/transfers', label: 'Mouvements de stock' },
+      { path: '/dashboard/brands', label: 'Marques' },
+      { path: '/dashboard/categories', label: 'Catégories' },
+      { path: '/dashboard/characteristics', label: 'Caractéristiques' },
+      { path: '/dashboard/variants', label: 'Variantes' },
+      { path: '/dashboard/articles', label: 'Articles' },
+      { path: '/dashboard/coupons', label: 'Codes promotionnels' },
     ],
   },
   {
-    id: 'purchases',
-    label: 'Achats & Approvisionnement',
-    routes: [
-      { path: '/dashboard/purchases/prospects', label: 'Portefeuille de prospects' },
-      { path: '/dashboard/suppliers', label: 'Fiches fournisseurs' },
-      { path: '/dashboard/purchases/orders', label: 'Commandes fournisseurs' },
-      { path: '/dashboard/purchases/receipts', label: 'Bon de réception' },
-    ],
-  },
-  {
+    order: 5,
     id: 'treasury',
-    label: 'Trésorerie & Comptabilité',
+    label: '5. Trésorerie',
     routes: [
       { path: '/dashboard/treasury', label: 'Caisses' },
       { path: '/dashboard/treasury/transactions', label: 'Journal Trésorerie' },
@@ -108,16 +74,54 @@ export const DASHBOARD_VIEW_SECTIONS: DashboardViewSectionDef[] = [
     ],
   },
   {
+    order: 6,
+    id: 'purchases',
+    label: '6. Achats et approvisionnement',
+    routes: [
+      { path: '/dashboard/purchases/prospects', label: 'Portefeuille de prospects' },
+      { path: '/dashboard/suppliers', label: 'Fiches fournisseurs' },
+      { path: '/dashboard/purchases/orders', label: 'Commandes fournisseurs (BC)' },
+      { path: '/dashboard/purchases/receipts', label: 'Bon de réception (BR)' },
+    ],
+  },
+  {
+    order: 7,
+    id: 'stock',
+    label: '7. Stock et entrepôts',
+    routes: [
+      { path: '/dashboard/warehouses', label: 'Dépôts' },
+      { path: '/dashboard/stock-in', label: "Bon d'entrée (BE)" },
+      { path: '/dashboard/stock-out', label: 'Bon de sortie (BS)' },
+      { path: '/dashboard/inventory', label: 'Inventaire physique' },
+      { path: '/dashboard/inventory-documents', label: 'Ajustement' },
+      { path: '/dashboard/transfers', label: 'Mouvements de stock' },
+    ],
+  },
+  {
+    order: 8,
+    id: 'sales',
+    label: '8. Ventes et distribution',
+    routes: [
+      { path: '/dashboard/customers', label: 'Fiches clients' },
+      { path: '/dashboard/orders', label: 'Commandes clients' },
+      { path: '/dashboard/deliveries', label: 'Bon de livraison (BL)' },
+      { path: '/dashboard/returns', label: 'Bon de retour (BR)' },
+      { path: '/dashboard/invoices', label: 'Factures' },
+    ],
+  },
+  {
+    order: 9,
     id: 'pos',
-    label: 'Point de vente (POS)',
+    label: '9. Point de vente (POS)',
     routes: [
       { path: '/dashboard/pos/showrooms', label: "Salles d'exposition" },
       { path: '/dashboard/pos', label: 'Terminal POS' },
     ],
   },
   {
+    order: 10,
     id: 'seo',
-    label: 'SEO & Réputation',
+    label: '10. SEO & Réputation',
     routes: [
       { path: '/dashboard/community/testimonials', label: 'Commentaires et avis' },
       { path: '/dashboard/reports/interactions', label: 'Interactions' },
@@ -127,8 +131,9 @@ export const DASHBOARD_VIEW_SECTIONS: DashboardViewSectionDef[] = [
     ],
   },
   {
+    order: 11,
     id: 'reports',
-    label: 'Rapports & Statistiques',
+    label: '11. Rapports et statistiques',
     routes: [
       { path: '/dashboard/analytics', label: "Conseils d'achat" },
       { path: '/dashboard/reports/sales', label: 'Ventes et marges' },
@@ -136,8 +141,22 @@ export const DASHBOARD_VIEW_SECTIONS: DashboardViewSectionDef[] = [
     ],
   },
   {
+    order: 12,
+    id: 'client',
+    label: '12. Espace client',
+    routes: [
+      { path: '/account/home', label: 'Accueil Client' },
+      { path: '/account/orders', label: 'Suivi des commandes client' },
+      { path: '/account/favorites', label: 'Liste de souhaits' },
+      { path: '/account/profile', label: 'Mon profil' },
+      { path: '/account/loyalty', label: 'Mes points de fidélité' },
+      { path: '/account/coupons', label: 'Mes codes privilèges' },
+    ],
+  },
+  {
+    order: 13,
     id: 'system',
-    label: 'Système & Paramètres',
+    label: '13. Système',
     routes: [
       { path: '/dashboard/root/storefront/info', label: 'CMS Identité et marque' },
       { path: '/dashboard/root/storefront/layouts', label: 'CMS Mise en page' },
@@ -149,6 +168,9 @@ export const DASHBOARD_VIEW_SECTIONS: DashboardViewSectionDef[] = [
       { path: '/dashboard/root/print-templates', label: 'Documents & Imprimantes POS' },
       { path: '/dashboard/payment-methods', label: 'Paiements' },
       { path: '/dashboard/settings', label: 'Paramètres généraux' },
+      { path: '/dashboard/root/storage', label: 'Stockage Médias & CDN' },
+      { path: '/dashboard/root/visibility', label: 'Visibilité des vues' },
+      { path: '/dashboard/root/ai', label: 'Intelligence Artificielle (IA)' },
       { path: '/dashboard/translations', label: 'Langues & Traductions (FR / AR)' },
       { path: '/dashboard/root/roles-permissions', label: 'Rôles & Permissions' },
       { path: '/dashboard/logs', label: "Journal d'audit" },
@@ -166,25 +188,25 @@ export const MODULE_FRENCH_LABELS: Record<string, string> = {
   coupons: 'Codes promotionnels',
   contacts: 'Contact (Formulaire public)',
   notifications: 'Notifications',
-  support: 'Support (Messagerie)',
+  support: 'Support (Messagerie client)',
   customers: 'Fiches clients',
   orders: 'Commandes clients',
-  deliveries: 'Bons de livraison',
-  returns: 'Bons de retour',
+  deliveries: 'Bons de livraison (BL)',
+  returns: 'Bons de retour (BR)',
   invoices: 'Factures',
   warehouses: 'Dépôts',
-  stock_in: "Bons d'entrée",
-  stock_out: 'Bons de sortie',
+  stock_in: "Bons d'entrée (BE)",
+  stock_out: 'Bons de sortie (BS)',
   inventory: 'Inventaire physique',
   transfers: 'Mouvements de stock',
   prospects: 'Prospects',
   suppliers: 'Fournisseurs',
-  purchases_orders: 'Commandes fournisseurs',
-  purchases_receipts: 'Réceptions fournisseurs',
+  purchases_orders: 'Commandes fournisseurs (BC)',
+  purchases_receipts: 'Réceptions fournisseurs (BR)',
   treasury: 'Caisses & Trésorerie',
   treasury_journal: 'Journal de trésorerie',
   payments: 'Règlements',
-  accounting: 'Comptabilité',
+  accounting: 'Livres comptables',
   expenses: 'Dépenses',
   pos: 'Terminal POS',
   showrooms: "Salles d'exposition",
@@ -192,8 +214,8 @@ export const MODULE_FRENCH_LABELS: Record<string, string> = {
   interactions: 'Interactions clients',
   newsletters: 'Abonnements newsletter',
   testimonials: 'Témoignages',
-  reports: 'Rapports & Analytics',
-  reports_buying: "Conseils d'achat",
+  reports: "Conseils d'achat & Analytics",
+  reports_buying: "Rapports d'achat",
   reports_sales: 'Ventes & Marges',
   reports_cash: 'Suivi des caisses',
   client_home: 'Espace Client — Accueil',
@@ -202,14 +224,18 @@ export const MODULE_FRENCH_LABELS: Record<string, string> = {
   client_wishlist: 'Espace Client — Favoris',
   client_loyalty: 'Espace Client — Fidélité',
   client_coupons: 'Espace Client — Privilèges',
-  users: 'Tous les utilisateurs',
+  users: 'Tous les utilisateurs (Annuaire)',
   superadmins: 'Super Administrateurs',
   website_managers: 'Website Managers',
   magasiniers: 'Magasiniers',
   caissiers: 'Caissiers',
   vendeurs: 'Vendeurs',
   financiers: 'Financiers',
-  commercials: 'Commercials',
+  commercials: 'Commerciaux',
+  marketing: 'Marketing',
+  delivery_managers: 'Responsables Livraison',
+  delivery_agents: 'Livreurs',
+  clients: 'Clients (Comptes)',
   roles: 'Rôles RBAC',
   permissions: 'Permissions RBAC',
   settings: 'Paramètres système',
@@ -218,11 +244,31 @@ export const MODULE_FRENCH_LABELS: Record<string, string> = {
   crm_brand: 'CMS — Marque',
   crm_layout: 'CMS — Design',
   crm_views: 'CMS — Vues',
-  email_templates: 'Modèles d’emails',
+  email_templates: "Modèles d'emails",
   payment_methods: 'Modalités de paiement',
 };
 
+export const ACTION_FRENCH_TITLES: Record<string, string> = {
+  read: 'Consulter la ressource',
+  read_list: 'Lister les enregistrements',
+  read_detail: 'Afficher la fiche détaillée',
+  create: 'Créer / Ajouter un élément',
+  update: 'Modifier / Mettre à jour',
+  delete: 'Supprimer définitivement',
+  manage: 'Administration complète',
+  adjust: 'Ajuster les quantités',
+  reserve: 'Réserver du stock',
+  operate: 'Opérer le terminal / caisse',
+  view: 'Visualiser la vue',
+  approve: 'Approuver / Valider',
+  dispatch: 'Expédier / Dispatcher',
+  receive: 'Réceptionner',
+  cancel: 'Annuler',
+  'permissions.assign': 'Assigner des permissions',
+};
+
 export interface PermissionDomainDef {
+  order: number;
   id: string;
   label: string;
   description: string;
@@ -231,57 +277,129 @@ export interface PermissionDomainDef {
 
 export const PERMISSION_DOMAINS: PermissionDomainDef[] = [
   {
-    id: 'catalogue',
-    label: 'Catalogue Produits',
-    description: 'Marques, catégories, caractéristiques, variantes, articles et promotions.',
-    modules: ['brands', 'categories', 'characteristics', 'variants', 'products', 'coupons'],
+    order: 1,
+    id: 'overview',
+    label: '1. Tableau de bord',
+    description: 'Accueil principal et vue synthétique de pilotage.',
+    modules: [],
   },
   {
+    order: 2,
     id: 'community',
-    label: 'Communauté & Messagerie',
+    label: '2. Communauté',
     description: 'Alertes notifications, messages du formulaire Contact et tickets Support.',
     modules: ['notifications', 'contacts', 'support'],
   },
   {
-    id: 'client_space',
-    label: 'Espace Client Personnel',
-    description: 'Tableau de bord client, commandes perso, favoris, profil, fidélité et privilèges.',
-    modules: ['client_home', 'client_orders', 'client_wishlist', 'client_profile', 'client_loyalty', 'client_coupons'],
+    order: 3,
+    id: 'users',
+    label: '3. Gestion des utilisateurs',
+    description: 'Annuaire collaborateurs par profil métier et comptes clients.',
+    modules: [
+      'users',
+      'superadmins',
+      'website_managers',
+      'magasiniers',
+      'caissiers',
+      'vendeurs',
+      'financiers',
+      'commercials',
+    ],
   },
   {
+    order: 4,
+    id: 'catalogue',
+    label: '4. Catalogue',
+    description: 'Marques, catégories, caractéristiques, variantes, articles et promotions.',
+    modules: ['brands', 'categories', 'characteristics', 'variants', 'products', 'coupons'],
+  },
+  {
+    order: 5,
+    id: 'treasury',
+    label: '5. Trésorerie',
+    description: 'Caisses, journal de trésorerie, règlements, comptabilité et dépenses.',
+    modules: ['treasury', 'treasury_journal', 'payments', 'accounting', 'expenses'],
+  },
+  {
+    order: 6,
+    id: 'purchases',
+    label: '6. Achats et approvisionnement',
+    description: 'Prospects, fournisseurs, bons de commande et réceptions.',
+    modules: ['prospects', 'suppliers', 'purchases_orders', 'purchases_receipts'],
+  },
+  {
+    order: 7,
+    id: 'stock',
+    label: '7. Stock et entrepôts',
+    description: 'Dépôts, entrées/sorties, inventaire physique, ajustements et mouvements.',
+    modules: ['warehouses', 'stock_in', 'stock_out', 'inventory', 'transfers'],
+  },
+  {
+    order: 8,
     id: 'sales',
-    label: 'Ventes & Distribution',
+    label: '8. Ventes et distribution',
     description: 'Fiches clients, commandes, bons de livraison, retours et factures.',
     modules: ['customers', 'orders', 'deliveries', 'returns', 'invoices'],
   },
   {
-    id: 'seo_reports',
-    label: 'SEO, Avis & Statistiques',
-    description: 'Avis produits, interactions, newsletter, témoignages et rapports.',
-    modules: ['reviews', 'interactions', 'newsletters', 'testimonials', 'reports', 'reports_buying', 'reports_sales', 'reports_cash'],
+    order: 9,
+    id: 'pos',
+    label: '9. Point de vente (POS)',
+    description: "Salles d'exposition et terminal de caisse.",
+    modules: ['showrooms', 'pos'],
   },
   {
-    id: 'stock_purchases',
-    label: 'Stock, Entrepôts & Achats',
-    description: 'Dépôts, entrées/sorties, inventaires, transferts, prospects et fournisseurs.',
-    modules: ['warehouses', 'stock_in', 'stock_out', 'inventory', 'transfers', 'prospects', 'suppliers', 'purchases_orders', 'purchases_receipts'],
+    order: 10,
+    id: 'seo',
+    label: '10. SEO & Réputation',
+    description: 'Avis produits, interactions, abonnements newsletter et témoignages.',
+    modules: ['reviews', 'interactions', 'newsletters', 'testimonials'],
   },
   {
-    id: 'treasury_pos',
-    label: 'Trésorerie & Point de Vente',
-    description: 'Caisses, règlements, comptabilité, showrooms et terminal POS.',
-    modules: ['treasury', 'treasury_journal', 'payments', 'accounting', 'expenses', 'showrooms', 'pos'],
+    order: 11,
+    id: 'reports',
+    label: '11. Rapports et statistiques',
+    description: "Conseils d'achat, ventes, marges et suivi des caisses.",
+    modules: ['reports', 'reports_buying', 'reports_sales', 'reports_cash'],
   },
   {
-    id: 'admin_system',
-    label: 'Utilisateurs & Administration Système',
-    description: 'Annuaire collaborateurs, rôles RBAC, CMS, audit et configuration ROOT.',
-    modules: ['users', 'superadmins', 'website_managers', 'magasiniers', 'caissiers', 'vendeurs', 'financiers', 'commercials', 'roles', 'permissions', 'settings', 'audit', 'system_audit', 'crm_brand', 'crm_layout', 'crm_views', 'email_templates', 'payment_methods'],
+    order: 12,
+    id: 'client',
+    label: '12. Espace client',
+    description: 'Accueil client, suivi commandes, favoris, profil, fidélité et privilèges.',
+    modules: [
+      'client_home',
+      'client_orders',
+      'client_wishlist',
+      'client_profile',
+      'client_loyalty',
+      'client_coupons',
+    ],
+  },
+  {
+    order: 13,
+    id: 'system',
+    label: '13. Système',
+    description: 'CMS storefront, emails, paramètres généraux, stockage, IA, visibilité, rôles et audit.',
+    modules: [
+      'crm_brand',
+      'crm_layout',
+      'crm_views',
+      'email_templates',
+      'settings',
+      'payment_methods',
+      'roles',
+      'permissions',
+      'audit',
+      'system_audit',
+    ],
   },
 ];
 
 export type RolePresetId =
   | 'MARKETING_FULL'
+  | 'DELIVERY_MANAGER_FULL'
+  | 'DELIVERY_AGENT_FULL'
   | 'CATALOG_NO_DELETE'
   | 'COMMUNITY_NO_SUPPORT'
   | 'CLIENT_SPACE'
@@ -301,6 +419,18 @@ export const ROLE_PRESETS: RolePresetDef[] = [
     label: 'Pack Marketing Complet',
     summary: 'Catalogue (sans Supprimer) + Communauté (sans Support) + Espace Client',
     tone: 'gold',
+  },
+  {
+    id: 'DELIVERY_MANAGER_FULL',
+    label: 'Pack Responsable Livraison',
+    summary: 'Livraisons, Commandes, Retours, Clients, Transferts, Factures & Livreurs',
+    tone: 'gold',
+  },
+  {
+    id: 'DELIVERY_AGENT_FULL',
+    label: 'Pack Livreur Terrain',
+    summary: 'Tournées BL, Commandes clients, Retours et Notifications',
+    tone: 'emerald',
   },
   {
     id: 'CATALOG_NO_DELETE',
@@ -338,6 +468,17 @@ export function formatModuleLabel(mod: string): string {
   return MODULE_FRENCH_LABELS[mod] || mod.replace(/_/g, ' ');
 }
 
+export function formatPermissionFrenchTitle(
+  mod: string,
+  action: string,
+  actionTitleFr?: string | null,
+): string {
+  if (actionTitleFr && actionTitleFr.trim()) return actionTitleFr;
+  const modLabel = formatModuleLabel(mod);
+  const verb = ACTION_FRENCH_TITLES[action] || action;
+  return `${verb} — ${modLabel}`;
+}
+
 export function applyPresetToRoleState<T extends { id: string; action: string }>(
   preset: RolePresetId,
   groupedPerms: Record<string, T[]>,
@@ -359,7 +500,14 @@ export function applyPresetToRoleState<T extends { id: string; action: string }>
   ];
   const communityNoSupportModules = ['contacts', 'notifications'];
   const communityNoSupportViews = ['/dashboard/community/notifications', '/dashboard/community/contacts'];
-  const clientModules = ['client_home', 'client_orders', 'client_profile', 'client_loyalty', 'client_coupons', 'client_wishlist'];
+  const clientModules = [
+    'client_home',
+    'client_orders',
+    'client_profile',
+    'client_loyalty',
+    'client_coupons',
+    'client_wishlist',
+  ];
   const clientViews = [
     '/account/home',
     '/account/orders',
@@ -416,9 +564,61 @@ export function applyPresetToRoleState<T extends { id: string; action: string }>
     communityNoSupportModules.forEach((m) => grantModuleAll(m));
     communityNoSupportViews.forEach((v) => nextViews.add(v));
     clientModules.forEach((m) =>
-      grantModuleAll(m, m === 'client_wishlist' ? undefined : ['create', 'read_list', 'read_detail', 'update']),
+      grantModuleAll(
+        m,
+        m === 'client_wishlist' ? undefined : ['create', 'read_list', 'read_detail', 'update'],
+      ),
     );
     clientViews.forEach((v) => nextViews.add(v));
+    return { permIds: nextPerms, views: Array.from(nextViews) };
+  }
+
+  if (preset === 'DELIVERY_MANAGER_FULL') {
+    nextPerms.clear();
+    nextViews.clear();
+    [
+      '/dashboard',
+      '/dashboard/community/notifications',
+      '/dashboard/customers',
+      '/dashboard/orders',
+      '/dashboard/deliveries',
+      '/dashboard/returns',
+      '/dashboard/invoices',
+      '/dashboard/warehouses',
+      '/dashboard/transfers',
+      '/dashboard/users/delivery-agents',
+      '/account/notifications',
+    ].forEach((v) => nextViews.add(v));
+
+    grantModuleAll('deliveries', ['read', 'read_list', 'read_detail', 'create', 'update', 'manage']);
+    grantModuleAll('orders', ['read', 'read_list', 'read_detail', 'update']);
+    grantModuleAll('returns', ['read', 'read_list', 'read_detail', 'create', 'update']);
+    grantModuleAll('customers', ['read', 'read_list', 'read_detail']);
+    grantModuleAll('warehouses', ['read', 'read_list', 'read_detail']);
+    grantModuleAll('transfers', ['read', 'read_list', 'read_detail', 'create', 'update']);
+    grantModuleAll('invoices', ['read', 'read_list', 'read_detail']);
+    grantModuleAll('notifications', ['read', 'read_list', 'read_detail', 'create', 'update']);
+    grantModuleAll('users', ['read', 'read_list', 'read_detail']);
+    return { permIds: nextPerms, views: Array.from(nextViews) };
+  }
+
+  if (preset === 'DELIVERY_AGENT_FULL') {
+    nextPerms.clear();
+    nextViews.clear();
+    [
+      '/dashboard',
+      '/dashboard/community/notifications',
+      '/dashboard/orders',
+      '/dashboard/deliveries',
+      '/dashboard/returns',
+      '/account/notifications',
+    ].forEach((v) => nextViews.add(v));
+
+    grantModuleAll('deliveries', ['read', 'read_list', 'read_detail', 'update']);
+    grantModuleAll('orders', ['read', 'read_list', 'read_detail', 'update']);
+    grantModuleAll('returns', ['read', 'read_list', 'read_detail']);
+    grantModuleAll('customers', ['read', 'read_list', 'read_detail']);
+    grantModuleAll('notifications', ['read', 'read_list', 'read_detail', 'update']);
     return { permIds: nextPerms, views: Array.from(nextViews) };
   }
 
@@ -438,7 +638,10 @@ export function applyPresetToRoleState<T extends { id: string; action: string }>
 
   if (preset === 'CLIENT_SPACE') {
     clientModules.forEach((m) =>
-      grantModuleAll(m, m === 'client_wishlist' ? undefined : ['create', 'read_list', 'read_detail', 'update']),
+      grantModuleAll(
+        m,
+        m === 'client_wishlist' ? undefined : ['create', 'read_list', 'read_detail', 'update'],
+      ),
     );
     clientViews.forEach((v) => nextViews.add(v));
     return { permIds: nextPerms, views: Array.from(nextViews) };
