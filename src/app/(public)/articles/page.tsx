@@ -7,6 +7,7 @@ import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHead
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
 import { getSafeImageUrl } from '@/lib/cart-session';
+import { fetchAllPaginated } from '@/lib/api';
 import {
   Filter,
   ArrowUpDown,
@@ -393,20 +394,23 @@ function ArticlesContent() {
         if (promoOnly) params.set('collection', 'promo');
         if (urlMinPrice) params.set('minPrice', urlMinPrice);
         if (urlMaxPrice) params.set('maxPrice', urlMaxPrice);
-        params.set('page', effectiveTargetIds.length > 0 ? '1' : String(effectivePage));
-        params.set('limit', effectiveTargetIds.length > 0 ? '200' : String(perPage));
+        params.set('page', String(effectivePage));
+        params.set('limit', String(perPage));
 
-        const res = await fetch(`/api/v1/products/storefront?${params.toString()}`);
-        if (res.ok) {
-          const data = await res.json();
-          let list = data?.data?.data || data?.data || data?.products || [];
-          const meta = data?.data?.meta || data?.meta;
-          if (effectiveTargetIds.length > 0 && Array.isArray(list)) {
-            list = list.filter((p: any) => effectiveTargetIds.includes(p.id));
-            setProducts(list);
-            setTotalCount(list.length);
-            setTotalPages(1);
-          } else {
+        if (effectiveTargetIds.length > 0) {
+          const { items: allPublic } = await fetchAllPaginated<StorefrontProduct>('/products/storefront', 200);
+          const targeted = effectiveTargetIds
+            .map((id) => allPublic.find((p) => p.id === id))
+            .filter(Boolean) as StorefrontProduct[];
+          setProducts(targeted);
+          setTotalCount(targeted.length);
+          setTotalPages(1);
+        } else {
+          const res = await fetch(`/api/v1/products/storefront?${params.toString()}`);
+          if (res.ok) {
+            const data = await res.json();
+            const list = data?.data?.data || data?.data || data?.products || [];
+            const meta = data?.data?.meta || data?.meta;
             if (isLoadMoreMode && effectivePage > 1 && Array.isArray(list)) {
               setProducts((prev) => {
                 const seen = new Set(prev.map((item) => item.id));
@@ -571,26 +575,102 @@ function ArticlesContent() {
       ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
       : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
 
+  const sectionOrder =
+    Array.isArray(articlesCfg.sectionOrder) && articlesCfg.sectionOrder.length > 0
+      ? articlesCfg.sectionOrder
+      : ['header', 'filters', 'grid', 'actions', 'pagination'];
+  const headerIdx = sectionOrder.indexOf('header');
+  const gridIdx = sectionOrder.indexOf('grid');
+  const pagIdx = sectionOrder.indexOf('pagination');
+  const headerAfterCatalog = headerIdx !== -1 && gridIdx !== -1 && headerIdx > gridIdx;
+  const paginationAboveGrid = pagIdx !== -1 && gridIdx !== -1 && pagIdx < gridIdx;
+
+  const headerBlock =
+    articlesCfg.showHeaderBanner !== false ? (
+      <StorefrontPageHeader
+        title={locale === 'ar' ? t('catalog.title') : (articlesCfg.headerTitle || t('catalog.title'))}
+        breadcrumbLabel={t('nav.articles')}
+        subtitle={locale === 'ar' ? t('catalog.subtitle') : (articlesCfg.headerSubtitle || t('catalog.subtitle'))}
+        backgroundImageUrl={articlesCfg.headerImageUrl ? getSafeImageUrl(articlesCfg.headerImageUrl) : undefined}
+        badge={
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)]">
+            <Sparkles className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
+            <span>{locale === 'ar' ? t('catalog.badge') : (articlesCfg.headerBadge || `${config?.appName || 'Royal'} • Électro de Maison`)}</span>
+          </div>
+        }
+      />
+    ) : null;
+
+  const paginationBlock = isLoadMoreMode ? (
+    products.length > 0 ? (
+      <div className="flex flex-col items-center gap-3 py-2">
+        <span className="text-xs font-medium text-neutral-500">
+          Affichage de {products.length} sur {totalCount} article(s)
+        </span>
+        {loadMorePage < totalPages && (
+          <button
+            type="button"
+            disabled={loadingMore}
+            onClick={() => setLoadMorePage((p) => p + 1)}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold shadow-sm disabled:opacity-50 transition cursor-pointer"
+          >
+            <span>{loadingMore ? 'Chargement...' : "Charger plus d'articles"}</span>
+          </button>
+        )}
+      </div>
+    ) : null
+  ) : totalPages > 1 ? (
+    <div className="flex flex-wrap items-center justify-center gap-2 py-2">
+      <button
+        type="button"
+        disabled={currentPage <= 1}
+        onClick={() => goToPage(currentPage - 1)}
+        className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl border border-[var(--royal-border)] bg-[var(--royal-card)] text-xs font-bold text-[var(--royal-ink)] hover:bg-[var(--royal-gold-light)] disabled:opacity-40 cursor-pointer"
+      >
+        <ChevronLeft className="w-4 h-4" />
+        {t('table.prev_page')}
+      </button>
+
+      {Array.from({ length: totalPages }, (_, i) => i + 1)
+        .filter((pg) => pg === 1 || pg === totalPages || Math.abs(pg - currentPage) <= 2)
+        .map((pg, idx, arr) => (
+          <React.Fragment key={pg}>
+            {idx > 0 && arr[idx - 1] !== pg - 1 && (
+              <span className="px-2 text-xs text-neutral-400">...</span>
+            )}
+            <button
+              type="button"
+              onClick={() => goToPage(pg)}
+              className={`min-w-[36px] h-9 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                pg === currentPage
+                  ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)] border-[var(--royal-primary)] shadow-sm'
+                  : 'bg-[var(--royal-card)] text-[var(--royal-ink)] border-[var(--royal-border)] hover:bg-[var(--royal-gold-light)]'
+              }`}
+            >
+              {pg}
+            </button>
+          </React.Fragment>
+        ))}
+
+      <button
+        type="button"
+        disabled={currentPage >= totalPages}
+        onClick={() => goToPage(currentPage + 1)}
+        className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl border border-[var(--royal-border)] bg-[var(--royal-card)] text-xs font-bold text-[var(--royal-ink)] hover:bg-[var(--royal-gold-light)] disabled:opacity-40 cursor-pointer"
+      >
+        {t('table.next_page')}
+        <ChevronRight className="w-4 h-4" />
+      </button>
+    </div>
+  ) : null;
+
   return (
     <div className="py-10 sm:py-12 w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
       {/* Page Title */}
-      {articlesCfg.showHeaderBanner !== false && (
-        <StorefrontPageHeader
-          title={locale === 'ar' ? t('catalog.title') : (articlesCfg.headerTitle || t('catalog.title'))}
-          breadcrumbLabel={t('nav.articles')}
-          subtitle={locale === 'ar' ? t('catalog.subtitle') : (articlesCfg.headerSubtitle || t('catalog.subtitle'))}
-          backgroundImageUrl={articlesCfg.headerImageUrl ? getSafeImageUrl(articlesCfg.headerImageUrl) : undefined}
-          badge={
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)]">
-              <Sparkles className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
-              <span>{locale === 'ar' ? t('catalog.badge') : (articlesCfg.headerBadge || `${config?.appName || 'Royal'} • Électro de Maison`)}</span>
-            </div>
-          }
-        />
-      )}
+      {!headerAfterCatalog && headerBlock}
 
       {/* Unified Top Toolbar: [Toggle Sidebar Icon] -> [Article Count] -> [Search Input] -> [Grid/List, 3/4/6, PerPage, Sort] */}
-      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-neutral-200 shadow-sm mb-6 flex flex-wrap items-center gap-3 justify-between">
+      <div className="bg-[var(--royal-card)] p-3.5 sm:p-4 rounded-2xl border border-[var(--royal-border)] shadow-sm mb-6 flex flex-wrap items-center gap-3 justify-between">
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto sm:flex-1 min-w-0">
           {/* 1. First Position: Sidebar Toggle Icon aligned above Filter Sidebar */}
           {articlesCfg.showFiltersSection !== false && (
@@ -760,7 +840,7 @@ function ArticlesContent() {
       >
         {/* Collapsible Filter Sidebar (Left or Right via CMS — Zero Apply Button — Instant Auto-Filter) */}
         {isSidebarOpen && (
-          <aside className="w-full lg:w-72 xl:w-80 shrink-0 space-y-5 bg-white p-5 rounded-[26px] border border-neutral-200 shadow-sm">
+          <aside className="w-full lg:w-72 xl:w-80 shrink-0 space-y-5 bg-[var(--royal-card)] p-5 rounded-[26px] border border-[var(--royal-border)] shadow-sm">
             <div className="flex items-center justify-between pb-3.5 border-b border-neutral-100">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-900">
                 <Filter className="w-4 h-4 text-amber-600" />
@@ -1050,19 +1130,22 @@ function ArticlesContent() {
             </div>
           )}
 
+          {/* Optional Top Pagination when ordered above Grid in CMS */}
+          {paginationAboveGrid && paginationBlock}
+
           {/* Articles Grid / List */}
           {loading ? (
             <div className={`grid gap-6 ${gridClassName}`}>
               {[...Array(8)].map((_, i) => (
                 <div
                   key={i}
-                  className="h-80 rounded-2xl bg-neutral-100 animate-pulse border border-neutral-200"
+                  className="h-80 rounded-2xl bg-neutral-100 animate-pulse border border-[var(--royal-border)]"
                 />
               ))}
             </div>
           ) : products.length === 0 ? (
-            <div className="py-16 sm:py-20 text-center bg-white rounded-3xl border border-neutral-200 p-6 sm:p-8">
-              <p className="font-heading font-black text-xl text-neutral-900">
+            <div className="py-16 sm:py-20 text-center bg-[var(--royal-card)] rounded-3xl border border-[var(--royal-border)] p-6 sm:p-8">
+              <p className="font-heading font-black text-xl text-[var(--royal-ink)]">
                 {t('catalog.empty_title')}
               </p>
               <p className="mt-2 text-xs text-neutral-500">
@@ -1079,84 +1162,36 @@ function ArticlesContent() {
           ) : displayMode === 'list' ? (
             <div className="space-y-4">
               {products.map((p, idx) => (
-                <ProductCard key={p.id} product={p} priority={idx < 3} layout="list" />
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  priority={idx < 3}
+                  layout="list"
+                  imageHeightPx={articlesCfg.cardImageHeightPx}
+                  cardContext="articles"
+                />
               ))}
             </div>
           ) : (
             <div className={`grid gap-5 ${gridClassName}`}>
               {products.map((p, idx) => (
-                <ProductCard key={p.id} product={p} priority={idx < 4} layout="grid" />
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  priority={idx < 4}
+                  layout="grid"
+                  imageHeightPx={articlesCfg.cardImageHeightPx}
+                  cardContext="articles"
+                />
               ))}
             </div>
           )}
 
           {/* Pagination or Load More (CMS Controlled) */}
-          {isLoadMoreMode ? (
-            products.length > 0 && (
-              <div className="flex flex-col items-center gap-3 pt-4">
-                <span className="text-xs font-medium text-neutral-500">
-                  Affichage de {products.length} sur {totalCount} article(s)
-                </span>
-                {loadMorePage < totalPages && (
-                  <button
-                    type="button"
-                    disabled={loadingMore}
-                    onClick={() => setLoadMorePage((p) => p + 1)}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold shadow-sm disabled:opacity-50 transition cursor-pointer"
-                  >
-                    <span>{loadingMore ? 'Chargement...' : "Charger plus d'articles"}</span>
-                  </button>
-                )}
-              </div>
-            )
-          ) : (
-            totalPages > 1 && (
-              <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
-                <button
-                  type="button"
-                  disabled={currentPage <= 1}
-                  onClick={() => goToPage(currentPage - 1)}
-                  className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl border border-neutral-200 bg-white text-xs font-bold text-neutral-800 hover:bg-neutral-50 disabled:opacity-40 cursor-pointer"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  {t('table.prev_page')}
-                </button>
-
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter((pg) => pg === 1 || pg === totalPages || Math.abs(pg - currentPage) <= 2)
-                  .map((pg, idx, arr) => (
-                    <React.Fragment key={pg}>
-                      {idx > 0 && arr[idx - 1] !== pg - 1 && (
-                        <span className="px-2 text-xs text-neutral-400">...</span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => goToPage(pg)}
-                        className={`min-w-[36px] h-9 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
-                          pg === currentPage
-                            ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)] border-[var(--royal-primary)] shadow-sm'
-                            : 'bg-white text-slate-700 border-[var(--royal-border)] hover:bg-[var(--royal-gold-light)]'
-                        }`}
-                      >
-                        {pg}
-                      </button>
-                    </React.Fragment>
-                  ))}
-
-                <button
-                  type="button"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => goToPage(currentPage + 1)}
-                  className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl border border-neutral-200 bg-white text-xs font-bold text-neutral-800 hover:bg-neutral-50 disabled:opacity-40 cursor-pointer"
-                >
-                  {t('table.next_page')}
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            )
-          )}
+          {!paginationAboveGrid && paginationBlock}
         </main>
       </div>
+      {headerAfterCatalog && <div className="mt-10">{headerBlock}</div>}
     </div>
   );
 }

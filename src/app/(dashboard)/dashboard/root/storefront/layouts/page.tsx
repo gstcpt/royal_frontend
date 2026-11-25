@@ -11,7 +11,7 @@ import {
   Sparkles,
   RotateCcw,
 } from 'lucide-react';
-import { Button, Input, Textarea, Select, Toggle, Breadcrumb, Toast } from '@/components/ui';
+import { Button, Input, Textarea, Select, Toggle, Breadcrumb, Toast, Modal } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
 
 function StorefrontLayoutsContent() {
@@ -87,6 +87,7 @@ function StorefrontLayoutsContent() {
   });
 
   const [saving, setSaving] = React.useState(false);
+  const [resetModalOpen, setResetModalOpen] = React.useState(false);
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -173,23 +174,10 @@ function StorefrontLayoutsContent() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={async () => {
-                setSaving(true);
-                try {
-                  const res = await fetchApi('/storefront-cms/cms/reset-defaults', { method: 'POST' });
-                  const cfg = res?.data || res;
-                  if (cfg?.theme) setTheme((prev) => ({ ...prev, ...cfg.theme }));
-                  if (cfg?.header) setHeader((prev) => ({ ...prev, ...cfg.header }));
-                  if (cfg?.footer) setFooter((prev) => ({ ...prev, ...cfg.footer }));
-                  if (typeof window !== 'undefined') window.dispatchEvent(new Event('royal-cms-updated'));
-                  setToastMsg('Design, couleurs, en-tête et pied de page réinitialisés par défaut (JSON).');
-                } finally {
-                  setSaving(false);
-                }
-              }}
+              onClick={() => setResetModalOpen(true)}
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Réinitialiser par défaut</span>
+              <span>Réinitialiser le design</span>
             </Button>
           </div>
         </div>
@@ -333,9 +321,16 @@ function StorefrontLayoutsContent() {
               </h2>
               <div
                 className="p-5 rounded-2xl border space-y-4"
-                style={{ backgroundColor: theme.backgroundHex, borderColor: theme.borderHex }}
+                style={{
+                  backgroundColor: theme.backgroundHex,
+                  borderColor: theme.borderHex,
+                  fontFamily: `'${theme.bodyFont}', sans-serif`,
+                }}
               >
-                <div className="text-base font-extrabold" style={{ color: theme.inkHex }}>
+                <div
+                  className="text-base font-extrabold"
+                  style={{ color: theme.inkHex, fontFamily: `'${theme.headingFont}', sans-serif` }}
+                >
                   Titre Exemple Royal
                 </div>
                 <p className="text-xs text-slate-600">
@@ -545,6 +540,51 @@ function StorefrontLayoutsContent() {
         )}
       </form>
       </div>
+
+      <Modal
+        isOpen={resetModalOpen}
+        onClose={() => !saving && setResetModalOpen(false)}
+        title="Réinitialiser Design, En-tête & Pied de Page"
+        size="md"
+      >
+        <div className="p-6 space-y-4 text-xs text-slate-600">
+          <p className="leading-relaxed">
+            Cette action réinitialise uniquement les couleurs, polices Google Fonts, l&apos;en-tête et le pied de page par défaut (vos vues et votre identité restent conservées).
+          </p>
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setResetModalOpen(false)}>
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              variant="gold"
+              size="sm"
+              isLoading={saving}
+              onClick={async () => {
+                setSaving(true);
+                try {
+                  const res = await fetchApi('/storefront-cms/cms/reset-defaults', {
+                    method: 'POST',
+                    body: JSON.stringify({ scope: 'layout' }),
+                  });
+                  const cfg = res?.data || res;
+                  if (cfg?.theme) setTheme((prev) => ({ ...prev, ...cfg.theme }));
+                  if (cfg?.header) setHeader((prev) => ({ ...prev, ...cfg.header }));
+                  if (cfg?.footer) setFooter((prev) => ({ ...prev, ...cfg.footer }));
+                  if (typeof window !== 'undefined') window.dispatchEvent(new Event('royal-cms-updated'));
+                  setResetModalOpen(false);
+                  setToastMsg('Design, couleurs, en-tête et pied de page réinitialisés par défaut.');
+                } finally {
+                  setSaving(false);
+                }
+              }}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Confirmer la réinitialisation</span>
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Toast isOpen={!!toastMsg} message={toastMsg || ''} type="success" onClose={() => setToastMsg(null)} />
     </div>

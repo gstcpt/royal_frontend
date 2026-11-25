@@ -483,6 +483,12 @@ export function StorefrontHeader() {
                 • {cat.name}
               </Link>
             ))}
+            {config.header.showCompare !== false && (
+              <Link href="/compare" onClick={() => setMobileMenuOpen(false)} className="py-1 flex items-center justify-between">
+                <span>{t('nav.compare')}</span>
+                <span className="font-bold text-[var(--royal-primary)]">({compareCount})</span>
+              </Link>
+            )}
             {config.header.showWishlist !== false && (
               <Link href="/wishlist" onClick={() => setMobileMenuOpen(false)} className="py-1 flex items-center justify-between">
                 <span>{t('nav.wishlist')}</span>

@@ -44,9 +44,9 @@ async function getStorefrontData() {
   try {
     const [catRes, newRes, popRes, promoRes, bestRes, brandRes] = await Promise.all([
       fetch(`${backendInternal}/categories?tree=false`, { cache: 'no-store' }),
-      fetch(`${backendInternal}/products/storefront?sortBy=newest&limit=16`, { cache: 'no-store' }),
-      fetch(`${backendInternal}/products/storefront?sortBy=popular&limit=16`, { cache: 'no-store' }),
-      fetch(`${backendInternal}/products/storefront?collection=promo&limit=16`, { cache: 'no-store' }),
+      fetch(`${backendInternal}/products/storefront?sortBy=newest&limit=24`, { cache: 'no-store' }),
+      fetch(`${backendInternal}/products/storefront?sortBy=popular&limit=24`, { cache: 'no-store' }),
+      fetch(`${backendInternal}/products/storefront?collection=promo&limit=24`, { cache: 'no-store' }),
       fetch(`${backendInternal}/products/storefront?sortBy=bestsellers&limit=24`, { cache: 'no-store' }),
       fetch(`${backendInternal}/brands`, { cache: 'no-store' }),
     ]);
@@ -69,9 +69,10 @@ async function getStorefrontData() {
       const list = catData?.data || catData;
       if (Array.isArray(list)) {
         categories = list
-          .filter((c: any) => c.isActive !== false && Number(c.productsCount ?? c._count?.products ?? 0) > 0 && c.imageUrl)
+          .filter((c: any) => c.isActive !== false)
           .map((c: any) => ({
             ...c,
+            rawImageUrl: c.imageUrl || null,
             imageUrl: getSafeImageUrl(c.imageUrl),
             productCount: Number(c.productsCount ?? c._count?.products ?? 0),
           }));

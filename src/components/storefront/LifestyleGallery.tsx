@@ -18,7 +18,7 @@ export function LifestyleGallery({ featuredProducts = [] }: { featuredProducts?:
   const bannerImg = home.lifestyleCustomBannerUrl ? getSafeImageUrl(home.lifestyleCustomBannerUrl) : '';
 
   return (
-    <section className="py-14 sm:py-20 bg-white border-b border-[var(--royal-border)]">
+    <section className="py-14 sm:py-20 bg-[var(--royal-bg)] border-b border-[var(--royal-border)]">
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
         {bannerImg && (
           <div className="mb-10 rounded-3xl overflow-hidden border border-[#E6E1D6] h-48 sm:h-64 relative shadow-sm">

@@ -14,6 +14,7 @@ interface CategoryItem {
   name: string;
   slug: string;
   imageUrl?: string | null;
+  rawImageUrl?: string | null;
   productCount?: number;
   productsCount?: number;
 }
@@ -29,15 +30,15 @@ export function CategoriesCarousel({ categories }: CategoriesCarouselProps) {
   const { scrollRef: scrollContainerRef, isDragging, dragProps } = useDragScroll<HTMLDivElement>();
   const [isHovered, setIsHovered] = React.useState(false);
 
-  // Filter categories by CMS selection if configured, otherwise show categories with articles
+  // Filter categories by CMS selection if configured, otherwise show categories with articles and images
   const baseCategories = (categories || []).filter(
-    (c) => Number(c.productCount ?? c.productsCount ?? 0) > 0 && c.imageUrl
+    (c) => Number(c.productCount ?? c.productsCount ?? 0) > 0 && Boolean(c.rawImageUrl !== undefined ? c.rawImageUrl : c.imageUrl)
   );
   const validCategories =
     home.categoriesTargetType === 'CATEGORIES' && Array.isArray(home.categoriesTargetSlugs) && home.categoriesTargetSlugs.length > 0
-      ? (categories || []).filter(
-          (c) => home.categoriesTargetSlugs!.includes(c.slug) && c.imageUrl
-        )
+      ? (home.categoriesTargetSlugs
+          .map((slug) => (categories || []).find((c) => c.slug === slug))
+          .filter(Boolean) as CategoryItem[])
       : baseCategories;
 
   React.useEffect(() => {
@@ -65,7 +66,7 @@ export function CategoriesCarousel({ categories }: CategoriesCarouselProps) {
   if (validCategories.length === 0) return null;
 
   return (
-    <section className="py-14 md:py-20 bg-white border-b border-slate-100">
+    <section className="py-14 md:py-20 bg-[var(--royal-bg)] border-b border-[var(--royal-border)]">
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
         <div className="flex items-end justify-between mb-8">
           <div>
@@ -85,7 +86,7 @@ export function CategoriesCarousel({ categories }: CategoriesCarouselProps) {
               type="button"
               onClick={() => scroll('left')}
               aria-label={t('storefront.category_prev')}
-              className="w-10 h-10 rounded-full border border-[#E6E1D6] bg-white hover:bg-[#C59B27] hover:text-white hover:border-[#C59B27] text-[#1D232E] transition flex items-center justify-center shadow-sm cursor-pointer"
+              className="w-10 h-10 rounded-full border border-[var(--royal-border)] bg-[var(--royal-card)] hover:bg-[var(--royal-primary)] hover:text-[var(--royal-primary-text)] hover:border-[var(--royal-primary)] text-[var(--royal-ink)] transition flex items-center justify-center shadow-sm cursor-pointer"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -93,7 +94,7 @@ export function CategoriesCarousel({ categories }: CategoriesCarouselProps) {
               type="button"
               onClick={() => scroll('right')}
               aria-label={t('storefront.category_next')}
-              className="w-10 h-10 rounded-full border border-[#E6E1D6] bg-white hover:bg-[#C59B27] hover:text-white hover:border-[#C59B27] text-[#1D232E] transition flex items-center justify-center shadow-sm cursor-pointer"
+              className="w-10 h-10 rounded-full border border-[var(--royal-border)] bg-[var(--royal-card)] hover:bg-[var(--royal-primary)] hover:text-[var(--royal-primary-text)] hover:border-[var(--royal-primary)] text-[var(--royal-ink)] transition flex items-center justify-center shadow-sm cursor-pointer"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -123,10 +124,10 @@ export function CategoriesCarousel({ categories }: CategoriesCarouselProps) {
               >
                 <Link
                   href={`/articles?category=${cat.slug}`}
-                  className="group block relative rounded-2xl overflow-hidden bg-[#F4F5F7] border border-slate-200/70 transition-all duration-300 hover:border-slate-400 hover:shadow-lg"
+                  className="group block relative rounded-2xl overflow-hidden bg-[var(--royal-silver-light)] border border-[var(--royal-border)] transition-all duration-300 hover:border-[var(--royal-primary)] hover:shadow-lg"
                 >
                   {/* Full-bleed responsive category card image with fixed height */}
-                  <div className="relative h-60 w-full bg-neutral-100 overflow-hidden">
+                  <div className="relative h-60 w-full bg-[var(--royal-card)] overflow-hidden">
                     <img
                       src={imgUrl}
                       alt={cat.name}
@@ -134,9 +135,9 @@ export function CategoriesCarousel({ categories }: CategoriesCarouselProps) {
                     />
                   </div>
 
-                  <div className="p-4 flex items-center justify-between border-t border-slate-200/60 bg-[#F4F5F7]">
+                  <div className="p-4 flex items-center justify-between border-t border-[var(--royal-border)] bg-[var(--royal-card)]">
                     <div className="min-w-0 pr-2">
-                      <h3 className="font-heading font-bold text-sm text-slate-900 group-hover:text-slate-700 transition-colors truncate">
+                      <h3 className="font-heading font-bold text-sm text-[var(--royal-ink)] group-hover:text-[var(--royal-primary)] transition-colors truncate">
                         {cat.name}
                       </h3>
                       <p className="text-[11px] text-slate-500 mt-0.5">
@@ -144,7 +145,7 @@ export function CategoriesCarousel({ categories }: CategoriesCarouselProps) {
                       </p>
                     </div>
 
-                    <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-700 group-hover:bg-[var(--royal-primary)] group-hover:text-[var(--royal-primary-text)] group-hover:border-[var(--royal-primary)] transition-all shadow-sm shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-[var(--royal-bg)] border border-[var(--royal-border)] flex items-center justify-center text-[var(--royal-ink)] group-hover:bg-[var(--royal-primary)] group-hover:text-[var(--royal-primary-text)] group-hover:border-[var(--royal-primary)] transition-all shadow-sm shrink-0">
                       <ArrowUpRight className="w-3.5 h-3.5" />
                     </div>
                   </div>

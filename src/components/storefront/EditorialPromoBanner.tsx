@@ -41,7 +41,7 @@ export function EditorialPromoBanner({ highlightProduct }: { highlightProduct?: 
   }, [highlightProduct, home.editorialCustomImageUrl]);
 
   return (
-    <section className="py-16 md:py-24 bg-white border-b border-slate-100">
+    <section className="py-16 md:py-24 bg-[var(--royal-bg)] border-b border-[var(--royal-border)]">
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
         <div className="mb-10">
           <div className="flex items-center gap-2 mb-2">
@@ -60,9 +60,9 @@ export function EditorialPromoBanner({ highlightProduct }: { highlightProduct?: 
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
           {/* Stat Box */}
-          <div className="md:col-span-4 p-6 sm:p-8 rounded-2xl bg-[var(--royal-bg)] border border-[var(--royal-border)] flex flex-col justify-between">
+          <div className="md:col-span-4 p-6 sm:p-8 rounded-2xl bg-[var(--royal-card)] border border-[var(--royal-border)] flex flex-col justify-between">
             <div>
-              <div className="w-12 h-12 rounded-xl bg-white border border-[var(--royal-border)] flex items-center justify-center text-[var(--royal-primary)] shadow-sm mb-6">
+              <div className="w-12 h-12 rounded-xl bg-[var(--royal-gold-light)] border border-[var(--royal-border)] flex items-center justify-center text-[var(--royal-primary)] shadow-sm mb-6">
                 <Truck className="w-6 h-6" />
               </div>
               <span className="text-3xl sm:text-5xl font-heading font-extrabold text-[var(--royal-ink)] block">
@@ -75,7 +75,7 @@ export function EditorialPromoBanner({ highlightProduct }: { highlightProduct?: 
 
             <Link
               href={highlightProduct ? `/articles/${highlightProduct.slug}` : '/articles'}
-              className="mt-6 text-xs font-bold text-[#9A7414] hover:text-[#1D232E] hover:underline inline-flex items-center gap-1.5"
+              className="mt-6 text-xs font-bold text-[var(--royal-gold-dark)] hover:text-[var(--royal-ink)] hover:underline inline-flex items-center gap-1.5"
             >
               <span>{highlightProduct ? t('storefront.editorial_cta') : t('storefront.editorial_cta_fallback')}</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -83,7 +83,7 @@ export function EditorialPromoBanner({ highlightProduct }: { highlightProduct?: 
           </div>
 
           {/* Best-Seller / Random Fallback Real Product Showcase */}
-          <div className="md:col-span-8 relative rounded-2xl overflow-hidden min-h-[380px] lg:min-h-[440px] shadow-sm border border-[#E6E1D6] bg-white grid grid-cols-1 sm:grid-cols-12">
+          <div className="md:col-span-8 relative rounded-2xl overflow-hidden min-h-[380px] lg:min-h-[440px] shadow-sm border border-[var(--royal-border)] bg-[var(--royal-card)] grid grid-cols-1 sm:grid-cols-12">
             <div className="sm:col-span-6 relative h-[280px] sm:h-full bg-[#F4F5F7]">
               <ProductMediaViewer
                 images={highlightImages}

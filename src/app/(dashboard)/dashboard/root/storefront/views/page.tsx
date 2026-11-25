@@ -42,7 +42,7 @@ import {
   Tag,
   X,
 } from 'lucide-react';
-import { Button, Input, Textarea, Toggle, Select, Breadcrumb, Toast } from '@/components/ui';
+import { Button, Input, Textarea, Toggle, Select, Breadcrumb, Toast, Modal } from '@/components/ui';
 import { ImageDropzoneCropper } from '@/components/ui/image-dropzone-cropper';
 import { fetchApi, fetchAllPaginated } from '@/lib/api';
 import { getSafeImageUrl } from '@/lib/cart-session';
@@ -600,7 +600,7 @@ function StorefrontViewsContent() {
       showBrandFilter: true,
       showCharacteristicsFilter: true,
       defaultColumns: '3',
-      defaultItemsPerPage: 24,
+      defaultItemsPerPage: 12,
       cardImageHeightPx: 260,
       showCompareButton: true,
       showWishlistButton: true,
@@ -701,7 +701,7 @@ function StorefrontViewsContent() {
       footerNoteText: 'Pour toute demande relative à vos données personnelles, contactez royaltn24@gmail.com.',
     },
     showrooms: {
-      enabled: true,
+      enabled: false,
       sectionOrder: ['hero', 'cards', 'map'],
       badgeText: 'Réseau de Points de Vente',
       title: "Nos Salles d'Exposition",
@@ -772,6 +772,7 @@ function StorefrontViewsContent() {
   const [cmsProducts, setCmsProducts] = React.useState<any[]>([]);
   const [saving, setSaving] = React.useState(false);
   const [resetting, setResetting] = React.useState(false);
+  const [resetModalOpen, setResetModalOpen] = React.useState(false);
   const [toastMsg, setToastMsg] = React.useState<string | null>(null);
 
   // Close all accordions whenever active view switches
@@ -858,13 +859,23 @@ function StorefrontViewsContent() {
     }
   };
 
-  const handleResetDefaults = async () => {
+  const handleResetDefaults = async (scope: 'view' | 'all' = 'view') => {
     setResetting(true);
     try {
-      await fetchApi('/storefront-cms/cms/reset-defaults', { method: 'POST' });
+      await fetchApi('/storefront-cms/cms/reset-defaults', {
+        method: 'POST',
+        body: JSON.stringify(
+          scope === 'view' ? { scope: 'view', viewKey: viewStateKey } : { scope: 'all' },
+        ),
+      });
       await loadAll();
       if (typeof window !== 'undefined') window.dispatchEvent(new Event('royal-cms-updated'));
-      setToastMsg('Paramètres CMS réinitialisés par défaut.');
+      setResetModalOpen(false);
+      setToastMsg(
+        scope === 'view'
+          ? `Vue "${currentTabInfo.label}" réinitialisée par défaut.`
+          : 'Toutes les vues, design et identité CMS ont été réinitialisés par défaut.',
+      );
     } finally {
       setResetting(false);
     }
@@ -1843,6 +1854,10 @@ function StorefrontViewsContent() {
               <Input label="Titre Bloc Coordonnées" value={c.infoTitle ?? 'Royal — Electro de Maison'} onChange={(e) => setViews({ ...views, contact: { ...c, infoTitle: e.target.value } })} />
               <Input label="Titre Formulaire" value={c.formTitle ?? 'Envoyer un message'} onChange={(e) => setViews({ ...views, contact: { ...c, formTitle: e.target.value } })} />
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input label="Sous-titre Bloc Coordonnées" value={c.infoSubtitle ?? 'Équipement culinaire et électroménager partout en Tunisie.'} onChange={(e) => setViews({ ...views, contact: { ...c, infoSubtitle: e.target.value } })} />
+              <Input label="Sous-titre Formulaire" value={c.formSubtitle ?? 'Votre demande est transmise directement à l’administration pour une réponse rapide.'} onChange={(e) => setViews({ ...views, contact: { ...c, formSubtitle: e.target.value } })} />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Toggle label="Afficher Réseaux Sociaux" checked={c.showSocials !== false} onChange={(v) => setViews({ ...views, contact: { ...c, showSocials: v } })} />
               <Toggle label="Champ Téléphone Obligatoire" checked={Boolean(c.phoneRequired)} onChange={(v) => setViews({ ...views, contact: { ...c, phoneRequired: v } })} />
@@ -2065,7 +2080,7 @@ function StorefrontViewsContent() {
               <ExternalLink className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
               <span>Voir la page publique</span>
             </Link>
-            <Button variant="outline" size="sm" onClick={handleResetDefaults} isLoading={resetting}>
+            <Button variant="outline" size="sm" onClick={() => setResetModalOpen(true)} isLoading={resetting}>
               <RotateCcw className="w-4 h-4" />
               <span>Réinitialiser</span>
             </Button>
@@ -2156,6 +2171,41 @@ function StorefrontViewsContent() {
         })}
         </div>
       </div>
+
+      <Modal
+        isOpen={resetModalOpen}
+        onClose={() => !resetting && setResetModalOpen(false)}
+        title="Réinitialiser la configuration CMS"
+        subtitle={`Vue sélectionnée : ${currentTabInfo.label}`}
+        size="md"
+      >
+        <div className="p-6 space-y-4 text-xs text-slate-600">
+          <p className="leading-relaxed">
+            Choisissez si vous souhaitez réinitialiser uniquement l&apos;onglet actif (<strong>{currentTabInfo.label}</strong>) ou remettre à zéro l&apos;ensemble du CMS (toutes les 8 vues, couleurs, en-tête, pied de page et identité).
+          </p>
+          <div className="flex flex-col gap-2.5 pt-2">
+            <Button
+              type="button"
+              variant="gold"
+              fullWidth
+              isLoading={resetting}
+              onClick={() => handleResetDefaults('view')}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Réinitialiser uniquement « {currentTabInfo.label} »</span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              fullWidth
+              isLoading={resetting}
+              onClick={() => handleResetDefaults('all')}
+            >
+              <span>Tout réinitialiser (8 vues + Design + Identité)</span>
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Toast isOpen={!!toastMsg} message={toastMsg || ''} type="success" onClose={() => setToastMsg(null)} />
     </div>

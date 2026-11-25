@@ -75,7 +75,7 @@ export default function ShowroomsPublicPage() {
         {showrooms.map((s) => (
           <div
             key={s.id}
-            className="bg-white rounded-3xl border border-[var(--royal-border)] p-6 shadow-sm flex flex-col justify-between gap-4 hover:border-[var(--royal-primary)]/50 transition"
+            className="bg-[var(--royal-card)] rounded-3xl border border-[var(--royal-border)] p-6 shadow-sm flex flex-col justify-between gap-4 hover:border-[var(--royal-primary)]/50 transition"
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
@@ -117,7 +117,7 @@ export default function ShowroomsPublicPage() {
       </div>
     ),
     map: srCfg.showMap !== false ? (
-      <div key="map" className="mt-10 rounded-3xl overflow-hidden border border-[var(--royal-border)] bg-white shadow-sm">
+      <div key="map" className="mt-10 rounded-3xl overflow-hidden border border-[var(--royal-border)] bg-[var(--royal-card)] shadow-sm">
         <iframe
           title="Carte Showrooms Royal"
           src={

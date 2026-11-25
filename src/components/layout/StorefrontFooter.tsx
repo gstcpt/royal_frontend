@@ -97,7 +97,7 @@ export function StorefrontFooter() {
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder={t('footer.newsletter_placeholder')}
                         required
-                        className="w-full bg-[var(--royal-card)] text-[var(--royal-ink)] placeholder-slate-400 text-xs sm:text-sm pl-6 pr-14 py-4 rounded-full border border-[var(--royal-border)] focus:outline-none focus:border-[var(--royal-primary)] transition-colors shadow-xs"
+                        className="w-full bg-[var(--royal-card)] text-[var(--royal-ink)] placeholder-slate-400 text-xs sm:text-sm ps-6 pe-14 py-4 rounded-full border border-[var(--royal-border)] focus:outline-none focus:border-[var(--royal-primary)] transition-colors shadow-xs"
                       />
                       <button
                         type="submit"
@@ -106,7 +106,7 @@ export function StorefrontFooter() {
                           background: 'linear-gradient(to right, var(--royal-primary), var(--royal-primary-hover))',
                           color: 'var(--royal-primary-text)',
                         }}
-                        className="absolute right-2 top-2 bottom-2 w-10 rounded-full flex items-center justify-center hover:opacity-95 transition-opacity cursor-pointer shadow-xs"
+                        className="absolute end-2 top-2 bottom-2 w-10 rounded-full flex items-center justify-center hover:opacity-95 transition-opacity cursor-pointer shadow-xs"
                       >
                         <ArrowRight className="w-4 h-4" />
                       </button>
@@ -291,6 +291,9 @@ export function StorefrontFooter() {
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4 text-center sm:text-start">
           <p>© {new Date().getFullYear()} {config.footer.copyrightText}</p>
           <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+            {config.views.showrooms?.enabled !== false && (
+              <Link href="/stores" className="hover:text-[var(--royal-gold-dark)] transition">{t('stores.title')}</Link>
+            )}
             <Link href="/contact" className="hover:text-[var(--royal-gold-dark)] transition">{t('footer.contact')}</Link>
             <Link href="/faq" className="hover:text-[var(--royal-gold-dark)] transition">{t('footer.faq')}</Link>
             <Link href="/privacy" className="hover:text-[var(--royal-gold-dark)] transition">{t('footer.privacy')}</Link>

@@ -89,6 +89,7 @@ export function QuickOrderModal({
 
   const [shippingThreshold, setShippingThreshold] = useState<number>(150.0);
   const [standardShippingFee, setStandardShippingFee] = useState<number>(7.0);
+  const [vatRate, setVatRate] = useState<number>(19);
   const [publicGateways, setPublicGateways] = useState<PublicGatewaysState>({
     codEnabled: true,
     bankTransferEnabled: false,
@@ -155,6 +156,9 @@ export function QuickOrderModal({
       }
       if (cfg?.standardShippingFee !== undefined) {
         setStandardShippingFee(Number(cfg.standardShippingFee));
+      }
+      if (cfg?.vatStandard !== undefined) {
+        setVatRate(Number(cfg.vatStandard));
       }
       const gw = gwJson?.data || gwJson;
       if (gw) setPublicGateways(gw);
@@ -241,7 +245,7 @@ export function QuickOrderModal({
   const subtotalAfterDiscount = Math.max(0, subtotal - discount);
   const shippingCost =
     subtotalAfterDiscount >= shippingThreshold || subtotal === 0 ? 0 : standardShippingFee;
-  const taxAmount = Number((subtotalAfterDiscount * 0.19).toFixed(3));
+  const taxAmount = Number((subtotalAfterDiscount * (vatRate / 100)).toFixed(3));
   const finalTotal = Number((subtotalAfterDiscount + shippingCost).toFixed(3));
 
   const handleApplyCoupon = async () => {

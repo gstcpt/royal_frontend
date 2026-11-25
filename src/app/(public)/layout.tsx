@@ -3,6 +3,7 @@ import { StorefrontHeader } from '@/components/layout/StorefrontHeader';
 import { StorefrontFooter } from '@/components/layout/StorefrontFooter';
 import { CompareBar } from '@/components/storefront/CompareBar';
 import { ScrollToTop } from '@/components/common/ScrollToTop';
+import { MaintenanceGate } from '@/components/storefront/MaintenanceGate';
 
 export default function PublicLayout({
   children,
@@ -14,9 +15,9 @@ export default function PublicLayout({
       {/* Luxury Storefront Sticky Header */}
       <StorefrontHeader />
 
-      {/* Main Page Content */}
+      {/* Main Page Content (with dynamic maintenance guard) */}
       <main className="flex-1 w-full">
-        {children}
+        <MaintenanceGate>{children}</MaintenanceGate>
       </main>
 
       {/* Floating Compare Bar */}

@@ -51,6 +51,7 @@ export default function CheckoutPage() {
   const [loadingCart, setLoadingCart] = useState(true);
   const [shippingThreshold, setShippingThreshold] = useState<number>(150.0);
   const [standardShippingFee, setStandardShippingFee] = useState<number>(7.0);
+  const [vatRate, setVatRate] = useState<number>(19);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -191,6 +192,7 @@ export default function CheckoutPage() {
           const cfg = cfgJson?.data || cfgJson;
           if (cfg?.freeShippingThreshold !== undefined) setShippingThreshold(Number(cfg.freeShippingThreshold));
           if (cfg?.standardShippingFee !== undefined) setStandardShippingFee(Number(cfg.standardShippingFee));
+          if (cfg?.vatStandard !== undefined) setVatRate(Number(cfg.vatStandard));
         }
         if (gwRes?.ok) {
           const gwJson = await gwRes.json();
@@ -347,7 +349,7 @@ export default function CheckoutPage() {
   const discount = appliedCoupon ? appliedCoupon.discountAmount : 0;
   const subtotalAfterDiscount = Math.max(0, subtotal - discount);
   const shippingCost = subtotalAfterDiscount >= shippingThreshold || subtotal === 0 ? 0 : standardShippingFee;
-  const taxAmount = Number((subtotalAfterDiscount * 0.19).toFixed(3));
+  const taxAmount = Number((subtotalAfterDiscount * (vatRate / 100)).toFixed(3));
   const finalTotal = Number((subtotalAfterDiscount + shippingCost).toFixed(3));
 
   return (
@@ -755,7 +757,7 @@ export default function CheckoutPage() {
               <div className="space-y-2.5 py-4 border-t border-[#EFECE6] text-xs text-[#0C1A14]/70">
                 <div className="flex justify-between">
                   <span>{t('cart.subtotal')}</span>
-                  <span className="font-medium text-[#0C1A14]">{(subtotalAfterDiscount / 1.19).toFixed(3)} {t('common.currency')}</span>
+                  <span className="font-medium text-[#0C1A14]">{(subtotalAfterDiscount / (1 + vatRate / 100)).toFixed(3)} {t('common.currency')}</span>
                 </div>
                 {appliedCoupon && (
                   <div className="flex justify-between text-emerald-700 font-medium">

@@ -74,6 +74,29 @@ export function HomePageSections({
     return Array.from(map.values());
   }, [dynamicPool, newProducts, topRatedProducts, promoProducts, galleryProducts]);
 
+  const expandCategorySlugs = React.useCallback(
+    (slugs?: string[]) => {
+      if (!Array.isArray(slugs) || slugs.length === 0) return new Set<string>();
+      const out = new Set<string>(slugs);
+      const selectedIds = new Set(
+        (categories || []).filter((c: any) => slugs.includes(c.slug)).map((c: any) => c.id),
+      );
+      let added = true;
+      while (added) {
+        added = false;
+        for (const c of categories || []) {
+          if (c?.parentId && selectedIds.has(c.parentId) && !selectedIds.has(c.id)) {
+            selectedIds.add(c.id);
+            if (c.slug) out.add(c.slug);
+            added = true;
+          }
+        }
+      }
+      return out;
+    },
+    [categories],
+  );
+
   const resolveTargetedList = React.useCallback(
     (
       fallbackList: StorefrontProduct[],
@@ -89,12 +112,13 @@ export function HomePageSections({
         if (picked.length > 0) return picked.slice(0, limit);
       }
       if (targetType === 'CATEGORIES' && Array.isArray(categorySlugs) && categorySlugs.length > 0) {
-        const matched = combinedPool.filter((p) => p.category?.slug && categorySlugs.includes(p.category.slug));
+        const expanded = expandCategorySlugs(categorySlugs);
+        const matched = combinedPool.filter((p) => p.category?.slug && expanded.has(p.category.slug));
         if (matched.length > 0) return matched.slice(0, limit);
       }
       return fallbackList.slice(0, limit);
     },
-    [combinedPool],
+    [combinedPool, expandCategorySlugs],
   );
 
   const resolvedNewProducts = resolveTargetedList(
@@ -166,6 +190,7 @@ export function HomePageSections({
         icon={<Sparkles className="w-4 h-4 text-[var(--royal-primary)]" />}
         products={resolvedNewProducts}
         displayMode={home.newArrivalsDisplayMode || 'carousel'}
+        cardImageHeightPx={home.cardImageHeightPx}
         viewAllHref="/articles?sortBy=newest"
       />
     ) : null,
@@ -181,6 +206,7 @@ export function HomePageSections({
         icon={<Star className="w-4 h-4 text-[var(--royal-primary)] fill-current" />}
         products={resolvedTopRatedProducts}
         displayMode={home.topRatedDisplayMode || 'carousel'}
+        cardImageHeightPx={home.cardImageHeightPx}
         viewAllHref="/articles?sortBy=popular"
       />
     ) : null,
@@ -196,6 +222,7 @@ export function HomePageSections({
         icon={<Percent className="w-4 h-4 text-rose-600" />}
         products={resolvedPromoProducts}
         displayMode={home.promotionsDisplayMode || 'carousel'}
+        cardImageHeightPx={home.cardImageHeightPx}
         viewAllHref="/articles?collection=promo&sortBy=promo"
       />
     ) : null,

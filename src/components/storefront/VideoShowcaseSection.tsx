@@ -53,9 +53,9 @@ export function VideoShowcaseSection({ product }: { product?: StorefrontProduct 
   };
 
   return (
-    <section className="py-16 md:py-24 bg-white border-b border-slate-100 overflow-hidden">
+    <section className="py-16 md:py-24 bg-[var(--royal-bg)] border-b border-[var(--royal-border)] overflow-hidden">
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center bg-[#F8F9FA] rounded-3xl p-5 sm:p-10 lg:p-16 border border-slate-200/80">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center bg-[var(--royal-card)] rounded-3xl p-5 sm:p-10 lg:p-16 border border-[var(--royal-border)] shadow-xs">
           {/* Left Column */}
           <div className="lg:col-span-6 space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-[var(--royal-border)] text-xs font-bold text-[var(--royal-ink)] shadow-sm">

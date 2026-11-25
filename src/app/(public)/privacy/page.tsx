@@ -31,6 +31,7 @@ export default function PrivacyPage() {
         title={locale === 'ar' ? t('legal.privacy_title') : (page?.title || t('legal.privacy_title'))}
         breadcrumbLabel={t('footer.privacy')}
         subtitle={page?.subtitle}
+        showBackLink={privCfg.showBackLink !== false}
         badge={
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)]">
             <ShieldCheck className="w-3.5 h-3.5 text-[var(--royal-primary)]" />

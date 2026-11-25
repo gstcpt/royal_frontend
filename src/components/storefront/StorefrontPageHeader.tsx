@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ArrowLeft } from 'lucide-react';
 import { useI18nStore } from '@/stores/i18n.store';
 
 export interface StorefrontPageHeaderProps {
@@ -14,13 +14,14 @@ export interface StorefrontPageHeaderProps {
   children?: React.ReactNode;
   className?: string;
   backgroundImageUrl?: string;
+  showBackLink?: boolean;
 }
 
 /**
  * En-tête unifié de toutes les vues publiques Royal :
  * - Fil d'Ariane identique à la fiche article (`/articles/[slug]`)
- * - Titre aligné à gauche (style `/cart`, graisse `font-black`)
- * - Zéro lien redondant « Retour à l'accueil »
+ * - Titre aligné à gauche (graisse `font-black`, police dynamique `--font-heading`)
+ * - Option CMS `showBackLink` pour les pages légales
  */
 export function StorefrontPageHeader({
   title,
@@ -31,28 +32,41 @@ export function StorefrontPageHeader({
   children,
   className = '',
   backgroundImageUrl,
+  showBackLink = false,
 }: StorefrontPageHeaderProps) {
   const { t } = useI18nStore();
 
   return (
     <header className={`mb-8 sm:mb-10 ${className}`}>
-      <nav
-        aria-label="Fil d'Ariane"
-        className="flex items-center gap-2 text-xs text-neutral-400 mb-6 sm:mb-8 overflow-x-auto whitespace-nowrap"
-      >
-        <Link href="/" className="hover:text-neutral-900 transition">
-          {t('nav.home')}
-        </Link>
-        <ChevronRight className="w-3.5 h-3.5 text-neutral-300 shrink-0" />
-        <span className="font-semibold text-neutral-900 truncate max-w-xs">
-          {breadcrumbLabel || title}
-        </span>
-      </nav>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-6 sm:mb-8">
+        <nav
+          aria-label="Fil d'Ariane"
+          className="flex items-center gap-2 text-xs text-neutral-400 overflow-x-auto whitespace-nowrap"
+        >
+          <Link href="/" className="hover:text-[var(--royal-ink)] transition">
+            {t('nav.home')}
+          </Link>
+          <ChevronRight className="w-3.5 h-3.5 text-neutral-300 shrink-0" />
+          <span className="font-semibold text-[var(--royal-ink)] truncate max-w-xs">
+            {breadcrumbLabel || title}
+          </span>
+        </nav>
+
+        {showBackLink && (
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--royal-gold-dark)] hover:text-[var(--royal-primary)] transition"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>{t('auth.back_to_shop')}</span>
+          </Link>
+        )}
+      </div>
 
       <div
-        className={`relative border-b border-[#EFECE6] pb-6 ${
+        className={`relative border-b border-[var(--royal-border)] pb-6 ${
           backgroundImageUrl
-            ? 'rounded-3xl overflow-hidden border border-[#E6E1D6] bg-white p-6 sm:p-8 shadow-xs'
+            ? 'rounded-3xl overflow-hidden border border-[var(--royal-border)] bg-[var(--royal-card)] p-6 sm:p-8 shadow-xs'
             : ''
         }`}
       >
@@ -70,11 +84,11 @@ export function StorefrontPageHeader({
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
           <div className="min-w-0 text-left rtl:text-right">
             {badge && <div className="mb-2.5">{badge}</div>}
-            <h1 className="font-sans font-black tracking-tight text-3xl sm:text-4xl text-[#0C1A14]">
+            <h1 className="font-heading font-black tracking-tight text-3xl sm:text-4xl text-[var(--royal-ink)]">
               {title}
             </h1>
             {subtitle && (
-              <p className="mt-2 text-xs sm:text-sm text-[#0C1A14]/65 max-w-2xl font-normal">
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 max-w-2xl font-normal">
                 {subtitle}
               </p>
             )}

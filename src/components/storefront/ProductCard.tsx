@@ -80,12 +80,31 @@ export interface ProductCardProps {
   product: StorefrontProduct;
   priority?: boolean;
   layout?: 'grid' | 'list';
+  imageHeightPx?: number;
+  cardContext?: 'home' | 'articles';
 }
 
-export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
+export function ProductCard({
+  product,
+  layout = 'grid',
+  imageHeightPx,
+  cardContext = 'articles',
+}: ProductCardProps) {
   const { config } = useCmsConfig();
   const { t } = useI18nStore();
   const articleFlags = config.views.articles;
+  const resolvedImageHeightPx = Math.min(
+    460,
+    Math.max(
+      180,
+      Number(
+        imageHeightPx ??
+          (cardContext === 'home' ? config.views.home.cardImageHeightPx : articleFlags.cardImageHeightPx) ??
+          288,
+      ) || 288,
+    ),
+  );
+  const roundedRating = Math.min(5, Math.max(0, Math.round(Number(product.rating || 0))));
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
   const [isQuickOrderOpen, setIsQuickOrderOpen] = useState(false);
@@ -561,6 +580,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
             </div>
 
             <div className="space-y-3 pt-3 border-t border-neutral-100">
+              {articleFlags.showBuyButton !== false && (
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 bg-[#F4F5F7] rounded-full px-3 py-2 border border-neutral-200">
                   <button
@@ -605,9 +625,12 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                   <span>{t('actions.buy')}</span>
                 </button>
               </div>
+              )}
 
               {/* Like / Dislike / Wishlist Strip in Quick View */}
               <div className="flex flex-wrap items-center gap-2">
+                {articleFlags.showLikeDislike !== false && (
+                  <>
                 <button
                   type="button"
                   onClick={(e) => handleReaction(e, 'LIKE')}
@@ -632,6 +655,9 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                   <ThumbsDown className={`w-3.5 h-3.5 ${myReaction === 'DISLIKE' ? 'fill-current' : ''}`} />
                   <span>{reactionCounts.dislikeCount}</span>
                 </button>
+                  </>
+                )}
+                {articleFlags.showWishlistButton !== false && (
                 <button
                   type="button"
                   onClick={handleToggleWishlist}
@@ -644,6 +670,7 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
                   <Heart className={`w-3.5 h-3.5 ${inWishlist ? 'fill-current' : ''}`} />
                   <span>{t('actions.favorite')}</span>
                 </button>
+                )}
               </div>
             </div>
           </div>
@@ -712,9 +739,16 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
               <p className="text-xs text-slate-500 line-clamp-2">{product.shortDescription}</p>
             )}
             <div className="flex items-center gap-3 pt-1">
-              <div className="flex text-[var(--royal-primary)]">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-3.5 h-3.5 fill-current" />
+              <div className="flex">
+                {[1, 2, 3, 4, 5].map((starIdx) => (
+                  <Star
+                    key={starIdx}
+                    className={`w-3.5 h-3.5 ${
+                      starIdx <= roundedRating
+                        ? 'text-[var(--royal-primary)] fill-current'
+                        : 'text-slate-300'
+                    }`}
+                  />
                 ))}
               </div>
               <span className="text-xs text-slate-500">
@@ -889,7 +923,10 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
       >
         <div className="relative w-full h-full rounded-2xl bg-[var(--royal-card)] border border-[var(--royal-border)] overflow-hidden flex flex-col justify-between transition-all duration-300 group-hover:border-[var(--royal-primary)]/60 group-hover:shadow-md">
           {/* Article Image Wrapper with Translucent White (25%) + Primary Gold Overlay Icons & Copyable SKU Pill */}
-          <div className="relative w-full h-72 overflow-hidden bg-[var(--royal-silver-light)] shrink-0">
+          <div
+            style={{ height: `${resolvedImageHeightPx}px` }}
+            className="relative w-full overflow-hidden bg-[var(--royal-silver-light)] shrink-0"
+          >
             {/* Top Floating Overlay Controls */}
             <div className="absolute top-2.5 left-2.5 right-2.5 flex items-start justify-between z-20 pointer-events-none">
               {hasPromo ? (
@@ -1044,9 +1081,16 @@ export function ProductCard({ product, layout = 'grid' }: ProductCardProps) {
             <div className="space-y-2 pt-1">
               <div className="flex items-center justify-between text-xs gap-2">
                 <div className="flex items-center gap-1 min-w-0">
-                  <div className="flex text-[var(--royal-primary)] shrink-0">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-3 h-3 fill-current" />
+                  <div className="flex shrink-0">
+                    {[1, 2, 3, 4, 5].map((starIdx) => (
+                      <Star
+                        key={starIdx}
+                        className={`w-3 h-3 ${
+                          starIdx <= roundedRating
+                            ? 'text-[var(--royal-primary)] fill-current'
+                            : 'text-slate-300'
+                        }`}
+                      />
                     ))}
                   </div>
                   <span className="text-[11px] text-slate-500 truncate">

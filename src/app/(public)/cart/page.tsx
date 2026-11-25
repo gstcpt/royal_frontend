@@ -51,6 +51,7 @@ export default function CartPage() {
 
   const [shippingThreshold, setShippingThreshold] = useState<number>(150.0);
   const [standardShippingFee, setStandardShippingFee] = useState<number>(7.0);
+  const [vatRate, setVatRate] = useState<number>(19);
 
   // Fetch cart & shipping config
   const fetchCart = async () => {
@@ -69,6 +70,7 @@ export default function CartPage() {
         const cfg = cfgJson?.data || cfgJson;
         if (cfg?.freeShippingThreshold !== undefined) setShippingThreshold(Number(cfg.freeShippingThreshold));
         if (cfg?.standardShippingFee !== undefined) setStandardShippingFee(Number(cfg.standardShippingFee));
+        if (cfg?.vatStandard !== undefined) setVatRate(Number(cfg.vatStandard));
       }
       useCartStore.getState().fetchCart();
     } catch (e) {
@@ -165,7 +167,7 @@ export default function CartPage() {
   const discount = appliedCoupon ? appliedCoupon.discountAmount : 0;
   const subtotalAfterDiscount = Math.max(0, subtotal - discount);
   const shippingCost = subtotalAfterDiscount >= shippingThreshold || subtotal === 0 ? 0 : standardShippingFee;
-  const taxAmount = Number((subtotalAfterDiscount * 0.19).toFixed(3));
+  const taxAmount = Number((subtotalAfterDiscount * (vatRate / 100)).toFixed(3));
   const finalTotal = Number((subtotalAfterDiscount + shippingCost).toFixed(3));
   const missingForFreeShipping = Math.max(0, shippingThreshold - subtotalAfterDiscount);
   const progressPercent = Math.min(100, Math.round((subtotalAfterDiscount / shippingThreshold) * 100));

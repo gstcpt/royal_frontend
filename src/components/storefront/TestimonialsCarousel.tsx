@@ -50,7 +50,7 @@ export function TestimonialsCarousel() {
   }
 
   return (
-    <section className="py-16 md:py-24 bg-white border-b border-slate-100">
+    <section className="py-16 md:py-24 bg-[var(--royal-bg)] border-b border-[var(--royal-border)]">
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
           <div>
@@ -75,7 +75,7 @@ export function TestimonialsCarousel() {
                 type="button"
                 onClick={() => scroll('left')}
                 aria-label={t('storefront.testimonials_prev')}
-                className="w-10 h-10 rounded-full border border-[#E6E1D6] bg-white hover:bg-[#C59B27] hover:border-[#C59B27] hover:text-white text-[#1D232E] transition flex items-center justify-center shadow-xs cursor-pointer"
+                className="w-10 h-10 rounded-full border border-[var(--royal-border)] bg-[var(--royal-card)] hover:bg-[var(--royal-primary)] hover:border-[var(--royal-primary)] hover:text-[var(--royal-primary-text)] text-[var(--royal-ink)] transition flex items-center justify-center shadow-xs cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -83,7 +83,7 @@ export function TestimonialsCarousel() {
                 type="button"
                 onClick={() => scroll('right')}
                 aria-label={t('storefront.testimonials_next')}
-                className="w-10 h-10 rounded-full border border-[#E6E1D6] bg-white hover:bg-[#C59B27] hover:border-[#C59B27] hover:text-white text-[#1D232E] transition flex items-center justify-center shadow-xs cursor-pointer"
+                className="w-10 h-10 rounded-full border border-[var(--royal-border)] bg-[var(--royal-card)] hover:bg-[var(--royal-primary)] hover:border-[var(--royal-primary)] hover:text-[var(--royal-primary-text)] text-[var(--royal-ink)] transition flex items-center justify-center shadow-xs cursor-pointer"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -112,7 +112,7 @@ export function TestimonialsCarousel() {
             return (
             <div
               key={rev.id}
-              className="flex-shrink-0 w-[290px] sm:w-[380px] lg:w-[410px] snap-start p-5 sm:p-6 rounded-2xl bg-[#F8F9FA] border border-slate-200/80 shadow-sm flex flex-col justify-between"
+              className="flex-shrink-0 w-[290px] sm:w-[380px] lg:w-[410px] snap-start p-5 sm:p-6 rounded-2xl bg-[var(--royal-card)] border border-[var(--royal-border)] shadow-sm flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between gap-3 mb-4">

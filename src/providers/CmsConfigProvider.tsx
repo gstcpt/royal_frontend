@@ -330,6 +330,11 @@ export interface CmsConfig {
   faviconUrl: string;
   freeShippingThreshold: number;
   standardShippingFee: number;
+  vatStandard?: number;
+  maintenance?: {
+    enabled: boolean;
+    message: string;
+  };
   identity: CmsIdentityConfig;
   theme: CmsThemeConfig;
   header: CmsHeaderConfig;
@@ -346,6 +351,11 @@ const DEFAULT_CONFIG: CmsConfig = {
   faviconUrl: '/icon.png',
   freeShippingThreshold: 150,
   standardShippingFee: 7,
+  vatStandard: 19,
+  maintenance: {
+    enabled: false,
+    message: 'Notre boutique est momentanément en maintenance technique. Merci de votre patience.',
+  },
   identity: {
     appName: 'Royal',
     slogan: 'Electro de Maison • Équipement Culinaire & Électroménager Tunisie',
@@ -694,10 +704,19 @@ function applyDynamicCssTokens(cfg: CmsConfig) {
   `;
 
   if (cfg.faviconUrl) {
-    const iconLinks = document.querySelectorAll("link[rel~='icon'], link[rel='shortcut icon']");
+    const iconLinks = document.querySelectorAll("link[rel~='icon'], link[rel='shortcut icon'], link[rel='apple-touch-icon']");
     iconLinks.forEach((lnk) => {
       (lnk as HTMLLinkElement).href = cfg.faviconUrl;
     });
+  }
+
+  if (
+    typeof window !== 'undefined' &&
+    cfg.appName &&
+    !window.location.pathname.startsWith('/dashboard') &&
+    !(window as any).__royalPixelsConfig?.seoTitle?.trim()
+  ) {
+    document.title = `${cfg.appName} — Electro de Maison | E-Commerce & Électroménager Tunisie`;
   }
 }
 

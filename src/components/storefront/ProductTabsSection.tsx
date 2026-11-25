@@ -21,6 +21,7 @@ export function IsolatedProductCarousel({
   products,
   viewAllHref,
   displayMode = 'carousel',
+  cardImageHeightPx,
 }: {
   title: string;
   tag: string;
@@ -29,6 +30,7 @@ export function IsolatedProductCarousel({
   products: StorefrontProduct[];
   viewAllHref: string;
   displayMode?: 'carousel' | 'grid';
+  cardImageHeightPx?: number;
 }) {
   const { t } = useI18nStore();
   const { scrollRef, isDragging, dragProps } = useDragScroll<HTMLDivElement>();
@@ -58,7 +60,7 @@ export function IsolatedProductCarousel({
   if (!products || products.length === 0) return null;
 
   return (
-    <section className="py-12 md:py-16 bg-white border-b border-slate-100">
+    <section className="py-12 md:py-16 bg-[var(--royal-bg)] border-b border-[var(--royal-border)]">
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-7 gap-4">
           <div>
@@ -68,7 +70,7 @@ export function IsolatedProductCarousel({
                 {tag}
               </span>
             </div>
-            <h2 className="font-heading font-extrabold text-2xl sm:text-4xl text-[#1D232E] tracking-tight">
+            <h2 className="font-heading font-extrabold text-2xl sm:text-4xl text-[var(--royal-ink)] tracking-tight">
               {title}
             </h2>
             {subtitle && (
@@ -81,7 +83,7 @@ export function IsolatedProductCarousel({
           <div className="flex items-center gap-3">
             <Link
               href={viewAllHref}
-              className="text-xs font-bold text-[#9A7414] hover:text-[#1D232E] hover:underline inline-flex items-center gap-1 mr-2"
+              className="text-xs font-bold text-[var(--royal-gold-dark)] hover:text-[var(--royal-ink)] hover:underline inline-flex items-center gap-1 mr-2"
             >
               <span>{t('common.view_all')}</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -92,7 +94,7 @@ export function IsolatedProductCarousel({
                   type="button"
                   onClick={() => scroll('left')}
                   aria-label={`${title} précédent`}
-                  className="w-10 h-10 rounded-full border border-[#E6E1D6] bg-white hover:bg-[#C59B27] hover:border-[#C59B27] hover:text-white text-[#1D232E] transition flex items-center justify-center shadow-xs cursor-pointer"
+                  className="w-10 h-10 rounded-full border border-[var(--royal-border)] bg-[var(--royal-card)] hover:bg-[var(--royal-primary)] hover:border-[var(--royal-primary)] hover:text-[var(--royal-primary-text)] text-[var(--royal-ink)] transition flex items-center justify-center shadow-xs cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -100,7 +102,7 @@ export function IsolatedProductCarousel({
                   type="button"
                   onClick={() => scroll('right')}
                   aria-label={`${title} suivant`}
-                  className="w-10 h-10 rounded-full border border-[#E6E1D6] bg-white hover:bg-[#C59B27] hover:border-[#C59B27] hover:text-white text-[#1D232E] transition flex items-center justify-center shadow-xs cursor-pointer"
+                  className="w-10 h-10 rounded-full border border-[var(--royal-border)] bg-[var(--royal-card)] hover:bg-[var(--royal-primary)] hover:border-[var(--royal-primary)] hover:text-[var(--royal-primary-text)] text-[var(--royal-ink)] transition flex items-center justify-center shadow-xs cursor-pointer"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -112,7 +114,12 @@ export function IsolatedProductCarousel({
         {displayMode === 'grid' ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard
+                key={product.id}
+                product={product}
+                imageHeightPx={cardImageHeightPx}
+                cardContext="home"
+              />
             ))}
           </div>
         ) : (
@@ -129,7 +136,11 @@ export function IsolatedProductCarousel({
           >
             {products.map((product) => (
               <div key={product.id} className="flex-shrink-0 w-[270px] sm:w-[295px] snap-start">
-                <ProductCard product={product} />
+                <ProductCard
+                  product={product}
+                  imageHeightPx={cardImageHeightPx}
+                  cardContext="home"
+                />
               </div>
             ))}
           </div>

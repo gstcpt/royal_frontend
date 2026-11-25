@@ -267,11 +267,31 @@ export function MarketingPixelsTracker() {
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
     window.__royalPixelsConfig = cfg;
 
-    // SEO verification meta tags
+    // SEO verification meta tags & dynamic document SEO metadata on storefront routes
     if (cfg.googleSiteVerification) upsertMetaTag('google-site-verification', cfg.googleSiteVerification);
     if (cfg.facebookDomainVerification) upsertMetaTag('facebook-domain-verification', cfg.facebookDomainVerification);
     if (cfg.seoKeywords) upsertMetaTag('keywords', cfg.seoKeywords);
     upsertMetaTag('robots', cfg.robotsIndex === false ? 'noindex, nofollow' : 'index, follow');
+
+    if (pathname && !pathname.startsWith('/dashboard') && !pathname.startsWith('/account')) {
+      if (cfg.seoTitle?.trim()) {
+        document.title = cfg.seoTitle.trim();
+      }
+      if (cfg.seoDescription?.trim()) {
+        upsertMetaTag('description', cfg.seoDescription);
+      }
+      if (cfg.canonicalBaseUrl?.trim()) {
+        const base = cfg.canonicalBaseUrl.trim().replace(/\/+$/, '');
+        const canonicalHref = `${base}${pathname === '/' ? '/' : pathname}`;
+        let link = document.querySelector("link[rel='canonical']") as HTMLLinkElement | null;
+        if (!link) {
+          link = document.createElement('link');
+          link.setAttribute('rel', 'canonical');
+          document.head.appendChild(link);
+        }
+        link.setAttribute('href', canonicalHref);
+      }
+    }
 
     const sig = JSON.stringify({
       m: cfg.metaPixelEnabled ? cfg.metaPixelId : '',
@@ -351,7 +371,7 @@ export function MarketingPixelsTracker() {
         document.head.appendChild(s);
       }
     }
-  }, [cfg]);
+  }, [cfg, pathname]);
 
   // Fire PageView & real first-party TrafficEvent + duration on storefront route navigations (exclude dashboard/account)
   useEffect(() => {

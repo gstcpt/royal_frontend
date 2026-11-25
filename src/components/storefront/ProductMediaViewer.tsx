@@ -16,6 +16,7 @@ interface ProductMediaViewerProps {
   images: string[];
   alt: string;
   heightClassName?: string;
+  desktopHeightPx?: number;
   roundedClassName?: string;
   wrapperClassName?: string;
   borderClassName?: string;
@@ -32,6 +33,7 @@ export function ProductMediaViewer({
   images,
   alt,
   heightClassName = 'h-[420px] sm:h-[520px] lg:h-[580px]',
+  desktopHeightPx,
   roundedClassName = 'rounded-[32px]',
   wrapperClassName = 'space-y-3 w-full',
   borderClassName = 'border border-neutral-200',
@@ -60,6 +62,10 @@ export function ProductMediaViewer({
   useEffect(() => {
     setActiveIdx(0);
   }, [safeImages.length, safeImages[0]]);
+
+  useEffect(() => {
+    setIsAutoplay(defaultAutoPlay);
+  }, [defaultAutoPlay]);
 
   // Autoplay every 3s whenever enabled and NOT hovered
   useEffect(() => {
@@ -91,9 +97,13 @@ export function ProductMediaViewer({
   };
 
   const effectiveAnim = animationMode || (enableZoomOnHover ? 'zoom-hover' : 'none');
-  const zoomActive = effectiveAnim === 'zoom-hover' && enableZoomOnHover;
+  const zoomActive = Boolean(enableZoomOnHover);
   const currentUrl = safeImages[activeIdx] || safeImages[0];
   const imgFitClass = objectFit === 'contain' ? 'object-contain p-4 bg-white' : 'object-cover object-center';
+  const resolvedDesktopHeightPx =
+    desktopHeightPx && Number.isFinite(Number(desktopHeightPx))
+      ? Math.min(800, Math.max(320, Number(desktopHeightPx)))
+      : null;
   const effectiveShowThumbs = showThumbnails && displayMode !== 'single' && displayMode !== 'grid-2x2' && safeImages.length > 1;
 
   const thumbnailButtons = effectiveShowThumbs && (
@@ -186,7 +196,8 @@ export function ProductMediaViewer({
                 else setActiveIdx((prev) => (prev - 1 + safeImages.length) % safeImages.length);
               }
             }}
-            className={`relative flex-1 w-full ${heightClassName} ${roundedClassName} overflow-hidden bg-neutral-100 ${borderClassName} select-none group`}
+            style={resolvedDesktopHeightPx ? { height: `${resolvedDesktopHeightPx}px` } : undefined}
+            className={`relative flex-1 w-full ${resolvedDesktopHeightPx ? '' : heightClassName} ${roundedClassName} overflow-hidden bg-neutral-100 ${borderClassName} select-none group`}
           >
             <img
               key={effectiveAnim === 'fade' || effectiveAnim === 'slide' ? currentUrl : 'static-img'}
@@ -205,7 +216,11 @@ export function ProductMediaViewer({
                 transform: zoomActive && isHovered ? 'scale(1.55)' : effectiveAnim === 'zoom-hover' ? 'scale(1.04)' : 'scale(1)',
               }}
               className={`w-full h-full ${imgFitClass} cursor-zoom-in transition-all duration-300 ease-out ${
-                effectiveAnim === 'fade' ? 'opacity-100' : effectiveAnim === 'slide' ? 'translate-x-0' : ''
+                effectiveAnim === 'fade'
+                  ? 'animate-in fade-in duration-500'
+                  : effectiveAnim === 'slide'
+                  ? 'animate-in fade-in slide-in-from-right-4 duration-300'
+                  : ''
               }`}
             />
 

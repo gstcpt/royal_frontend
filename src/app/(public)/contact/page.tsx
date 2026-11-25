@@ -309,7 +309,7 @@ export default function ContactPage() {
       </div>
     ),
     map: cCfg.showMap !== false ? (
-      <div key="map" className="mt-10 rounded-3xl overflow-hidden border border-[var(--royal-border)] bg-white shadow-sm">
+      <div key="map" className="mt-10 rounded-3xl overflow-hidden border border-[var(--royal-border)] bg-[var(--royal-card)] shadow-sm">
         <div className="px-6 py-4 bg-[var(--royal-bg)] border-b border-[var(--royal-border)] flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <MapPin className="w-4 h-4 text-[var(--royal-primary)]" />
@@ -318,7 +318,19 @@ export default function ContactPage() {
             </span>
           </div>
           <a
-            href="https://www.openstreetmap.org/?mlat=35.5047&mlon=11.0622#map=14/35.5047/11.0622"
+            href={(() => {
+              const rawUrl = String(cCfg.mapEmbedUrl || '');
+              const m = rawUrl.match(/marker=([^&]+)/);
+              if (m) {
+                const coords = decodeURIComponent(m[1]).split(',');
+                if (coords.length === 2) {
+                  return `https://www.openstreetmap.org/?mlat=${coords[0]}&mlon=${coords[1]}#map=14/${coords[0]}/${coords[1]}`;
+                }
+              }
+              return rawUrl && !rawUrl.includes('embed.html')
+                ? rawUrl
+                : 'https://www.openstreetmap.org/?mlat=35.5047&mlon=11.0622#map=14/35.5047/11.0622';
+            })()}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs font-bold text-[var(--royal-gold-dark)] hover:underline"

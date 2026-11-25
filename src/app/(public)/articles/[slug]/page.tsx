@@ -379,12 +379,76 @@ export default function ArticleDetailPage() {
       ? `Garantie constructeur : ${product.dimensionsJson.garantie}`
       : 'Garantie constructeur officielle selon fiche article';
 
+  const displayedRating =
+    reviewsData.totalReviews > 0
+      ? Number(reviewsData.averageRating || 0)
+      : Number(product.rating || 0);
+  const roundedDisplayedRating = Math.round(displayedRating);
+
+  const detailOrder =
+    Array.isArray(detailCfg.sectionOrder) && detailCfg.sectionOrder.length > 0
+      ? detailCfg.sectionOrder
+      : ['breadcrumb', 'gallery', 'purchaseInfo', 'trustBadges', 'tabs', 'related'];
+  const getDetailOrderIdx = (key: string, fallback: number) => {
+    const idx = detailOrder.indexOf(key);
+    return idx >= 0 ? idx : fallback;
+  };
+  const breadcrumbOrder = getDetailOrderIdx('breadcrumb', 0);
+  const galleryOrder = getDetailOrderIdx('gallery', 1);
+  const purchaseOrder = getDetailOrderIdx('purchaseInfo', 2);
+  const trustOrder = getDetailOrderIdx('trustBadges', 3);
+  const tabsOrder = getDetailOrderIdx('tabs', 4);
+  const relatedOrder = getDetailOrderIdx('related', 5);
+  const splitGridOrder = Math.min(galleryOrder, purchaseOrder);
+  const keepTrustInline = trustOrder === purchaseOrder + 1;
+  const galleryOnRight = galleryOrder > purchaseOrder || detailCfg.galleryPosition === 'right';
+
+  const trustBadgeItems = [
+    {
+      Icon: Truck,
+      title: locale === 'ar' ? t('product.badge_delivery_title') : (detailCfg.trustBadges?.[0]?.title || t('product.badge_delivery_title')),
+      subtitle: locale === 'ar' ? t('product.badge_delivery_sub') : (detailCfg.trustBadges?.[0]?.subtitle || t('product.badge_delivery_sub')),
+    },
+    {
+      Icon: ShieldCheck,
+      title: locale === 'ar' ? t('product.badge_warranty_title') : (detailCfg.trustBadges?.[1]?.title || t('product.badge_warranty_title')),
+      subtitle: locale === 'ar' ? t('product.badge_warranty_sub') : (product.dimensionsJson?.garantie || detailCfg.trustBadges?.[1]?.subtitle || t('product.badge_warranty_sub')),
+    },
+    {
+      Icon: Banknote,
+      title: locale === 'ar' ? t('product.badge_payment_title') : (detailCfg.trustBadges?.[2]?.title || t('product.badge_payment_title')),
+      subtitle: locale === 'ar' ? t('product.badge_payment_sub') : (detailCfg.trustBadges?.[2]?.subtitle || t('product.badge_payment_sub')),
+    },
+  ];
+
+  const renderTrustBadges = (standalone = false) =>
+    detailCfg.showTrustBadges !== false ? (
+      <div
+        style={standalone ? { order: trustOrder } : undefined}
+        className={`${standalone ? 'mt-8 ' : ''}pt-6 border-t border-[var(--royal-border)] grid grid-cols-1 sm:grid-cols-3 gap-3 text-center text-xs text-neutral-600`}
+      >
+        {trustBadgeItems.map(({ Icon, title, subtitle }, idx) => (
+          <div
+            key={idx}
+            className="p-3.5 rounded-2xl bg-[var(--royal-silver-light)] flex flex-col items-center gap-1.5 border border-[var(--royal-border)]"
+          >
+            <Icon className="w-5 h-5 text-[var(--royal-primary)]" />
+            <span className="font-bold text-[var(--royal-ink)]">{title}</span>
+            <span className="text-[10px] text-neutral-500">{subtitle}</span>
+          </div>
+        ))}
+      </div>
+    ) : null;
+
   return (
-    <div className="bg-white min-h-screen py-8 md:py-12">
-      <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-24">
+    <div className="bg-[var(--royal-bg)] min-h-screen py-8 md:py-12">
+      <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-24 flex flex-col">
         {/* Breadcrumb */}
         {detailCfg.showBreadcrumb !== false && (
-          <nav className="flex items-center gap-2 text-xs text-neutral-400 mb-6 sm:mb-8 overflow-x-auto whitespace-nowrap">
+          <nav
+            style={{ order: breadcrumbOrder }}
+            className="flex items-center gap-2 text-xs text-neutral-400 mb-6 sm:mb-8 overflow-x-auto whitespace-nowrap"
+          >
             <Link href="/" className="hover:text-neutral-900 transition">{t('nav.home')}</Link>
             <ChevronRight className="w-3.5 h-3.5 text-neutral-300 shrink-0" />
             <Link href="/articles" className="hover:text-neutral-900 transition">{t('nav.articles')}</Link>
@@ -404,10 +468,13 @@ export default function ArticleDetailPage() {
           </nav>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 xl:gap-16 items-start">
+        <div
+          style={{ order: splitGridOrder }}
+          className="grid grid-cols-1 lg:grid-cols-12 gap-10 xl:gap-16 items-start"
+        >
           {/* Interactive Gallery (Left or Right via CMS) */}
           <div
-            className={`w-full ${detailCfg.galleryPosition === 'right' ? 'lg:order-2' : 'lg:order-1'} ${
+            className={`w-full ${galleryOnRight ? 'lg:order-2' : 'lg:order-1'} ${
               detailCfg.mediaColumnSpan === 8
                 ? 'lg:col-span-7 xl:col-span-8'
                 : detailCfg.mediaColumnSpan === 5
@@ -417,11 +484,12 @@ export default function ArticleDetailPage() {
                 : 'lg:col-span-6 xl:col-span-7'
             }`}
           >
-            <div className="min-h-[340px] sm:min-h-[460px] lg:min-h-[540px]">
+            <div className="w-full">
               <ProductMediaViewer
                 images={(product.images || []).map((im) => im.url)}
                 alt={product.name}
                 heightClassName="h-[340px] sm:h-[500px] lg:h-[580px]"
+                desktopHeightPx={detailCfg.galleryHeightPx}
                 roundedClassName="rounded-[24px] sm:rounded-[32px]"
                 enableZoomOnHover={detailCfg.enableImageZoom}
                 defaultAutoPlay={detailCfg.enableImageAutoplay}
@@ -441,7 +509,7 @@ export default function ArticleDetailPage() {
 
           {/* Purchase Panel */}
           <div
-            className={`space-y-6 ${detailCfg.galleryPosition === 'right' ? 'lg:order-1' : 'lg:order-2'} ${
+            className={`space-y-6 ${galleryOnRight ? 'lg:order-1' : 'lg:order-2'} ${
               detailCfg.mediaColumnSpan === 8
                 ? 'lg:col-span-5 xl:col-span-4'
                 : detailCfg.mediaColumnSpan === 5
@@ -465,14 +533,22 @@ export default function ArticleDetailPage() {
 
               {detailCfg.showRatings !== false && (
                 <div className="flex items-center gap-2 mt-3">
-                  <div className="flex text-[var(--royal-primary)]">
+                  <div className="flex items-center gap-0.5 text-[var(--royal-primary)]">
                     {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-current" />
+                      <Star
+                        key={i}
+                        className={`w-4 h-4 ${
+                          i < roundedDisplayedRating ? 'fill-current' : 'text-neutral-300'
+                        }`}
+                      />
                     ))}
                   </div>
                   <span className="text-xs font-bold text-neutral-900 ml-1">
-                    {(product.rating ?? 5.0).toFixed(1)}
+                    {displayedRating > 0 ? displayedRating.toFixed(1) : '0.0'}
                   </span>
+                  {reviewsData.totalReviews > 0 && (
+                    <span className="text-xs text-neutral-400">({reviewsData.totalReviews})</span>
+                  )}
                 </div>
               )}
             </div>
@@ -702,34 +778,18 @@ export default function ArticleDetailPage() {
               </div>
             )}
 
-            {detailCfg.showTrustBadges !== false && (
-              <div className="pt-6 border-t border-neutral-100 grid grid-cols-1 sm:grid-cols-3 gap-3 text-center text-xs text-neutral-600">
-                <div className="p-3.5 rounded-2xl bg-[var(--royal-silver-light)] flex flex-col items-center gap-1.5 border border-[var(--royal-border)]">
-                  <Truck className="w-5 h-5 text-[var(--royal-primary)]" />
-                  <span className="font-bold text-[var(--royal-ink)]">{locale === 'ar' ? t('product.badge_delivery_title') : (detailCfg.trustBadges?.[0]?.title || t('product.badge_delivery_title'))}</span>
-                  <span className="text-[10px] text-neutral-500">{locale === 'ar' ? t('product.badge_delivery_sub') : (detailCfg.trustBadges?.[0]?.subtitle || t('product.badge_delivery_sub'))}</span>
-                </div>
-                <div className="p-3.5 rounded-2xl bg-[var(--royal-silver-light)] flex flex-col items-center gap-1.5 border border-[var(--royal-border)]">
-                  <ShieldCheck className="w-5 h-5 text-[var(--royal-primary)]" />
-                  <span className="font-bold text-[var(--royal-ink)]">{locale === 'ar' ? t('product.badge_warranty_title') : (detailCfg.trustBadges?.[1]?.title || t('product.badge_warranty_title'))}</span>
-                  <span className="text-[10px] text-neutral-500">{locale === 'ar' ? t('product.badge_warranty_sub') : (product.dimensionsJson?.garantie || detailCfg.trustBadges?.[1]?.subtitle || t('product.badge_warranty_sub'))}</span>
-                </div>
-                <div className="p-3.5 rounded-2xl bg-[var(--royal-silver-light)] flex flex-col items-center gap-1.5 border border-[var(--royal-border)]">
-                  <Banknote className="w-5 h-5 text-[var(--royal-primary)]" />
-                  <span className="font-bold text-[var(--royal-ink)]">{locale === 'ar' ? t('product.badge_payment_title') : (detailCfg.trustBadges?.[2]?.title || t('product.badge_payment_title'))}</span>
-                  <span className="text-[10px] text-neutral-500">{locale === 'ar' ? t('product.badge_payment_sub') : (detailCfg.trustBadges?.[2]?.subtitle || t('product.badge_payment_sub'))}</span>
-                </div>
-              </div>
-            )}
+            {keepTrustInline && renderTrustBadges(false)}
           </div>
         </div>
+
+        {!keepTrustInline && renderTrustBadges(true)}
 
         {/* Detailed Tabs: 1. Description -> 2. Fiche Technique -> 3. Avis & Commentaires -> 4. Livraison & Garantie */}
         {(detailCfg.showDescription !== false ||
           detailCfg.showSpecs !== false ||
           detailCfg.showReviews !== false ||
           detailCfg.showDeliveryTab) && (
-        <div className="mt-16 pt-10 border-t border-neutral-200">
+        <div style={{ order: tabsOrder }} className="mt-16 pt-10 border-t border-[var(--royal-border)]">
           <div className="flex flex-wrap gap-4 sm:gap-8 border-b border-neutral-200 pb-3">
             {detailCfg.showDescription !== false && (
               <button
@@ -1100,47 +1160,62 @@ export default function ArticleDetailPage() {
             }
           }
 
-          return blocksToRender.map((block) => (
-            <section key={block.id} className="mt-16 pt-12 border-t border-neutral-200 space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-                <div>
-                  <h2 className="font-heading text-2xl sm:text-3xl font-extrabold text-[var(--royal-ink)] tracking-tight">
-                    {block.title}
-                  </h2>
-                  {block.subtitle && (
-                    <p className="text-xs sm:text-sm text-neutral-500 mt-1 max-w-2xl">{block.subtitle}</p>
-                  )}
-                </div>
-                <Link
-                  href="/articles"
-                  className="text-xs font-bold text-[#9A7414] hover:text-[#1D232E] hover:underline inline-flex items-center gap-1"
-                >
-                  <span>Tout le catalogue</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
+          if (blocksToRender.length === 0) return null;
 
-              {block.displayMode === 'carousel' ? (
-                <div className="flex gap-5 overflow-x-auto pb-3 snap-x snap-mandatory">
-                  {block.items.map((item) => (
-                    <div key={item.id} className="flex-shrink-0 w-[265px] sm:w-[295px] snap-start">
-                      <ProductCard product={item} />
+          return (
+            <div style={{ order: relatedOrder }}>
+              {blocksToRender.map((block) => (
+                <section key={block.id} className="mt-16 pt-12 border-t border-[var(--royal-border)] space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                    <div>
+                      <h2 className="font-heading text-2xl sm:text-3xl font-extrabold text-[var(--royal-ink)] tracking-tight">
+                        {block.title}
+                      </h2>
+                      {block.subtitle && (
+                        <p className="text-xs sm:text-sm text-neutral-500 mt-1 max-w-2xl">{block.subtitle}</p>
+                      )}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div
-                  className={`grid grid-cols-1 sm:grid-cols-2 ${
-                    block.columns === '3' ? 'lg:grid-cols-3' : 'lg:grid-cols-4'
-                  } gap-5`}
-                >
-                  {block.items.map((item) => (
-                    <ProductCard key={item.id} product={item} />
-                  ))}
-                </div>
-              )}
-            </section>
-          ));
+                    <Link
+                      href="/articles"
+                      className="text-xs font-bold text-[#9A7414] hover:text-[#1D232E] hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>Tout le catalogue</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+
+                  {block.displayMode === 'carousel' ? (
+                    <div className="flex gap-5 overflow-x-auto pb-3 snap-x snap-mandatory">
+                      {block.items.map((item) => (
+                        <div key={item.id} className="flex-shrink-0 w-[265px] sm:w-[295px] snap-start">
+                          <ProductCard
+                            product={item}
+                            imageHeightPx={config.views.articles.cardImageHeightPx}
+                            cardContext="articles"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div
+                      className={`grid grid-cols-1 sm:grid-cols-2 ${
+                        block.columns === '3' ? 'lg:grid-cols-3' : 'lg:grid-cols-4'
+                      } gap-5`}
+                    >
+                      {block.items.map((item) => (
+                        <ProductCard
+                          key={item.id}
+                          product={item}
+                          imageHeightPx={config.views.articles.cardImageHeightPx}
+                          cardContext="articles"
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              ))}
+            </div>
+          );
         })()}
       </div>
       {product && (
