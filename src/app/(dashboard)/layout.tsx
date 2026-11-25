@@ -134,8 +134,6 @@ function DashboardLayoutInner({
     '/dashboard/users/admins': 'PRIVATE',
     '/dashboard/users/commercials': 'PUBLIC',
     '/dashboard/users/marketing': 'PRIVATE',
-    '/dashboard/users/delivery-managers': 'PRIVATE',
-    '/dashboard/users/delivery-agents': 'PRIVATE',
     '/dashboard/users/clients': 'PRIVATE',
     '/dashboard/treasury': 'PRIVATE',
     '/dashboard/treasury/transactions': 'PRIVATE',
@@ -151,6 +149,7 @@ function DashboardLayoutInner({
     '/dashboard/inventory': 'PRIVATE',
     '/dashboard/inventory-documents': 'PRIVATE',
     '/dashboard/transfers': 'PRIVATE',
+    '/dashboard/delivery-companies': 'PRIVATE',
     '/dashboard/deliveries': 'PRIVATE',
     '/dashboard/returns': 'PRIVATE',
     '/dashboard/invoices': 'PRIVATE',
@@ -174,6 +173,7 @@ function DashboardLayoutInner({
     '/dashboard/root/print-templates': 'PRIVATE',
     '/dashboard/payment-methods': 'PRIVATE',
     '/dashboard/settings': 'PRIVATE',
+    '/dashboard/root/delivery-settings': 'PRIVATE',
     '/dashboard/translations': 'PRIVATE',
     '/dashboard/root/roles-permissions': 'PRIVATE',
     '/dashboard/logs': 'PRIVATE',
@@ -408,7 +408,7 @@ function DashboardLayoutInner({
           next['sys-crm'] = true;
         }
         if (
-          ['/smtp', '/tva', '/reference-prefixes', '/print-templates', '/payment-methods', '/storage', '/payment-gateways', '/printers', '/visibility'].some((p) =>
+          ['/smtp', '/tva', '/reference-prefixes', '/print-templates', '/delivery-settings', '/payment-methods', '/storage', '/payment-gateways', '/printers', '/visibility'].some((p) =>
             pathname.includes(p)
           )
         ) {
@@ -512,8 +512,7 @@ function DashboardLayoutInner({
     hasRole(SystemRole.CASHIER);
   const isVendeur =
     userRoles.includes('SALESPERSON') ||
-    userRoles.includes('VENDEUR') ||
-    userRoles.includes('DELIVERY_MANAGER');
+    userRoles.includes('VENDEUR');
   const isFinancier =
     userRoles.includes('ACCOUNTANT') ||
     userRoles.includes('FINANCIER') ||
@@ -591,6 +590,7 @@ function DashboardLayoutInner({
     if (pathname === baseHref) return true;
     // Allow dynamic detail pages like /dashboard/orders/[id] without lighting up sibling sub-routes like /dashboard/treasury/transactions
     if (baseHref === '/dashboard/orders' && pathname.startsWith('/dashboard/orders/')) return true;
+    if (baseHref === '/dashboard/transfers' && pathname.startsWith('/dashboard/transfers/')) return true;
     return false;
   };
 
@@ -725,18 +725,6 @@ function DashboardLayoutInner({
           icon: <Sparkles className="h-4 w-4" />,
         },
         {
-          id: 'users-deliv-mgr',
-          label: 'Responsables Livraison',
-          href: '/dashboard/users/delivery-managers',
-          icon: <Truck className="h-4 w-4" />,
-        },
-        {
-          id: 'users-deliv-agent',
-          label: 'Livreurs',
-          href: '/dashboard/users/delivery-agents',
-          icon: <Truck className="h-4 w-4" />,
-        },
-        {
           id: 'users-clients',
           label: 'Clients (Comptes)',
           href: '/dashboard/users/clients',
@@ -834,6 +822,12 @@ function DashboardLayoutInner({
           label: 'Commandes clients',
           href: '/dashboard/orders',
           icon: <ShoppingCart className="h-4 w-4" />,
+        },
+        {
+          id: 'sales-deliv-companies',
+          label: 'Sociétés & Tarifs livraison',
+          href: '/dashboard/delivery-companies',
+          icon: <Truck className="h-4 w-4" />,
         },
         {
           id: 'sales-bl',
@@ -959,6 +953,7 @@ function DashboardLayoutInner({
             { id: 'sys-tva', label: 'Taxe et timbre fiscal', href: '/dashboard/root/tva', icon: <Percent className="h-3.5 w-3.5" /> },
             { id: 'sys-pref', label: 'Préfixes et numérotations', href: '/dashboard/root/reference-prefixes', icon: <Hash className="h-3.5 w-3.5" /> },
             { id: 'sys-print', label: 'Documents & Imprimantes POS', href: '/dashboard/root/print-templates', icon: <Printer className="h-3.5 w-3.5" /> },
+            { id: 'sys-delivery-rules', label: 'Règles Livraison & Transferts', href: '/dashboard/root/delivery-settings', icon: <Truck className="h-3.5 w-3.5" /> },
             { id: 'sys-pay', label: 'Modalités & Passerelles Paiement', href: '/dashboard/payment-methods', icon: <CreditCard className="h-3.5 w-3.5" /> },
             { id: 'sys-general', label: 'Paramètres généraux', href: '/dashboard/settings', icon: <Settings className="h-3.5 w-3.5" /> },
             ...(isRoot

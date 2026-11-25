@@ -22,6 +22,9 @@ import {
   Sparkles,
   Lock,
   Wallet,
+  MapPin,
+  Store,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface CartItem {
@@ -86,6 +89,13 @@ export default function CheckoutPage() {
   // Submission state
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [fulfillmentType, setFulfillmentType] = useState<'DELIVERY' | 'SHOWROOM_PICKUP'>('DELIVERY');
+  const [geoCountries, setGeoCountries] = useState<Array<{ code: string; nameFr: string; states: Array<{ name: string; lat: number; lng: number }> }>>([]);
+  const [deliveryQuotes, setDeliveryQuotes] = useState<any[]>([]);
+  const [selectedDeliveryCompanyId, setSelectedDeliveryCompanyId] = useState<string>('');
+  const [showrooms, setShowrooms] = useState<any[]>([]);
+  const [selectedShowroomId, setSelectedShowroomId] = useState<string>('');
+  const [loadingDeliveryOptions, setLoadingDeliveryOptions] = useState(false);
   const [selectedGatewayCode, setSelectedGatewayCode] = useState<'CASH_ON_DELIVERY' | 'FLOUCI' | 'CLICTOPAY' | 'BANK_TRANSFER'>('CASH_ON_DELIVERY');
   const [publicGateways, setPublicGateways] = useState<{
     codEnabled: boolean;
@@ -209,6 +219,94 @@ export default function CheckoutPage() {
     loadCart();
   }, []);
 
+  useEffect(() => {
+    fetch('/api/v1/deliveries/geography')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        const list = json?.data?.countries || json?.countries || [];
+        if (Array.isArray(list) && list.length > 0) {
+          setGeoCountries(list);
+        }
+      })
+      .catch(() => null);
+  }, []);
+
+  const currentSubtotalValue = React.useMemo(
+    () => items.reduce((sum, it) => sum + it.lineTotal, 0),
+    [items],
+  );
+  const currentDiscountValue = appliedCoupon ? appliedCoupon.discountAmount : 0;
+  const currentSubtotalAfterDiscount = Math.max(0, currentSubtotalValue - currentDiscountValue);
+
+  useEffect(() => {
+    if (loadingCart) return;
+    let cancelled = false;
+    setLoadingDeliveryOptions(true);
+
+    const quoteItems = items
+      .filter((it) => it.variantId)
+      .map((it) => ({ variantId: it.variantId, quantity: Math.max(1, Number(it.quantity || 1)) }));
+
+    Promise.all([
+      fetch('/api/v1/deliveries/calculate-quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          destinationCountry: formData.country || 'TN',
+          destinationState: formData.state || 'Tunis',
+          items: quoteItems,
+          subtotalTnd: currentSubtotalAfterDiscount,
+        }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+      fetch('/api/v1/deliveries/showrooms-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: quoteItems }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ])
+      .then(([quoteRes, showRes]) => {
+        if (cancelled) return;
+        const qData = quoteRes?.data || quoteRes;
+        const quotes = Array.isArray(qData?.quotes) ? qData.quotes : [];
+        setDeliveryQuotes(quotes);
+        if (quotes.length > 0) {
+          setSelectedDeliveryCompanyId((prev) => {
+            if (prev && quotes.some((q: any) => q.companyId === prev && q.available)) return prev;
+            const firstAvail = quotes.find((q: any) => q.available) || quotes[0];
+            return firstAvail?.companyId || '';
+          });
+        }
+
+        const sData = showRes?.data || showRes;
+        const showList = Array.isArray(sData?.showrooms) ? sData.showrooms : [];
+        setShowrooms(showList);
+        if (showList.length > 0) {
+          setSelectedShowroomId((prev) => {
+            if (prev && showList.some((s: any) => s.id === prev)) return prev;
+            const firstInStock = showList.find((s: any) => s.inShowroomStock) || showList[0];
+            return firstInStock?.id || '';
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingDeliveryOptions(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    loadingCart,
+    items,
+    formData.country,
+    formData.state,
+    currentSubtotalAfterDiscount,
+  ]);
+
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!couponCodeInput.trim()) return;
@@ -246,10 +344,21 @@ export default function CheckoutPage() {
     }
   };
 
+  const selectedQuote = deliveryQuotes.find((q) => q.companyId === selectedDeliveryCompanyId) || null;
+  const selectedShowroom = showrooms.find((s) => s.id === selectedShowroomId) || null;
+
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) {
       setSubmitError('Votre panier est vide. Ajoutez au moins un article avant de valider.');
+      return;
+    }
+    if (fulfillmentType === 'DELIVERY' && selectedQuote && !selectedQuote.available) {
+      setSubmitError('Ce transporteur ne couvre pas votre zone/poids. Veuillez en choisir un autre ou sélectionner le retrait en showroom.');
+      return;
+    }
+    if (fulfillmentType === 'SHOWROOM_PICKUP' && showrooms.length > 0 && !selectedShowroomId) {
+      setSubmitError('Veuillez sélectionner le showroom pour votre retrait en magasin.');
       return;
     }
     setSubmitting(true);
@@ -288,7 +397,13 @@ export default function CheckoutPage() {
             : selectedGatewayCode === 'BANK_TRANSFER'
             ? 'BANK_TRANSFER'
             : 'CASH_ON_DELIVERY',
-        deliveryMethod: formData.deliveryMethod,
+        fulfillmentType,
+        deliveryCompanyId: fulfillmentType === 'DELIVERY' ? selectedDeliveryCompanyId || undefined : undefined,
+        pickupShowroomId: fulfillmentType === 'SHOWROOM_PICKUP' ? selectedShowroomId || undefined : undefined,
+        deliveryMethod:
+          fulfillmentType === 'SHOWROOM_PICKUP'
+            ? `SHOWROOM_PICKUP:${selectedShowroom?.code || ''}`
+            : selectedQuote?.code || formData.deliveryMethod,
         couponCode: appliedCoupon?.code || undefined,
         notes: [
           formData.notes,
@@ -348,9 +463,19 @@ export default function CheckoutPage() {
   const subtotal = items.reduce((sum, it) => sum + it.lineTotal, 0);
   const discount = appliedCoupon ? appliedCoupon.discountAmount : 0;
   const subtotalAfterDiscount = Math.max(0, subtotal - discount);
-  const shippingCost = subtotalAfterDiscount >= shippingThreshold || subtotal === 0 ? 0 : standardShippingFee;
+  const shippingCost =
+    subtotal === 0 || fulfillmentType === 'SHOWROOM_PICKUP'
+      ? 0
+      : selectedQuote && selectedQuote.available
+        ? Number(selectedQuote.feeTnd)
+        : subtotalAfterDiscount >= shippingThreshold
+          ? 0
+          : standardShippingFee;
   const taxAmount = Number((subtotalAfterDiscount * (vatRate / 100)).toFixed(3));
   const finalTotal = Number((subtotalAfterDiscount + shippingCost).toFixed(3));
+  const stateOptions =
+    geoCountries.find((c) => c.code === (formData.country || 'TN'))?.states?.map((s) => s.name) ||
+    TUNISIAN_GOVERNORATES;
 
   return (
     <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 py-10 sm:py-12">
@@ -474,10 +599,38 @@ export default function CheckoutPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-[#0C1A14]/80 mb-1">
-                      Gouvernorat *
+                      Pays *
+                    </label>
+                    <select
+                      required
+                      value={formData.country}
+                      onChange={(e) => {
+                        const nextC = e.target.value;
+                        const nextStates = geoCountries.find((c) => c.code === nextC)?.states || [];
+                        setFormData({
+                          ...formData,
+                          country: nextC,
+                          state: nextStates[0]?.name || (nextC === 'TN' ? 'Mahdia' : ''),
+                        });
+                      }}
+                      className="w-full px-4 py-2.5 rounded-xl border border-[#EFECE6] bg-[#FBF9F5] text-sm focus:outline-none focus:border-[#D4AF37]"
+                    >
+                      {(geoCountries.length > 0
+                        ? geoCountries
+                        : [{ code: 'TN', nameFr: 'Tunisie', states: [] }]
+                      ).map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.nameFr}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-[#0C1A14]/80 mb-1">
+                      Gouvernorat / État *
                     </label>
                     <select
                       required
@@ -485,14 +638,14 @@ export default function CheckoutPage() {
                       onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                       className="w-full px-4 py-2.5 rounded-xl border border-[#EFECE6] bg-[#FBF9F5] text-sm focus:outline-none focus:border-[#D4AF37]"
                     >
-                      {TUNISIAN_GOVERNORATES.map((g) => (
+                      {stateOptions.map((g) => (
                         <option key={g} value={g}>{g}</option>
                       ))}
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#0C1A14]/80 mb-1">
-                      Ville / Délégation *
+                      Ville / Municipalité *
                     </label>
                     <input
                       type="text"
@@ -519,45 +672,210 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Step 3: Delivery Options */}
-            <div className="bg-white rounded-3xl border border-[#EFECE6] p-5 sm:p-7 shadow-sm">
-              <div className="flex items-center gap-3 mb-6">
-                <span className="w-8 h-8 rounded-full bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] border border-[var(--royal-primary)]/40 text-xs font-bold flex items-center justify-center shrink-0">
-                  3
-                </span>
-                <h2 className="font-sans font-bold tracking-tight text-xl text-[#0C1A14] font-semibold">
-                  {t('checkout.step3')}
-                </h2>
+            {/* Step 3: Delivery Options (Carrier Calculation vs Showroom Pickup) */}
+            <div className="bg-white rounded-3xl border border-[#EFECE6] p-5 sm:p-7 shadow-sm space-y-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="w-8 h-8 rounded-full bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] border border-[var(--royal-primary)]/40 text-xs font-bold flex items-center justify-center shrink-0">
+                    3
+                  </span>
+                  <h2 className="font-sans font-bold tracking-tight text-xl text-[#0C1A14] font-semibold">
+                    {t('checkout.step3')}
+                  </h2>
+                </div>
+                {loadingDeliveryOptions && (
+                  <span className="text-[11px] font-semibold text-[#9A7414]">Calcul en cours...</span>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
-                <label className="p-5 rounded-2xl border border-[#D4AF37] bg-[#FBF9F5] cursor-pointer transition flex flex-col justify-between">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <Truck className="w-5 h-5 text-[#0C1A14]" />
-                        <span className="font-semibold text-sm text-[#0C1A14]">Livraison à Domicile</span>
-                      </div>
-                      <p className="text-xs text-[#0C1A14]/60 mt-1">Délai estimé 24h à 48h partout en Tunisie</p>
+              {/* Fulfillment Toggle */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setFulfillmentType('DELIVERY')}
+                  className={`p-4 rounded-2xl border text-left transition cursor-pointer flex items-start gap-3 ${
+                    fulfillmentType === 'DELIVERY'
+                      ? 'border-[#D4AF37] bg-[#FBF9F5] ring-2 ring-[#D4AF37]/20'
+                      : 'border-[#EFECE6] bg-white hover:border-[#D4AF37]/50'
+                  }`}
+                >
+                  <Truck className="w-5 h-5 text-[#9A7414] shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-bold text-sm text-[#0C1A14]">Livraison par Transporteur</div>
+                    <div className="text-[11px] text-[#0C1A14]/60 mt-0.5">
+                      Tarif dynamique selon Distance, Poids ou Forfait
                     </div>
-                    <input
-                      type="radio"
-                      name="deliveryMethod"
-                      value="STANDARD_HOME"
-                      checked
-                      readOnly
-                      className="accent-[var(--royal-primary)] mt-1"
-                    />
                   </div>
-                  <div className="mt-4 pt-3 border-t border-[#EFECE6] text-xs font-semibold">
-                    {subtotalAfterDiscount >= shippingThreshold ? (
-                      <span className="text-emerald-700">GRATUIT (Commande &ge; {shippingThreshold.toFixed(0)} TND)</span>
-                    ) : (
-                      <span className="text-[#0C1A14]">{standardShippingFee.toFixed(3)} TND</span>
-                    )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFulfillmentType('SHOWROOM_PICKUP')}
+                  className={`p-4 rounded-2xl border text-left transition cursor-pointer flex items-start gap-3 ${
+                    fulfillmentType === 'SHOWROOM_PICKUP'
+                      ? 'border-[#D4AF37] bg-[#FBF9F5] ring-2 ring-[#D4AF37]/20'
+                      : 'border-[#EFECE6] bg-white hover:border-[#D4AF37]/50'
+                  }`}
+                >
+                  <Store className="w-5 h-5 text-[#9A7414] shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-bold text-sm text-[#0C1A14] flex items-center gap-2">
+                      <span>Retrait en Showroom</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        GRATUIT
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-[#0C1A14]/60 mt-0.5">
+                      Retirez dans un magasin Royal (réassort auto si nécessaire)
+                    </div>
                   </div>
-                </label>
+                </button>
               </div>
+
+              {fulfillmentType === 'DELIVERY' ? (
+                <div className="space-y-3">
+                  {deliveryQuotes.length === 0 ? (
+                    <label className="p-5 rounded-2xl border border-[#D4AF37] bg-[#FBF9F5] cursor-pointer transition flex flex-col justify-between">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Truck className="w-5 h-5 text-[#0C1A14]" />
+                            <span className="font-semibold text-sm text-[#0C1A14]">Livraison Standard</span>
+                          </div>
+                          <p className="text-xs text-[#0C1A14]/60 mt-1">Délai estimé 24h à 48h partout en Tunisie</p>
+                        </div>
+                        <span className="text-xs font-bold text-[#0C1A14]">
+                          {subtotalAfterDiscount >= shippingThreshold ? 'GRATUIT' : `${standardShippingFee.toFixed(3)} TND`}
+                        </span>
+                      </div>
+                    </label>
+                  ) : (
+                    deliveryQuotes.map((q) => {
+                      const isSelected = selectedDeliveryCompanyId === q.companyId;
+                      return (
+                        <label
+                          key={q.companyId}
+                          onClick={() => q.available && setSelectedDeliveryCompanyId(q.companyId)}
+                          className={`p-4 sm:p-5 rounded-2xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                            !q.available
+                              ? 'border-rose-200 bg-rose-50/40 opacity-75 cursor-not-allowed'
+                              : isSelected
+                                ? 'border-[#D4AF37] bg-[#FBF9F5] ring-2 ring-[#D4AF37]/20 cursor-pointer'
+                                : 'border-[#EFECE6] bg-white hover:border-[#D4AF37]/60 cursor-pointer'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="radio"
+                              name="deliveryCompanyId"
+                              checked={isSelected}
+                              disabled={!q.available}
+                              onChange={() => q.available && setSelectedDeliveryCompanyId(q.companyId)}
+                              className="accent-[var(--royal-primary)] mt-1"
+                            />
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-sm text-[#0C1A14]">{q.name}</span>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-[#E6D6A6] text-[#9A7414]">
+                                  {q.method === 'DISTANCE'
+                                    ? `Distance ${q.distanceKm} km`
+                                    : q.method === 'WEIGHT'
+                                      ? `Poids ${q.totalWeightKg} kg`
+                                      : 'Tarif Fixe'}
+                                </span>
+                                {q.estimatedDays && (
+                                  <span className="text-[11px] text-[#0C1A14]/60">({q.estimatedDays})</span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-[#0C1A14]/60 flex items-center gap-1.5 flex-wrap">
+                                <MapPin className="w-3 h-3 text-[#C59B27]" />
+                                <span>
+                                  Expédition {q.originState} ➔ {formData.state}
+                                </span>
+                                <span>•</span>
+                                <span>{q.matchedBracketLabel}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            {!q.available ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-700">
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                Hors plage
+                              </span>
+                            ) : q.feeTnd === 0 ? (
+                              <span className="text-sm font-black text-emerald-700 uppercase">Gratuit</span>
+                            ) : (
+                              <span className="text-sm font-black font-mono text-[#0C1A14]">
+                                {Number(q.feeTnd).toFixed(3)} TND
+                              </span>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {showrooms.length === 0 ? (
+                    <div className="p-4 rounded-2xl border border-amber-200 bg-amber-50/50 text-xs text-amber-900">
+                      Aucun showroom actif trouvé. Choisissez la livraison par transporteur ou contactez le support.
+                    </div>
+                  ) : (
+                    showrooms.map((sh) => {
+                      const isSelected = selectedShowroomId === sh.id;
+                      return (
+                        <label
+                          key={sh.id}
+                          onClick={() => setSelectedShowroomId(sh.id)}
+                          className={`p-4 sm:p-5 rounded-2xl border cursor-pointer transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                            isSelected
+                              ? 'border-[#D4AF37] bg-[#FBF9F5] ring-2 ring-[#D4AF37]/20'
+                              : 'border-[#EFECE6] bg-white hover:border-[#D4AF37]/60'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="radio"
+                              name="pickupShowroomId"
+                              checked={isSelected}
+                              onChange={() => setSelectedShowroomId(sh.id)}
+                              className="accent-[var(--royal-primary)] mt-1"
+                            />
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-sm text-[#0C1A14]">{sh.name}</span>
+                                {sh.inShowroomStock ? (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    En Stock Immédiat
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                    Transfert Inter-Dépôts Automatique (DTR)
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-[#0C1A14]/60">
+                                {sh.address || sh.city} {sh.phone ? `• ${sh.phone}` : ''}
+                              </div>
+                              {!sh.inShowroomStock && sh.requiresTransferRequest && (
+                                <p className="text-[11px] text-amber-800 font-medium">
+                                  Votre commande est enregistrée immédiatement et déclenche une demande de transfert vers ce showroom.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-xs font-black text-emerald-700 uppercase">0.000 TND</span>
+                          </div>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Step 4: Payment Options */}

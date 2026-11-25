@@ -82,8 +82,6 @@ const EXCEL_ROLE_ORDER = [
   'MARKETING',
   'CLIENT',
   'ADMIN',
-  'DELIVERY_AGENT',
-  'DELIVERY_MANAGER',
 ];
 
 const ROLE_META: Record<string, { full: string; short: string; group: 'BACKOFFICE' | 'OPERATIONS' }> = {
@@ -97,8 +95,6 @@ const ROLE_META: Record<string, { full: string; short: string; group: 'BACKOFFIC
   STOCK_MANAGER: { full: 'Magasiniers', short: 'Stock', group: 'OPERATIONS' },
   CASHIER: { full: 'Caissiers', short: 'Caiss.', group: 'OPERATIONS' },
   SALESPERSON: { full: 'Vendeurs', short: 'Vend.', group: 'OPERATIONS' },
-  DELIVERY_MANAGER: { full: 'Resp. Livraison', short: 'R.Livr', group: 'OPERATIONS' },
-  DELIVERY_AGENT: { full: 'Livreurs', short: 'Livr.', group: 'OPERATIONS' },
   CLIENT: { full: 'Clients', short: 'Client', group: 'OPERATIONS' },
 };
 
@@ -335,24 +331,6 @@ export default function RolesPermissionsPage() {
     } catch (err: any) {
       setToastType('error');
       setToastMsg(err?.message || 'Erreur lors du scan permissions_views.');
-    } finally {
-      setSyncingScanner(false);
-    }
-  };
-
-  const handleAssignDeliveryDefaults = async () => {
-    setSyncingScanner(true);
-    try {
-      await fetchApi('/permissions/assign-delivery-defaults', {
-        method: 'POST',
-        body: JSON.stringify({ force: false }),
-      });
-      setToastType('success');
-      setToastMsg('Droits par défaut appliqués sur Responsable Livraison & Livreur (si vides).');
-      await loadMatrix();
-    } catch (err: any) {
-      setToastType('error');
-      setToastMsg(err?.message || "Impossible d'initialiser les droits livraison.");
     } finally {
       setSyncingScanner(false);
     }
@@ -712,16 +690,6 @@ export default function RolesPermissionsPage() {
             >
               <Cpu className="h-3.5 w-3.5 text-[#C59B27]" />
               <span>Scanner MCP</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAssignDeliveryDefaults}
-              disabled={loading || syncingScanner}
-              title="Initialiser les droits par défaut de Responsable Livraison & Livreur s'ils sont vides"
-            >
-              <Wand2 className="h-3.5 w-3.5 text-[#C59B27]" />
-              <span>Init. Livraison</span>
             </Button>
             <Button variant="outline" size="sm" onClick={() => setShowRoleModal(true)}>
               <Plus className="h-3.5 w-3.5" />

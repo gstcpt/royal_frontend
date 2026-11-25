@@ -20,7 +20,11 @@ import {
   Calendar,
   Check,
   X,
+  ExternalLink,
+  Zap,
+  ListChecks,
 } from 'lucide-react';
+import Link from 'next/link';
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,10 +46,16 @@ export interface TransferLine {
 
 export interface StockTransferMasterItem {
   id: string;
-  reference: string; // ex: TRF-2026-012
+  reference: string; // ex: TRF-2026-0001
+  requestRef?: string | null; // ex: DTR-2026-0001
+  requestType?: string;
+  acceptanceMode?: string | null;
+  orderReference?: string | null;
+  orderId?: string | null;
+  showroomName?: string | null;
   sourceWarehouseName: string;
   targetWarehouseName: string;
-  status: 'PENDING' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELLED';
+  status: 'PENDING' | 'APPROVED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELLED';
   carrierName: string;
   totalPieces: number;
   requestedBy: string;
@@ -63,6 +73,8 @@ export default function StockTransfersPage() {
   const [saving, setSaving] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [selectedTransfer, setSelectedTransfer] = useState<StockTransferMasterItem | null>(null);
+  const [acceptTarget, setAcceptTarget] = useState<StockTransferMasterItem | null>(null);
+  const [acceptMode, setAcceptMode] = useState<'IMMEDIATE' | 'STEP_BY_STEP'>('IMMEDIATE');
   const [selectedTransferIds, setSelectedTransferIds] = useState<string[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [fromWhId, setFromWhId] = useState('');
@@ -112,10 +124,16 @@ export default function StockTransfersPage() {
         return {
           id: t.id,
           reference: t.reference || 'TRF-2026-0001',
+          requestRef: t.requestRef || null,
+          requestType: t.requestType || 'INTERNAL',
+          acceptanceMode: t.acceptanceMode || null,
+          orderReference: t.order?.reference || null,
+          orderId: t.order?.id || t.orderId || null,
+          showroomName: t.showroom?.name || null,
           sourceWarehouseName: t.fromWarehouse?.name || 'Entrepôt Source',
           targetWarehouseName: t.toWarehouse?.name || 'Entrepôt Cible',
-          status: t.status === 'APPROVED' ? 'PENDING' : t.status,
-          carrierName: 'Flotte Interne Royal',
+          status: t.status || 'PENDING',
+          carrierName: t.showroom?.name ? `Réassort Showroom (${t.showroom.name})` : 'Flotte Interne Royal',
           totalPieces: items.reduce((s: number, it: any) => s + it.quantity, 0),
           requestedBy: t.requestedBy || 'Équipe Logistique',
           createdAt: t.createdAt || new Date().toISOString(),
@@ -208,6 +226,29 @@ export default function StockTransfersPage() {
     }
   };
 
+  const handleConfirmAcceptMode = async () => {
+    if (!acceptTarget) return;
+    setSaving(true);
+    try {
+      await fetchApi(`/transfers/${acceptTarget.id}/accept`, {
+        method: 'POST',
+        body: JSON.stringify({ mode: acceptMode }),
+      });
+      setFeedbackMessage(
+        acceptMode === 'IMMEDIATE'
+          ? `Transfert ${acceptTarget.reference} exécuté immédiatement (Sortie BS + Entrée BE).`
+          : `Demande ${acceptTarget.requestRef || acceptTarget.reference} approuvée en mode Suivi par Étapes.`,
+      );
+      setAcceptTarget(null);
+      setSelectedTransfer(null);
+      await loadData();
+    } catch (err: any) {
+      setFeedbackMessage(err?.message || 'Erreur lors de la validation.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const filteredTransfers = useMemo(() => {
     if (statusFilter === 'ALL') return transfers;
     return transfers.filter((t) => t.status === statusFilter);
@@ -238,10 +279,11 @@ export default function StockTransfersPage() {
           </div>
           <div>
             <span className="font-mono font-bold text-neutral-900 text-xs block">
-              {row.reference}
+              {row.requestRef || row.reference}
             </span>
             <span className="text-[10px] text-neutral-500 font-mono">
-              Inter-Dépôts
+              {row.requestRef ? `${row.reference} ` : ''}
+              {row.orderReference ? `• Cmd ${row.orderReference}` : '• Inter-Dépôts'}
             </span>
           </div>
         </div>
@@ -280,14 +322,29 @@ export default function StockTransfersPage() {
           return (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300">
               <Truck className="w-3.5 h-3.5 text-amber-600" />
-              En Transit
+              En Transit (BS)
+            </span>
+          );
+        }
+        if (row.status === 'APPROVED') {
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-50 text-sky-800 border border-sky-200">
+              <ListChecks className="w-3.5 h-3.5 text-sky-600" />
+              Approuvé (Étapes)
+            </span>
+          );
+        }
+        if (row.status === 'CANCELLED') {
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+              Annulé
             </span>
           );
         }
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-neutral-100 text-neutral-700 border border-neutral-200">
             <Clock className="w-3.5 h-3.5 text-neutral-400" />
-            En Attente Validation
+            En Attente Validation (DTR)
           </span>
         );
       },
@@ -346,12 +403,32 @@ export default function StockTransfersPage() {
       header: 'Actions',
       className: 'text-right no-print',
       render: (row) => (
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-end gap-1.5">
+          {row.status === 'PENDING' && (
+            <button
+              type="button"
+              onClick={() => {
+                setAcceptMode('IMMEDIATE');
+                setAcceptTarget(row);
+              }}
+              className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6] hover:bg-[#C59B27] hover:text-white transition cursor-pointer"
+              title="Accepter la demande (Immédiat ou par Étapes)"
+            >
+              Accepter
+            </button>
+          )}
+          <Link
+            href={`/dashboard/transfers/${row.id}`}
+            className="p-1.5 rounded-lg text-[#9A7414] bg-[#FBF6E8] hover:bg-[#F3E7C4] border border-[#E6D6A6] transition shadow-2xs"
+            title="Ouvrir la fiche complète et workflow"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </Link>
           <button
             type="button"
             onClick={() => setSelectedTransfer(row)}
             className="p-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition shadow-2xs cursor-pointer"
-            title="Consulter le bon de transfert inter-dépôts"
+            title="Aperçu rapide & impression bon"
           >
             <Eye className="w-3.5 h-3.5" />
           </button>
@@ -495,8 +572,8 @@ export default function StockTransfersPage() {
             </button>
           </>
         )}
-        searchPlaceholder="Rechercher par N° TRF-2026-XXX, entrepôt source, cible, transporteur..."
-        searchKeys={['reference', 'sourceWarehouseName', 'targetWarehouseName', 'carrierName', 'requestedBy']}
+        searchPlaceholder="Rechercher par N° DTR/TRF, commande, entrepôt source, cible, transporteur..."
+        searchKeys={['requestRef', 'reference', 'orderReference', 'sourceWarehouseName', 'targetWarehouseName', 'carrierName', 'requestedBy']}
         supportedModes={['table', 'list', 'matrix']}
         defaultMode="table"
         printTitle="Transferts Inter-Dépôts — Royal"
@@ -509,9 +586,11 @@ export default function StockTransfersPage() {
             onChange: setStatusFilter,
             allLabel: 'Tous les statuts',
             options: [
-              { value: 'PENDING', label: 'PENDING (En attente)' },
-              { value: 'IN_TRANSIT', label: 'IN_TRANSIT (En transit)' },
-              { value: 'COMPLETED', label: 'COMPLETED (Réceptionné)' },
+              { value: 'PENDING', label: 'PENDING (En attente DTR)' },
+              { value: 'APPROVED', label: 'APPROVED (Approuvé par étapes)' },
+              { value: 'IN_TRANSIT', label: 'IN_TRANSIT (En transit BS)' },
+              { value: 'COMPLETED', label: 'COMPLETED (Réceptionné BE)' },
+              { value: 'CANCELLED', label: 'CANCELLED (Annulé)' },
             ],
           },
         ]}
@@ -555,6 +634,19 @@ export default function StockTransfersPage() {
               </Button>
               <div className="flex items-center gap-2">
                 {selectedTransfer.status === 'PENDING' && (
+                  <Button
+                    variant="gold"
+                    disabled={saving}
+                    onClick={() => {
+                      setAcceptMode('IMMEDIATE');
+                      setAcceptTarget(selectedTransfer);
+                    }}
+                    className="text-xs px-4 py-2"
+                  >
+                    Accepter &amp; Choisir Mode
+                  </Button>
+                )}
+                {(selectedTransfer.status === 'PENDING' || selectedTransfer.status === 'APPROVED') && (
                   <Button
                     variant="primary"
                     disabled={saving}
@@ -710,6 +802,65 @@ export default function StockTransfersPage() {
               </div>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {acceptTarget && (
+        <Modal
+          isOpen={!!acceptTarget}
+          onClose={() => setAcceptTarget(null)}
+          size="2xl"
+          title={`Accepter Demande — ${acceptTarget.requestRef || acceptTarget.reference}`}
+          subtitle="Exécuter immédiatement le transfert (BS + BE) ou suivre les étapes manuelles."
+          footer={
+            <div className="flex justify-end gap-2 w-full">
+              <Button variant="outline" onClick={() => setAcceptTarget(null)} className="text-xs px-4 py-2">
+                Annuler
+              </Button>
+              <Button variant="gold" disabled={saving} onClick={handleConfirmAcceptMode} className="text-xs px-5 py-2">
+                {saving ? 'Validation...' : 'Confirmer Validation'}
+              </Button>
+            </div>
+          }
+        >
+          <div className="p-5 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <button
+              type="button"
+              onClick={() => setAcceptMode('IMMEDIATE')}
+              className={cn(
+                'p-4 rounded-2xl border text-left space-y-1.5 transition cursor-pointer',
+                acceptMode === 'IMMEDIATE'
+                  ? 'bg-[#FBF9F4] border-[#C59B27] ring-2 ring-[#C59B27]/20'
+                  : 'bg-white border-neutral-200 hover:border-neutral-300',
+              )}
+            >
+              <div className="flex items-center gap-2 font-heading font-bold text-sm text-[#1D232E]">
+                <Zap className="w-4 h-4 text-[#C59B27]" />
+                <span>Exécution Immédiate</span>
+              </div>
+              <p className="text-[11px] text-neutral-600">
+                Sortie BS ({acceptTarget.sourceWarehouseName}) + Entrée BE ({acceptTarget.targetWarehouseName}) immédiate (`COMPLETED`).
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setAcceptMode('STEP_BY_STEP')}
+              className={cn(
+                'p-4 rounded-2xl border text-left space-y-1.5 transition cursor-pointer',
+                acceptMode === 'STEP_BY_STEP'
+                  ? 'bg-[#FBF9F4] border-[#C59B27] ring-2 ring-[#C59B27]/20'
+                  : 'bg-white border-neutral-200 hover:border-neutral-300',
+              )}
+            >
+              <div className="flex items-center gap-2 font-heading font-bold text-sm text-[#1D232E]">
+                <ListChecks className="w-4 h-4 text-sky-600" />
+                <span>Suivi par Étapes</span>
+              </div>
+              <p className="text-[11px] text-neutral-600">
+                Approuve la demande (`APPROVED`), puis permet Expédier (`IN_TRANSIT`) et Réceptionner (`COMPLETED`).
+              </p>
+            </button>
+          </div>
         </Modal>
       )}
     </div>

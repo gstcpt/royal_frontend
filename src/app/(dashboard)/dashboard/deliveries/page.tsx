@@ -17,7 +17,9 @@ import {
   Copy,
   Zap,
   RefreshCw,
+  Sliders,
 } from 'lucide-react';
+import Link from 'next/link';
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Modal, DeleteConfirmModal } from '@/components/ui/modal';
@@ -82,6 +84,7 @@ export default function DeliveriesPage() {
   const [isWebhooksOpen, setIsWebhooksOpen] = useState(false);
   const [carrierWebhooks, setCarrierWebhooks] = useState<any[]>([]);
   const [carrierLogs, setCarrierLogs] = useState<any[]>([]);
+  const [deliveryCompanies, setDeliveryCompanies] = useState<Array<{ id: string; name: string; code: string }>>([]);
   const [simTracking, setSimTracking] = useState('');
   const [simCarrier, setSimCarrier] = useState('aramex');
   const [simStatus, setSimStatus] = useState('DELIVERED');
@@ -90,8 +93,10 @@ export default function DeliveriesPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [cfgRes, ordList, whRes, rawProds, cwRes, clRes] = await Promise.all([
+      const [cfgRes, slipsRes, companiesRes, ordList, whRes, rawProds, cwRes, clRes] = await Promise.all([
         fetchApi('/storefront-cms/sys-config/deliverySlips').catch(() => null),
+        fetchApi('/deliveries/slips').catch(() => []),
+        fetchApi('/deliveries/companies?activeOnly=true').catch(() => []),
         fetchAllPaginated<any>('/orders', 200).then((r) => r.items).catch(() => []),
         fetchApi('/warehouses').catch(() => []),
         fetchAllPaginated<any>('/products?status=ACTIVE', 200).then((r) => r.items).catch(() => []),
@@ -99,14 +104,64 @@ export default function DeliveriesPage() {
         fetchApi('/storefront-cms/sys-config/carrierLogs').catch(() => null),
       ]);
 
-      const cfgList = cfgRes?.value || cfgRes?.data?.value || [];
-      setDeliveries(Array.isArray(cfgList) ? cfgList : []);
+      const companiesList = Array.isArray(companiesRes) ? companiesRes : [];
+      setDeliveryCompanies(companiesList);
+      if (companiesList.length > 0) {
+        setFormCarrier((prev) => (prev === 'Flotte Interne Royal' ? companiesList[0].name : prev));
+      }
+
+      const cfgList = Array.isArray(cfgRes?.value || cfgRes?.data?.value)
+        ? cfgRes?.value || cfgRes?.data?.value
+        : [];
+      const dbMapped: DeliveryItem[] = (Array.isArray(slipsRes) ? slipsRes : []).map((d: any) => {
+        const addr = d.order?.shippingAddressJson || {};
+        const cust = d.order?.customer;
+        const cName = cust
+          ? `${cust.firstName || ''} ${cust.lastName || ''}`.trim()
+          : d.order?.guestName || 'Client Royal';
+        const cPhone = cust?.phone || d.order?.guestPhone || addr?.phone || '+216';
+        return {
+          id: d.id,
+          trackingNumber: d.trackingNumber || d.reference || `BL-${d.id.slice(-6)}`,
+          orderReference: d.order?.reference ? `#${d.order.reference}` : '#CMD',
+          customerName: cName,
+          customerPhone: cPhone,
+          deliveryAddress: [addr?.street, addr?.street2].filter(Boolean).join(', ') || 'Adresse client',
+          city: addr?.state || addr?.city || 'Tunisie',
+          carrierType: d.company ? 'PARTNER_EXPRESS' : 'INTERNAL_FLEET',
+          carrierName: d.company?.name || 'Transporteur Royal',
+          status:
+            d.status === 'DELIVERED'
+              ? 'DELIVERED'
+              : d.status === 'IN_TRANSIT' || d.status === 'OUT_FOR_DELIVERY'
+                ? 'IN_TRANSIT'
+                : d.status === 'FAILED' || d.status === 'RETURNED'
+                  ? 'FAILED_RETURN'
+                  : 'PREPARING',
+          codAmountTnd: Number(d.order?.totalAmount ?? d.shippingCost ?? 0),
+          isCodCollected: d.status === 'DELIVERED',
+          packageCount: 1,
+          createdAt: d.createdAt || new Date().toISOString(),
+          estimatedDeliveryDate: d.estimatedDate || new Date().toISOString().slice(0, 10),
+          deliveredAt: d.deliveredAt || null,
+          items: [],
+        };
+      });
+
+      const mergedByTrack = new Map<string, DeliveryItem>();
+      [...dbMapped, ...cfgList].forEach((item: DeliveryItem) => {
+        if (item?.trackingNumber && !mergedByTrack.has(item.trackingNumber)) {
+          mergedByTrack.set(item.trackingNumber, item);
+        }
+      });
+      const mergedList = Array.from(mergedByTrack.values());
+      setDeliveries(mergedList);
       const cwList = cwRes?.value || cwRes?.data?.value || [];
       setCarrierWebhooks(Array.isArray(cwList) ? cwList : []);
       const clList = clRes?.value || clRes?.data?.value || [];
       setCarrierLogs(Array.isArray(clList) ? clList : []);
-      if (Array.isArray(cfgList) && cfgList.length > 0) {
-        setSimTracking((prev) => prev || cfgList[0].trackingNumber || '');
+      if (mergedList.length > 0) {
+        setSimTracking((prev) => prev || mergedList[0].trackingNumber || '');
       }
 
       setOrders(Array.isArray(ordList) ? ordList : []);
@@ -585,6 +640,13 @@ export default function DeliveriesPage() {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <Link
+            href="/dashboard/delivery-companies"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-[#E6E1D6] bg-white hover:bg-[#FBF9F4] text-xs font-bold text-[#1D232E] transition"
+          >
+            <Sliders className="w-3.5 h-3.5 text-[#C59B27]" />
+            <span>Sociétés &amp; Tarifs ({deliveryCompanies.length})</span>
+          </Link>
           <Button
             variant="outline"
             onClick={() => setIsWebhooksOpen(true)}

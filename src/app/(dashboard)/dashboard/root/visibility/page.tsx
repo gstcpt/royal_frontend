@@ -48,8 +48,6 @@ const REGISTRY_VIEWS: ViewRouteItem[] = [
   { key: '/dashboard/users/financiers', label: 'Financiers', section: 'Gestion des utilisateurs', visibility: 'PUBLIC' },
   { key: '/dashboard/users/commercials', label: 'Commercials', section: 'Gestion des utilisateurs', visibility: 'PUBLIC' },
   { key: '/dashboard/users/marketing', label: 'Marketing', section: 'Gestion des utilisateurs', visibility: 'PRIVATE' },
-  { key: '/dashboard/users/delivery-managers', label: 'Responsables Livraison', section: 'Gestion des utilisateurs', visibility: 'PRIVATE' },
-  { key: '/dashboard/users/delivery-agents', label: 'Livreurs', section: 'Gestion des utilisateurs', visibility: 'PRIVATE' },
   { key: '/dashboard/users/clients', label: 'Clients (Comptes RBAC)', section: 'Gestion des utilisateurs', visibility: 'PRIVATE' },
   // Catalogue
   { key: '/dashboard/brands', label: 'Marques', section: 'Catalogue', visibility: 'PUBLIC' },
@@ -78,6 +76,7 @@ const REGISTRY_VIEWS: ViewRouteItem[] = [
   // Ventes & Distribution
   { key: '/dashboard/customers', label: 'Fiches clients', section: 'Ventes & Distribution', visibility: 'PUBLIC' },
   { key: '/dashboard/orders', label: 'Commandes clients', section: 'Ventes & Distribution', visibility: 'PUBLIC' },
+  { key: '/dashboard/delivery-companies', label: 'Sociétés & Tarifs de Livraison', section: 'Ventes & Distribution', visibility: 'PRIVATE' },
   { key: '/dashboard/deliveries', label: 'Bon de livraison (BL)', section: 'Ventes & Distribution', visibility: 'PRIVATE' },
   { key: '/dashboard/returns', label: 'Bon de retour (BR)', section: 'Ventes & Distribution', visibility: 'PRIVATE' },
   { key: '/dashboard/invoices', label: 'Factures', section: 'Ventes & Distribution', visibility: 'PRIVATE' },
@@ -112,6 +111,7 @@ const REGISTRY_VIEWS: ViewRouteItem[] = [
   { key: '/dashboard/root/print-templates', label: 'Documents & Imprimantes POS', section: 'Système & CMS', visibility: 'PRIVATE' },
   { key: '/dashboard/payment-methods', label: 'Modalités & Passerelles Paiement', section: 'Système & CMS', visibility: 'PRIVATE' },
   { key: '/dashboard/settings', label: 'Paramètres généraux', section: 'Système & CMS', visibility: 'PRIVATE' },
+  { key: '/dashboard/root/delivery-settings', label: 'Règles Livraison, Distances & Transferts', section: 'Système & CMS', visibility: 'PRIVATE' },
   { key: '/dashboard/translations', label: 'Traductions i18n', section: 'Système & CMS', visibility: 'PRIVATE' },
   { key: '/dashboard/root/roles-permissions', label: 'Rôles et permissions', section: 'Système & CMS', visibility: 'PRIVATE' },
   { key: '/dashboard/logs', label: "Journal d'audit", section: 'Système & CMS', visibility: 'PRIVATE' },

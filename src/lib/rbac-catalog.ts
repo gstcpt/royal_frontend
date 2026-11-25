@@ -44,8 +44,6 @@ export const DASHBOARD_VIEW_SECTIONS: DashboardViewSectionDef[] = [
       { path: '/dashboard/users/financiers', label: 'Financiers' },
       { path: '/dashboard/users/commercials', label: 'Commercials' },
       { path: '/dashboard/users/marketing', label: 'Marketing' },
-      { path: '/dashboard/users/delivery-managers', label: 'Responsables Livraison' },
-      { path: '/dashboard/users/delivery-agents', label: 'Livreurs' },
       { path: '/dashboard/users/clients', label: 'Clients (Comptes)' },
     ],
   },
@@ -104,6 +102,7 @@ export const DASHBOARD_VIEW_SECTIONS: DashboardViewSectionDef[] = [
     routes: [
       { path: '/dashboard/customers', label: 'Fiches clients' },
       { path: '/dashboard/orders', label: 'Commandes clients' },
+      { path: '/dashboard/delivery-companies', label: 'Sociétés & Tarifs de Livraison' },
       { path: '/dashboard/deliveries', label: 'Bon de livraison (BL)' },
       { path: '/dashboard/returns', label: 'Bon de retour (BR)' },
       { path: '/dashboard/invoices', label: 'Factures' },
@@ -168,6 +167,7 @@ export const DASHBOARD_VIEW_SECTIONS: DashboardViewSectionDef[] = [
       { path: '/dashboard/root/print-templates', label: 'Documents & Imprimantes POS' },
       { path: '/dashboard/payment-methods', label: 'Paiements' },
       { path: '/dashboard/settings', label: 'Paramètres généraux' },
+      { path: '/dashboard/root/delivery-settings', label: 'Règles Livraison, Distances & Transferts' },
       { path: '/dashboard/root/storage', label: 'Stockage Médias & CDN' },
       { path: '/dashboard/root/visibility', label: 'Visibilité des vues' },
       { path: '/dashboard/root/ai', label: 'Intelligence Artificielle (IA)' },
@@ -233,8 +233,7 @@ export const MODULE_FRENCH_LABELS: Record<string, string> = {
   financiers: 'Financiers',
   commercials: 'Commerciaux',
   marketing: 'Marketing',
-  delivery_managers: 'Responsables Livraison',
-  delivery_agents: 'Livreurs',
+  delivery_companies: 'Sociétés & Tarifs Livraison',
   clients: 'Clients (Comptes)',
   roles: 'Rôles RBAC',
   permissions: 'Permissions RBAC',
@@ -338,8 +337,8 @@ export const PERMISSION_DOMAINS: PermissionDomainDef[] = [
     order: 8,
     id: 'sales',
     label: '8. Ventes et distribution',
-    description: 'Fiches clients, commandes, bons de livraison, retours et factures.',
-    modules: ['customers', 'orders', 'deliveries', 'returns', 'invoices'],
+    description: 'Fiches clients, commandes, sociétés de livraison, bons de livraison, retours et factures.',
+    modules: ['customers', 'orders', 'delivery_companies', 'deliveries', 'returns', 'invoices'],
   },
   {
     order: 9,
@@ -398,8 +397,6 @@ export const PERMISSION_DOMAINS: PermissionDomainDef[] = [
 
 export type RolePresetId =
   | 'MARKETING_FULL'
-  | 'DELIVERY_MANAGER_FULL'
-  | 'DELIVERY_AGENT_FULL'
   | 'CATALOG_NO_DELETE'
   | 'COMMUNITY_NO_SUPPORT'
   | 'CLIENT_SPACE'
@@ -419,18 +416,6 @@ export const ROLE_PRESETS: RolePresetDef[] = [
     label: 'Pack Marketing Complet',
     summary: 'Catalogue (sans Supprimer) + Communauté (sans Support) + Espace Client',
     tone: 'gold',
-  },
-  {
-    id: 'DELIVERY_MANAGER_FULL',
-    label: 'Pack Responsable Livraison',
-    summary: 'Livraisons, Commandes, Retours, Clients, Transferts, Factures & Livreurs',
-    tone: 'gold',
-  },
-  {
-    id: 'DELIVERY_AGENT_FULL',
-    label: 'Pack Livreur Terrain',
-    summary: 'Tournées BL, Commandes clients, Retours et Notifications',
-    tone: 'emerald',
   },
   {
     id: 'CATALOG_NO_DELETE',
@@ -570,55 +555,6 @@ export function applyPresetToRoleState<T extends { id: string; action: string }>
       ),
     );
     clientViews.forEach((v) => nextViews.add(v));
-    return { permIds: nextPerms, views: Array.from(nextViews) };
-  }
-
-  if (preset === 'DELIVERY_MANAGER_FULL') {
-    nextPerms.clear();
-    nextViews.clear();
-    [
-      '/dashboard',
-      '/dashboard/community/notifications',
-      '/dashboard/customers',
-      '/dashboard/orders',
-      '/dashboard/deliveries',
-      '/dashboard/returns',
-      '/dashboard/invoices',
-      '/dashboard/warehouses',
-      '/dashboard/transfers',
-      '/dashboard/users/delivery-agents',
-      '/account/notifications',
-    ].forEach((v) => nextViews.add(v));
-
-    grantModuleAll('deliveries', ['read', 'read_list', 'read_detail', 'create', 'update', 'manage']);
-    grantModuleAll('orders', ['read', 'read_list', 'read_detail', 'update']);
-    grantModuleAll('returns', ['read', 'read_list', 'read_detail', 'create', 'update']);
-    grantModuleAll('customers', ['read', 'read_list', 'read_detail']);
-    grantModuleAll('warehouses', ['read', 'read_list', 'read_detail']);
-    grantModuleAll('transfers', ['read', 'read_list', 'read_detail', 'create', 'update']);
-    grantModuleAll('invoices', ['read', 'read_list', 'read_detail']);
-    grantModuleAll('notifications', ['read', 'read_list', 'read_detail', 'create', 'update']);
-    grantModuleAll('users', ['read', 'read_list', 'read_detail']);
-    return { permIds: nextPerms, views: Array.from(nextViews) };
-  }
-
-  if (preset === 'DELIVERY_AGENT_FULL') {
-    nextPerms.clear();
-    nextViews.clear();
-    [
-      '/dashboard',
-      '/dashboard/community/notifications',
-      '/dashboard/orders',
-      '/dashboard/deliveries',
-      '/dashboard/returns',
-      '/account/notifications',
-    ].forEach((v) => nextViews.add(v));
-
-    grantModuleAll('deliveries', ['read', 'read_list', 'read_detail', 'update']);
-    grantModuleAll('orders', ['read', 'read_list', 'read_detail', 'update']);
-    grantModuleAll('returns', ['read', 'read_list', 'read_detail']);
-    grantModuleAll('customers', ['read', 'read_list', 'read_detail']);
-    grantModuleAll('notifications', ['read', 'read_list', 'read_detail', 'update']);
     return { permIds: nextPerms, views: Array.from(nextViews) };
   }
 

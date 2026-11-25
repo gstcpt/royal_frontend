@@ -51,7 +51,7 @@ export default function SettingsPage() {
   const [maintenanceMessage, setMaintenanceMessage] = useState(
     'Notre boutique est momentanément en maintenance technique. Merci de votre patience.',
   );
-  const [deliveryFleetEnabled, setDeliveryFleetEnabled] = useState(true);
+  const [deliveryCompaniesEnabled, setDeliveryCompaniesEnabled] = useState(true);
 
   const [liveStatus, setLiveStatus] = useState({
     smtpReady: false,
@@ -59,7 +59,7 @@ export default function SettingsPage() {
     onlinePaymentReady: false,
     pixelsReadyCount: 0,
     aiReady: false,
-    deliveryPermsCount: 0,
+    deliveryCompaniesCount: 0,
   });
 
   useEffect(() => {
@@ -71,8 +71,8 @@ export default function SettingsPage() {
       fetchApi('/storefront-cms/sys-config/paymentGateways').catch(() => null),
       fetchApi('/storefront-cms/sys-config/marketingPixels').catch(() => null),
       fetchApi('/storefront-cms/sys-config/aiProvider').catch(() => null),
-      fetchApi('/roles').catch(() => []),
-    ]).then(([genRes, cfgRes, tvaRes, smtpRes, payRes, pixRes, aiRes, rolesRes]) => {
+      fetchApi('/deliveries/companies').catch(() => []),
+    ]).then(([genRes, cfgRes, tvaRes, smtpRes, payRes, pixRes, aiRes, companiesRes]) => {
       const gen = genRes?.value || genRes?.data?.value || {};
       const cfg = cfgRes?.data || cfgRes || {};
       const tvaList = tvaRes?.value || tvaRes?.data?.value || [];
@@ -81,7 +81,7 @@ export default function SettingsPage() {
       const pay = payRes?.value || payRes?.data?.value || {};
       const pix = pixRes?.value || pixRes?.data?.value || {};
       const ai = aiRes?.value || aiRes?.data?.value || {};
-      const rolesList = Array.isArray(rolesRes) ? rolesRes : rolesRes?.data || [];
+      const companiesList = Array.isArray(companiesRes) ? companiesRes : companiesRes?.data || [];
 
       if (gen.companyName || cfg.identity?.companyName) setCompanyName(gen.companyName || cfg.identity.companyName);
       if (gen.taxId) setTaxId(gen.taxId);
@@ -105,7 +105,8 @@ export default function SettingsPage() {
       if (typeof gen.forceHttps === 'boolean') setForceHttps(gen.forceHttps);
       if (typeof gen.maintenanceMode === 'boolean') setMaintenanceMode(gen.maintenanceMode);
       if (gen.maintenanceMessage) setMaintenanceMessage(String(gen.maintenanceMessage));
-      if (typeof gen.deliveryFleetEnabled === 'boolean') setDeliveryFleetEnabled(gen.deliveryFleetEnabled);
+      if (typeof gen.deliveryCompaniesEnabled === 'boolean') setDeliveryCompaniesEnabled(gen.deliveryCompaniesEnabled);
+      else if (typeof gen.deliveryFleetEnabled === 'boolean') setDeliveryCompaniesEnabled(gen.deliveryFleetEnabled);
 
       const pixActiveCount = [
         pix.metaPixelId,
@@ -115,13 +116,9 @@ export default function SettingsPage() {
         pix.snapPixelId,
       ].filter((id) => String(id || '').trim().length > 0).length;
 
-      const deliveryRoles = (Array.isArray(rolesList) ? rolesList : []).filter((r: any) =>
-        ['DELIVERY_MANAGER', 'DELIVERY_AGENT'].includes(String(r.name || r.code || '').toUpperCase()),
-      );
-      const deliveryPermsCount = deliveryRoles.reduce(
-        (sum: number, r: any) => sum + Number(r._count?.rolePermissions ?? r.permissions?.length ?? 0),
-        0,
-      );
+      const activeCompaniesCount = (Array.isArray(companiesList) ? companiesList : []).filter(
+        (c: any) => c?.isActive !== false,
+      ).length;
 
       setLiveStatus({
         smtpReady: Boolean(smtp?.host && (smtp?.user || smtp?.fromEmail)),
@@ -132,7 +129,7 @@ export default function SettingsPage() {
         ),
         pixelsReadyCount: pixActiveCount,
         aiReady: Boolean(ai?.enabled && (ai?.geminiApiKey || ai?.groqApiKey)),
-        deliveryPermsCount,
+        deliveryCompaniesCount: activeCompaniesCount,
       });
     });
   }, []);
@@ -163,7 +160,7 @@ export default function SettingsPage() {
               forceHttps,
               maintenanceMode,
               maintenanceMessage: maintenanceMessage.trim(),
-              deliveryFleetEnabled,
+              deliveryCompaniesEnabled,
             },
           }),
         }),
@@ -447,15 +444,15 @@ export default function SettingsPage() {
 
             <div className="p-3.5 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center justify-between gap-3">
               <div>
-                <p className="font-bold text-neutral-900">Flotte Livreurs (DELIVERY_*)</p>
-                <p className="text-[11px] text-neutral-500">Portail &amp; suivi tournées</p>
+                <p className="font-bold text-neutral-900">Transporteurs &amp; Tarifs Checkout</p>
+                <p className="text-[11px] text-neutral-500">Sociétés actives + retrait showroom auto-transfert</p>
               </div>
               <Toggle
                 compact
                 size="sm"
-                checked={deliveryFleetEnabled}
-                onChange={setDeliveryFleetEnabled}
-                ariaLabel="Activer Flotte Livreurs"
+                checked={deliveryCompaniesEnabled}
+                onChange={setDeliveryCompaniesEnabled}
+                ariaLabel="Activer Transporteurs Checkout"
               />
             </div>
           </div>
@@ -547,18 +544,18 @@ export default function SettingsPage() {
             </Link>
 
             <Link
-              href="/dashboard/root/roles-permissions"
+              href="/dashboard/delivery-companies"
               className="flex items-center justify-between p-3 rounded-xl border border-neutral-200 hover:border-[#C59B27] hover:bg-[#FBF9F4] transition"
             >
               <div className="flex items-center gap-2.5">
                 <Truck className="w-4 h-4 text-[#B8860B]" />
                 <div>
-                  <div className="font-bold text-neutral-900">Permissions Flotte Livraison (DELIVERY_*)</div>
-                  <div className="text-[11px] text-neutral-500">Attribuer les accès Responsable Livraisons &amp; Livreur</div>
+                  <div className="font-bold text-neutral-900">Sociétés de Livraison &amp; Règles Transfert</div>
+                  <div className="text-[11px] text-neutral-500">Tarifs Distance / Poids / Fixe &amp; réassort Showroom</div>
                 </div>
               </div>
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6]">
-                {liveStatus.deliveryPermsCount} perm(s) <ExternalLink className="w-3 h-3" />
+                {liveStatus.deliveryCompaniesCount} société(s) <ExternalLink className="w-3 h-3" />
               </span>
             </Link>
 

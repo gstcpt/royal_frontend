@@ -190,15 +190,38 @@ export default function OrderConfirmationPage() {
               <div className="bg-[#FBF9F5] rounded-2xl p-6 border border-[#EFECE6] space-y-2">
                 <h4 className="font-bold text-[#0C1A14] uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <MapPin className="w-4 h-4 text-[#D4AF37]" />
-                  <span>Adresse d&apos;Expédition</span>
+                  <span>
+                    {order.fulfillmentType === 'SHOWROOM_PICKUP'
+                      ? 'Retrait en Showroom Royal'
+                      : "Adresse & Mode d'Expédition"}
+                  </span>
                 </h4>
-                <div className="text-[#0C1A14]/80">
-                  <p className="font-semibold">{order.shippingAddressJson?.firstName} {order.shippingAddressJson?.lastName}</p>
-                  {order.shippingAddressJson?.street && <p>{order.shippingAddressJson.street}</p>}
-                  {order.shippingAddressJson?.street2 && <p>{order.shippingAddressJson.street2}</p>}
-                  <p>{order.shippingAddressJson?.city}, {order.shippingAddressJson?.state} {order.shippingAddressJson?.postalCode}</p>
-                  <p className="mt-1 font-mono text-[#0C1A14]/60">Tél : {order.shippingAddressJson?.phone}</p>
-                </div>
+                {order.fulfillmentType === 'SHOWROOM_PICKUP' ? (
+                  <div className="text-[#0C1A14]/80 space-y-1">
+                    <p className="font-semibold text-[#0C1A14]">
+                      {order.pickupShowroom?.name || 'Showroom Royal'}
+                    </p>
+                    <p>{order.pickupShowroom?.address || order.pickupShowroom?.city || ''}</p>
+                    {Array.isArray(order.stockTransfers) && order.stockTransfers.length > 0 && (
+                      <p className="text-[11px] font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5 mt-1">
+                        Réassort interne programmé ({order.stockTransfers[0].requestRef || order.stockTransfers[0].reference}) — Notre équipe vous avertira dès disponibilité en showroom.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-[#0C1A14]/80 space-y-0.5">
+                    {order.deliveryCompany && (
+                      <p className="font-bold text-[#9A7414] mb-1">
+                        Transporteur : {order.deliveryCompany.name}
+                      </p>
+                    )}
+                    <p className="font-semibold">{order.shippingAddressJson?.firstName} {order.shippingAddressJson?.lastName}</p>
+                    {order.shippingAddressJson?.street && <p>{order.shippingAddressJson.street}</p>}
+                    {order.shippingAddressJson?.street2 && <p>{order.shippingAddressJson.street2}</p>}
+                    <p>{order.shippingAddressJson?.city}, {order.shippingAddressJson?.state} {order.shippingAddressJson?.postalCode}</p>
+                    <p className="mt-1 font-mono text-[#0C1A14]/60">Tél : {order.shippingAddressJson?.phone}</p>
+                  </div>
+                )}
               </div>
 
               <div className="bg-[#FBF9F5] rounded-2xl p-6 border border-[#EFECE6] space-y-2">

@@ -14,6 +14,7 @@ import {
   Calendar,
   Filter,
   Check,
+  ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button, Badge, Toast, Breadcrumb, DeleteConfirmModal, DateRangePicker, DateRange, FilterDropdown } from '@/components/ui';
@@ -202,6 +203,21 @@ export default function NotificationsPage() {
       await fetchApi(`/storefront-cms/notifications/${id}/read`, { method: 'PATCH' });
     } catch {
       // ignore
+    }
+  };
+
+  const handleOpenNotification = async (item: NotificationItem) => {
+    if (!item.isRead) {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n)),
+      );
+      setUnreadTotal((c) => Math.max(0, c - 1));
+      fetchApi(`/storefront-cms/notifications/${item.id}/read`, { method: 'PATCH' }).catch(() => null);
+    }
+    if (item.link) {
+      router.push(item.link);
+    } else if (!item.isRead) {
+      return;
     }
   };
 
@@ -531,7 +547,7 @@ export default function NotificationsPage() {
             return (
               <div
                 key={item.id}
-                onClick={() => handleToggleRead(item.id)}
+                onClick={() => (item.link ? handleOpenNotification(item) : handleToggleRead(item.id))}
                 className={cn(
                   'group p-5 rounded-3xl border transition-all duration-150 cursor-pointer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4',
                   item.isRead
@@ -617,6 +633,18 @@ export default function NotificationsPage() {
                   onClick={(e) => e.stopPropagation()}
                   className="flex items-center gap-2 shrink-0 self-end sm:self-center"
                 >
+                  {item.link && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenNotification(item)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#C59B27]/40 bg-[#FBF6E8] text-[#9A7414] hover:bg-[#C59B27] hover:text-white text-xs font-bold transition cursor-pointer"
+                      title="Ouvrir la vue associée"
+                    >
+                      <span>Ouvrir</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={(e) => handleToggleRead(item.id, e)}

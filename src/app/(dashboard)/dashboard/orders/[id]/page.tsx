@@ -18,6 +18,9 @@ import {
   Phone,
   Mail,
   ShieldAlert,
+  Store,
+  ArrowLeftRight,
+  ExternalLink,
 } from 'lucide-react';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Modal, Toast } from '@/components/ui';
@@ -329,21 +332,88 @@ export default function OrderDetailsPage() {
             </div>
           </div>
 
-          {/* Shipping Address */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-xs space-y-2 text-xs">
+          {/* Shipping Address & Logistics Mode */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-xs space-y-3 text-xs">
             <h3 className="font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-[#D4AF37]" />
-              <span>Adresse de Livraison</span>
+              {order.fulfillmentType === 'SHOWROOM_PICKUP' ? (
+                <>
+                  <Store className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <span>Retrait en Showroom &amp; Transfert</span>
+                </>
+              ) : (
+                <>
+                  <MapPin className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <span>Livraison &amp; Transporteur</span>
+                </>
+              )}
             </h3>
-            <div className="text-gray-600 space-y-0.5">
-              <p className="font-semibold text-gray-900">
-                {order.shippingAddressJson?.firstName} {order.shippingAddressJson?.lastName}
-              </p>
-              <p>{order.shippingAddressJson?.street}</p>
-              {order.shippingAddressJson?.street2 && <p>{order.shippingAddressJson?.street2}</p>}
-              <p>{order.shippingAddressJson?.city}, {order.shippingAddressJson?.state} {order.shippingAddressJson?.postalCode}</p>
-              <p className="text-gray-400 font-mono mt-1">Tél : {order.shippingAddressJson?.phone}</p>
-            </div>
+
+            {order.fulfillmentType === 'SHOWROOM_PICKUP' ? (
+              <div className="space-y-2 text-gray-700">
+                <div className="p-3 rounded-xl bg-[#FBF9F4] border border-[#E6D6A6]">
+                  <div className="font-bold text-gray-900">
+                    {order.pickupShowroom?.name || 'Showroom Royal'}
+                  </div>
+                  <div className="text-[11px] text-gray-600 mt-0.5">
+                    {order.pickupShowroom?.address || order.pickupShowroom?.city || '—'}
+                    {order.pickupShowroom?.warehouse?.name && ` • Dépôt : ${order.pickupShowroom.warehouse.name}`}
+                  </div>
+                </div>
+
+                {Array.isArray(order.stockTransfers) && order.stockTransfers.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="text-[11px] font-bold text-amber-800 flex items-center gap-1">
+                      <ArrowLeftRight className="w-3.5 h-3.5" />
+                      <span>Demande(s) de Transfert Associée(s) :</span>
+                    </div>
+                    {order.stockTransfers.map((trf: any) => (
+                      <Link
+                        key={trf.id}
+                        href={`/dashboard/transfers/${trf.id}`}
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 hover:border-[#C59B27] transition"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-mono font-bold text-gray-900 truncate">
+                            {trf.requestRef || trf.reference}
+                          </div>
+                          <div className="text-[10px] text-gray-600 truncate">
+                            {trf.fromWarehouse?.name} ➔ {trf.toWarehouse?.name} ({trf.status})
+                          </div>
+                        </div>
+                        <ExternalLink className="w-3.5 h-3.5 text-[#9A7414] shrink-0" />
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-gray-600 space-y-1">
+                {order.deliveryCompany && (
+                  <div className="p-2.5 rounded-xl bg-[#FBF9F4] border border-[#E6D6A6] mb-2">
+                    <div className="font-bold text-gray-900 flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5 text-[#C59B27]" />
+                      <span>{order.deliveryCompany.name}</span>
+                    </div>
+                    <div className="text-[11px] text-gray-600 mt-0.5">
+                      Méthode : <strong>{order.deliveryMethodType || order.deliveryCompany.defaultMethod}</strong>
+                      {order.deliveryDistanceKm !== null && order.deliveryDistanceKm !== undefined
+                        ? ` • ${Number(order.deliveryDistanceKm).toFixed(0)} km`
+                        : ''}
+                      {order.deliveryTotalWeightKg !== null && order.deliveryTotalWeightKg !== undefined
+                        ? ` • ${Number(order.deliveryTotalWeightKg).toFixed(2)} kg`
+                        : ''}
+                    </div>
+                  </div>
+                )}
+                <p className="font-semibold text-gray-900">
+                  {order.shippingAddressJson?.firstName} {order.shippingAddressJson?.lastName}
+                </p>
+                <p>{order.shippingAddressJson?.street}</p>
+                {order.shippingAddressJson?.street2 && <p>{order.shippingAddressJson?.street2}</p>}
+                <p>{order.shippingAddressJson?.city}, {order.shippingAddressJson?.state} {order.shippingAddressJson?.postalCode}</p>
+                <p className="text-gray-400 font-mono mt-1">Tél : {order.shippingAddressJson?.phone}</p>
+              </div>
+            )}
           </div>
 
           {/* Financial Breakdown */}
