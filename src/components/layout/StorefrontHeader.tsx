@@ -23,6 +23,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useI18nStore } from '@/stores/i18n.store';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import {
+  buildCmsElementOverrideCss,
   buildCmsInlineStyle,
   buildCmsResponsiveClass,
   getCmsElementDomId,
@@ -125,7 +126,12 @@ export function StorefrontHeader() {
   const headerDomId = getCmsElementDomId('header', 'main', headerMainStyleCfg?.domId);
   const topbarDomId = getCmsElementDomId('header', 'topbar', config.header.elementStyles?.topbar?.domId);
   const navDomId = getCmsElementDomId('header', 'nav', config.header.elementStyles?.nav?.domId);
-  const headerCustomCss = scopeElementCustomCss(headerDomId, headerMainStyleCfg?.customCss);
+  const headerCustomCss = [
+    buildCmsElementOverrideCss(headerDomId, headerMainStyleCfg),
+    scopeElementCustomCss(headerDomId, headerMainStyleCfg?.customCss),
+  ]
+    .filter(Boolean)
+    .join('\n');
   const headerCustomJs = headerMainStyleCfg?.customJs?.trim();
 
   React.useEffect(() => {
@@ -166,7 +172,9 @@ export function StorefrontHeader() {
       id={headerDomId}
       style={buildCmsInlineStyle(headerMainStyleCfg)}
       className={`w-full transition-all duration-300 z-50 ${stickyPositionCls} ${
-        isTransparent
+        headerMainStyleCfg?.backgroundColor?.trim()
+          ? ''
+          : isTransparent
           ? 'bg-gradient-to-b from-black/75 via-black/40 to-transparent text-white'
           : 'bg-white/95 backdrop-blur-md text-[#1D232E] border-b border-[#E6E1D6] shadow-sm'
       } ${buildCmsResponsiveClass(headerMainStyleCfg)}`}

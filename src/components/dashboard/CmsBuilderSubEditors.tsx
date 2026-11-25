@@ -975,7 +975,7 @@ export function CmsCustomViewsStudio({
                   </div>
 
                   {isOpen && (
-                    <div className="px-5 pb-5 pt-3 border-t border-[var(--royal-border)] bg-[var(--royal-bg)]/50 space-y-4 rounded-b-2xl">
+                    <div className="px-5 pb-5 pt-3 border-t border-[var(--royal-border)] bg-[#FDFCF9] space-y-4 rounded-b-2xl">
                       <div className="flex flex-wrap gap-2 border-b border-[#E6E1D6] pb-3">
                         {[
                           { id: 'content', label: 'Contenu & Dynamique' },

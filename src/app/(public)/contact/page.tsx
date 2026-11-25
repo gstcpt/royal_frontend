@@ -174,7 +174,7 @@ export default function ContactPage() {
   );
 
   const formCardBlock = (
-    <div className={`${cCfg.showInfoCards !== false ? 'lg:col-span-7' : 'lg:col-span-12'} bg-[var(--royal-silver-light)]/70 rounded-3xl border border-[var(--royal-border)] p-8 sm:p-10`}>
+    <div className={`${cCfg.showInfoCards !== false ? 'lg:col-span-7' : 'lg:col-span-12'} bg-[#F4F5F7]/85 rounded-3xl border border-[var(--royal-border)] p-8 sm:p-10`}>
       <h2 className="font-heading text-2xl font-extrabold text-[var(--royal-ink)] mb-2">
         {cCfg.formTitle || 'Envoyer un message'}
       </h2>

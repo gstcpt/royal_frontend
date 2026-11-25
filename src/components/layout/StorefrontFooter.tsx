@@ -6,6 +6,7 @@ import { ArrowRight, Mail, Phone, MapPin, Instagram, Facebook, MessageCircle } f
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
 import {
+  buildCmsElementOverrideCss,
   buildCmsInlineStyle,
   buildCmsResponsiveClass,
   getCmsElementDomId,
@@ -56,7 +57,12 @@ export function StorefrontFooter() {
   const footerDomId = getCmsElementDomId('footer', 'main', footerMainStyleCfg?.domId);
   const footerBrandDomId = getCmsElementDomId('footer', 'brand', config.footer.elementStyles?.brand?.domId);
   const footerColsDomId = getCmsElementDomId('footer', 'cols', config.footer.elementStyles?.cols?.domId);
-  const footerCustomCss = scopeElementCustomCss(footerDomId, footerMainStyleCfg?.customCss);
+  const footerCustomCss = [
+    buildCmsElementOverrideCss(footerDomId, footerMainStyleCfg),
+    scopeElementCustomCss(footerDomId, footerMainStyleCfg?.customCss),
+  ]
+    .filter(Boolean)
+    .join('\n');
   const footerCustomJs = footerMainStyleCfg?.customJs?.trim();
 
   React.useEffect(() => {
@@ -74,7 +80,9 @@ export function StorefrontFooter() {
       ref={footerElRef}
       id={footerDomId}
       style={{
-        background: 'linear-gradient(to bottom, var(--royal-bg), var(--royal-silver-light))',
+        ...(footerMainStyleCfg?.backgroundColor?.trim()
+          ? {}
+          : { background: 'linear-gradient(to bottom, var(--royal-bg), var(--royal-silver-light))' }),
         color: 'var(--royal-ink)',
         borderColor: 'var(--royal-border)',
         ...buildCmsInlineStyle(footerMainStyleCfg),

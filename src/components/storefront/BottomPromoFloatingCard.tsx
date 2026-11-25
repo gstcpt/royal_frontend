@@ -6,6 +6,7 @@ import { ArrowRight } from 'lucide-react';
 import { useI18nStore } from '@/stores/i18n.store';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { getSafeImageUrl } from '@/lib/cart-session';
+import { isLightHexColor } from '@/lib/cms-builder';
 
 const DEFAULT_IMG = 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1800&q=85';
 
@@ -23,6 +24,9 @@ export function BottomPromoFloatingCard() {
   const ctaLink = home.bottomPromoCtaLink || '/articles?sortBy=promo';
   const imageSrc = home.bottomPromoImageUrl ? getSafeImageUrl(home.bottomPromoImageUrl, DEFAULT_IMG) : DEFAULT_IMG;
   const heightPx = Math.max(280, Number(home.bottomPromoHeightPx || 480));
+  const elemStyle = home.elementStyles?.bottomPromo;
+  const wantsLightTextOverGlass =
+    !elemStyle?.backgroundColor?.trim() && isLightHexColor(elemStyle?.textColor);
 
   return (
     <section className="py-14 sm:py-20 bg-[var(--royal-bg)]">
@@ -37,8 +41,25 @@ export function BottomPromoFloatingCard() {
             className="absolute inset-0 w-full h-full object-cover object-center brightness-[0.68]"
           />
 
-          <div className="relative z-10 max-w-lg w-full bg-[var(--royal-card)]/95 backdrop-blur-xl rounded-[28px] sm:rounded-[32px] p-6 sm:p-12 text-center shadow-2xl border border-[var(--royal-border)]">
-            <span className="inline-block px-4 py-1.5 rounded-full bg-[var(--royal-silver-light)] text-[var(--royal-ink)] text-[11px] uppercase tracking-widest font-extrabold mb-4">
+          <div
+            style={
+              wantsLightTextOverGlass
+                ? {
+                    backgroundColor: 'rgba(15, 23, 42, 0.56)',
+                    borderColor: 'rgba(255, 255, 255, 0.28)',
+                  }
+                : {
+                    backgroundColor: 'color-mix(in srgb, var(--royal-card) 94%, transparent)',
+                  }
+            }
+            className={`relative z-10 max-w-lg w-full ${
+              wantsLightTextOverGlass ? 'bg-slate-900/60 border-white/25' : 'bg-white/95 border-[var(--royal-border)]'
+            } backdrop-blur-xl rounded-[28px] sm:rounded-[32px] p-6 sm:p-12 text-center shadow-2xl border`}
+          >
+            <span
+              data-cms-preserve-color="true"
+              className="inline-block px-4 py-1.5 rounded-full bg-[var(--royal-silver-light)] text-[var(--royal-ink)] text-[11px] uppercase tracking-widest font-extrabold mb-4"
+            >
               {badge}
             </span>
 
@@ -46,13 +67,14 @@ export function BottomPromoFloatingCard() {
               {title}
             </h3>
 
-            <p className="mt-3 text-xs sm:text-sm text-neutral-500 font-normal leading-relaxed">
+            <p className="mt-3 text-xs sm:text-sm text-neutral-600 font-normal leading-relaxed">
               {subtitle}
             </p>
 
             <div className="mt-7 flex justify-center">
               <Link
                 href={ctaLink}
+                data-cms-preserve-color="true"
                 className="inline-flex items-center gap-3 px-7 sm:px-8 py-3.5 sm:py-4 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] hover:bg-[var(--royal-primary-hover)] transition-all text-xs uppercase tracking-widest font-bold shadow-lg"
               >
                 <span>{ctaText}</span>

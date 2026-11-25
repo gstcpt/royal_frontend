@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import {
+  buildCmsElementOverrideCss,
   buildCmsInlineStyle,
   buildCmsResponsiveClass,
   CmsCustomBlock,
@@ -49,7 +50,8 @@ export function CmsElementWrapper({
   };
   const responsiveCls = buildCmsResponsiveClass(styleCfg);
   const combinedCls = [className, responsiveCls].filter(Boolean).join(' ');
-  const scopedCss = scopeElementCustomCss(domId, styleCfg?.customCss);
+  const overrideCss = buildCmsElementOverrideCss(domId, styleCfg);
+  const scopedCss = [overrideCss, scopeElementCustomCss(domId, styleCfg?.customCss)].filter(Boolean).join('\n');
   const jsCode = styleCfg?.customJs?.trim();
 
   React.useEffect(() => {
@@ -106,7 +108,8 @@ export function CmsViewCodeInjector({
 }) {
   const { config } = useCmsConfig();
   const domId = viewStyle?.domId?.trim() || `royal-view-${viewKey}`;
-  const css = scopeElementCustomCss(domId, viewStyle?.customCss);
+  const overrideCss = buildCmsElementOverrideCss(domId, viewStyle);
+  const css = [overrideCss, scopeElementCustomCss(domId, viewStyle?.customCss)].filter(Boolean).join('\n');
   const js = viewStyle?.customJs?.trim() || '';
 
   React.useEffect(() => {

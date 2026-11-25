@@ -261,27 +261,35 @@ export function CmsElementDesignEditor({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {[
-                { key: 'backgroundColor' as const, label: 'Couleur de Fond' },
-                { key: 'textColor' as const, label: 'Couleur du Texte' },
-                { key: 'borderColor' as const, label: 'Couleur de Bordure' },
-              ].map((c) => (
-                <div key={c.key} className="p-2.5 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-bold text-slate-600">{c.label}</label>
-                    {style[c.key] && (
-                      <button
-                        type="button"
-                        onClick={() => patch({ [c.key]: '' })}
-                        className="text-[10px] font-bold text-rose-600 hover:underline cursor-pointer"
-                      >
-                        Effacer
-                      </button>
-                    )}
+                { key: 'backgroundColor' as const, label: 'Couleur de Fond', defaultSwatch: '#FDFCF9' },
+                { key: 'textColor' as const, label: 'Couleur du Texte', defaultSwatch: '#1D232E' },
+                { key: 'borderColor' as const, label: 'Couleur de Bordure', defaultSwatch: '#E6E1D6' },
+              ].map((c) => {
+                const rawVal = String(style[c.key] || '').trim();
+                const pickerVal = /^#[0-9a-fA-F]{6}$/.test(rawVal) ? rawVal : c.defaultSwatch;
+                return (
+                <div key={c.key} className="p-2.5 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-[11px] font-bold text-slate-700">{c.label}</label>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${rawVal ? 'bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6]' : 'bg-slate-100 text-slate-500'}`}>
+                        {rawVal ? 'Personnalisée' : 'Auto (Thème)'}
+                      </span>
+                      {rawVal && (
+                        <button
+                          type="button"
+                          onClick={() => patch({ [c.key]: '' })}
+                          className="text-[10px] font-bold text-rose-600 hover:underline cursor-pointer"
+                        >
+                          Effacer
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
-                      value={/^#[0-9a-fA-F]{6}$/.test(String(style[c.key] || '')) ? String(style[c.key]) : '#FFFFFF'}
+                      value={pickerVal}
                       onChange={(e) => patch({ [c.key]: e.target.value })}
                       className="h-8 w-10 rounded-lg border border-[#E6E1D6] cursor-pointer shrink-0"
                     />
@@ -289,12 +297,33 @@ export function CmsElementDesignEditor({
                       type="text"
                       value={style[c.key] || ''}
                       onChange={(e) => patch({ [c.key]: e.target.value })}
-                      placeholder="Défaut / #Hex"
+                      placeholder={`Auto (${c.defaultSwatch})`}
                       className="w-full px-2.5 py-1.5 rounded-lg border border-[#E6E1D6] bg-white font-mono text-xs"
                     />
                   </div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    {[
+                      { label: 'Blanc', hex: '#FFFFFF', bg: '#FFFFFF', border: '#CBD5E1', text: '#1D232E' },
+                      { label: 'Noir', hex: '#1D232E', bg: '#1D232E', border: '#1D232E', text: '#FFFFFF' },
+                      { label: 'Or', hex: '#C59B27', bg: '#C59B27', border: '#9A7414', text: '#FFFFFF' },
+                      { label: 'Porcelaine', hex: '#FDFCF9', bg: '#FDFCF9', border: '#CBD5E1', text: '#1D232E' },
+                    ].map((preset) => (
+                      <button
+                        key={preset.hex}
+                        type="button"
+                        onClick={() => patch({ [c.key]: preset.hex })}
+                        style={{ backgroundColor: preset.bg, borderColor: preset.border, color: preset.text }}
+                        className={`px-2 py-0.5 rounded-md border text-[10px] font-bold cursor-pointer transition ${
+                          rawVal.toUpperCase() === preset.hex ? 'ring-2 ring-[#C59B27]/50 scale-105' : 'opacity-90 hover:opacity-100'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

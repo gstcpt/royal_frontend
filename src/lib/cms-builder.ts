@@ -422,6 +422,61 @@ export function buildCmsResponsiveClass(styleCfg?: CmsElementStyleConfig): strin
   return classes.join(' ');
 }
 
+export function isLightHexColor(raw?: string): boolean {
+  const s = String(raw || '').trim().toLowerCase();
+  if (!s) return false;
+  if (s === 'white' || s === '#fff' || s === 'ivory' || s === 'snow') return true;
+  const m = s.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!m) return false;
+  const h = m[1].length === 3
+    ? m[1].split('').map((c) => c + c).join('')
+    : m[1];
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance >= 0.72;
+}
+
+export function buildCmsElementOverrideCss(
+  domId: string,
+  styleCfg?: CmsElementStyleConfig,
+): string {
+  if (!styleCfg || typeof styleCfg !== 'object') return '';
+  const rules: string[] = [];
+  const tc = styleCfg.textColor?.trim();
+  if (tc) {
+    rules.push(
+      `#${domId},
+#${domId} :is(h1, h2, h3, h4, h5, h6, p, blockquote, li, dt, dd, label, figcaption),
+#${domId} :is(span, div, a):not([data-cms-preserve-color]):not([data-cms-preserve-color] *):not([class*="bg-[var(--royal-primary)]"]):not([class*="bg-[var(--royal-primary)]"] *):not([class*="bg-white"]):not([class*="bg-white"] *):not([class*="bg-emerald"]):not([class*="bg-rose"]):not([class*="bg-amber"]):not([class*="bg-red"]) {
+  color: ${tc} !important;
+}`,
+    );
+  }
+  const bg = styleCfg.backgroundColor?.trim();
+  if (bg) {
+    rules.push(
+      `#${domId} > section { background-color: transparent !important; background-image: none !important; }`,
+    );
+  }
+  if (styleCfg.textAlign) {
+    rules.push(
+      `#${domId}, #${domId} :is(h1, h2, h3, h4, h5, h6, p) { text-align: ${styleCfg.textAlign} !important; }`,
+    );
+  }
+  const fs = toCssLength(styleCfg.fontSizePx);
+  if (fs) {
+    rules.push(`#${domId}, #${domId} :is(p, li) { font-size: ${fs}; }`);
+  }
+  if (styleCfg.fontWeight?.trim()) {
+    rules.push(
+      `#${domId}, #${domId} :is(h1, h2, h3, h4, p, span) { font-weight: ${styleCfg.fontWeight.trim()}; }`,
+    );
+  }
+  return rules.join('\n');
+}
+
 export function scopeElementCustomCss(domId: string, rawCss?: string): string {
   const code = String(rawCss || '').trim();
   if (!code) return '';
