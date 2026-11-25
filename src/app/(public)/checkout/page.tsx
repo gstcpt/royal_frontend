@@ -83,6 +83,8 @@ export default function CheckoutPage() {
   const [appliedCoupon, setAppliedCoupon] = useState<{
     code: string;
     discountAmount: number;
+    type?: string;
+    freeShipping?: boolean;
   } | null>(null);
   const [couponError, setCouponError] = useState('');
 
@@ -256,6 +258,7 @@ export default function CheckoutPage() {
           destinationState: formData.state || 'Tunis',
           items: quoteItems,
           subtotalTnd: currentSubtotalAfterDiscount,
+          freeShippingCoupon: Boolean(appliedCoupon?.freeShipping || appliedCoupon?.type === 'FREE_SHIPPING'),
         }),
       })
         .then((r) => (r.ok ? r.json() : null))
@@ -305,6 +308,7 @@ export default function CheckoutPage() {
     formData.country,
     formData.state,
     currentSubtotalAfterDiscount,
+    appliedCoupon,
   ]);
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
@@ -334,6 +338,8 @@ export default function CheckoutPage() {
         setAppliedCoupon({
           code: data.data.coupon.code,
           discountAmount: data.data.discountAmount,
+          type: data.data.coupon?.type,
+          freeShipping: Boolean(data.data.freeShipping || data.data.coupon?.type === 'FREE_SHIPPING'),
         });
         setFormData((prev) => ({ ...prev, couponCode: data.data.coupon.code }));
       } else {
@@ -463,8 +469,9 @@ export default function CheckoutPage() {
   const subtotal = items.reduce((sum, it) => sum + it.lineTotal, 0);
   const discount = appliedCoupon ? appliedCoupon.discountAmount : 0;
   const subtotalAfterDiscount = Math.max(0, subtotal - discount);
+  const isFreeShippingCoupon = Boolean(appliedCoupon?.freeShipping || appliedCoupon?.type === 'FREE_SHIPPING');
   const shippingCost =
-    subtotal === 0 || fulfillmentType === 'SHOWROOM_PICKUP'
+    subtotal === 0 || fulfillmentType === 'SHOWROOM_PICKUP' || isFreeShippingCoupon
       ? 0
       : selectedQuote && selectedQuote.available
         ? Number(selectedQuote.feeTnd)
@@ -805,7 +812,14 @@ export default function CheckoutPage() {
                                 Hors plage
                               </span>
                             ) : q.feeTnd === 0 ? (
-                              <span className="text-sm font-black text-emerald-700 uppercase">Gratuit</span>
+                              <div className="flex flex-col items-end">
+                                {Number(q.originalFeeTnd || 0) > 0 && (
+                                  <span className="text-[11px] font-mono line-through text-[#0C1A14]/40">
+                                    {Number(q.originalFeeTnd).toFixed(3)} TND
+                                  </span>
+                                )}
+                                <span className="text-sm font-black text-emerald-700 uppercase">Gratuit</span>
+                              </div>
                             ) : (
                               <span className="text-sm font-black font-mono text-[#0C1A14]">
                                 {Number(q.feeTnd).toFixed(3)} TND
@@ -903,11 +917,15 @@ export default function CheckoutPage() {
                     <div className="flex items-center gap-2">
                       <Banknote className="w-5 h-5 text-emerald-700 shrink-0" />
                       <span className="font-semibold text-sm text-[#0C1A14]">
-                        {t('checkout.cod')}
+                        {fulfillmentType === 'SHOWROOM_PICKUP'
+                          ? 'Payer sur place (au showroom)'
+                          : t('checkout.cod')}
                       </span>
                     </div>
                     <p className="text-xs text-[#0C1A14]/60 mt-1">
-                      {t('cart.cod_note')}
+                      {fulfillmentType === 'SHOWROOM_PICKUP'
+                        ? 'Réglez directement sur place lors du retrait de votre commande au showroom choisi.'
+                        : t('cart.cod_note')}
                     </p>
                   </div>
                 </label>
@@ -989,7 +1007,9 @@ export default function CheckoutPage() {
             {/* Step 5: Customer Notes */}
             <div className="bg-white rounded-3xl border border-[#EFECE6] p-7 shadow-sm">
               <label className="block text-xs font-semibold text-[#0C1A14] mb-2 uppercase tracking-wider">
-                Instructions particulières pour le livreur (Optionnel)
+                {fulfillmentType === 'SHOWROOM_PICKUP'
+                  ? 'Instructions particulières pour le retrait en showroom (Optionnel)'
+                  : 'Instructions particulières pour le livreur (Optionnel)'}
               </label>
               <textarea
                 rows={2}
@@ -1063,7 +1083,17 @@ export default function CheckoutPage() {
                 {appliedCoupon && (
                   <div className="mt-2 text-xs text-emerald-700 flex items-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>{t('cart.discount')} <strong>{appliedCoupon.code}</strong> (-{appliedCoupon.discountAmount.toFixed(3)} {t('common.currency')})</span>
+                    <span>
+                      {isFreeShippingCoupon && discount <= 0 ? (
+                        <>
+                          Code promo <strong>{appliedCoupon.code}</strong> (Livraison offerte)
+                        </>
+                      ) : (
+                        <>
+                          {t('cart.discount')} <strong>{appliedCoupon.code}</strong> (-{appliedCoupon.discountAmount.toFixed(3)} {t('common.currency')})
+                        </>
+                      )}
+                    </span>
                   </div>
                 )}
                 {couponError && (
@@ -1079,8 +1109,12 @@ export default function CheckoutPage() {
                 </div>
                 {appliedCoupon && (
                   <div className="flex justify-between text-emerald-700 font-medium">
-                    <span>{t('cart.discount')}</span>
-                    <span>-{discount.toFixed(3)} {t('common.currency')}</span>
+                    <span>{isFreeShippingCoupon && discount <= 0 ? 'Avantage Livraison' : t('cart.discount')}</span>
+                    <span>
+                      {isFreeShippingCoupon && discount <= 0
+                        ? 'Livraison offerte'
+                        : `-${discount.toFixed(3)} ${t('common.currency')}`}
+                    </span>
                   </div>
                 )}
                 <div className="flex justify-between">

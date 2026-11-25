@@ -438,6 +438,19 @@ export default function OrderDetailsPage() {
                 <span>Frais d'expédition :</span>
                 <span>{Number(order.shippingAmount) === 0 ? 'OFFERTS' : `${Number(order.shippingAmount).toFixed(3)} TND`}</span>
               </div>
+              <div className="flex justify-between">
+                <span>Mode de règlement :</span>
+                <span className="font-semibold text-gray-900">
+                  {order.fulfillmentType === 'SHOWROOM_PICKUP' &&
+                  (order.payments?.[0]?.method || 'CASH_ON_DELIVERY') === 'CASH_ON_DELIVERY'
+                    ? 'Payer sur place (au showroom)'
+                    : order.payments?.[0]?.method === 'BANK_TRANSFER'
+                    ? 'Virement Bancaire'
+                    : order.payments?.[0]?.method === 'CARD_ONLINE'
+                    ? 'Carte Bancaire en ligne'
+                    : 'Paiement à la livraison (COD)'}
+                </span>
+              </div>
               <div className="flex justify-between text-gray-400 text-[11px]">
                 <span>TVA légale incluse (19%) :</span>
                 <span>{Number(order.taxAmount).toFixed(3)} TND</span>

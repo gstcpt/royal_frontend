@@ -29,6 +29,7 @@ import { fetchApi, fetchAllPaginated } from '@/lib/api';
 import { cn, formatTndCurrency } from '@/lib/utils';
 import { useSystemDocumentConfig } from '@/hooks/useSystemDocumentConfig';
 import { DocumentPrintHeader, DocumentPrintFooter } from '@/components/dashboard/DocumentPrintLayout';
+import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 
 export interface DeliveryItem {
   id: string;
@@ -63,6 +64,7 @@ export default function DeliveriesPage() {
     Array<{ variantId: string; productName: string; sku: string }>
   >([]);
   const sysDoc = useSystemDocumentConfig();
+  const { isRouteVisible } = useRouteVisibility();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -640,13 +642,15 @@ export default function DeliveriesPage() {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Link
-            href="/dashboard/delivery-companies"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-[#E6E1D6] bg-white hover:bg-[#FBF9F4] text-xs font-bold text-[#1D232E] transition"
-          >
-            <Sliders className="w-3.5 h-3.5 text-[#C59B27]" />
-            <span>Sociétés &amp; Tarifs ({deliveryCompanies.length})</span>
-          </Link>
+          {isRouteVisible('/dashboard/delivery-companies') && (
+            <Link
+              href="/dashboard/delivery-companies"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-[#E6E1D6] bg-white hover:bg-[#FBF9F4] text-xs font-bold text-[#1D232E] transition"
+            >
+              <Sliders className="w-3.5 h-3.5 text-[#C59B27]" />
+              <span>Sociétés &amp; Tarifs ({deliveryCompanies.length})</span>
+            </Link>
+          )}
           <Button
             variant="outline"
             onClick={() => setIsWebhooksOpen(true)}

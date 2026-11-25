@@ -23,8 +23,10 @@ import {
 } from 'lucide-react';
 import { Button, Breadcrumb, Toast, Toggle } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
+import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 
 export default function SettingsPage() {
+  const { isRouteVisible } = useRouteVisibility();
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -543,21 +545,23 @@ export default function SettingsPage() {
               </span>
             </Link>
 
-            <Link
-              href="/dashboard/delivery-companies"
-              className="flex items-center justify-between p-3 rounded-xl border border-neutral-200 hover:border-[#C59B27] hover:bg-[#FBF9F4] transition"
-            >
-              <div className="flex items-center gap-2.5">
-                <Truck className="w-4 h-4 text-[#B8860B]" />
-                <div>
-                  <div className="font-bold text-neutral-900">Sociétés de Livraison &amp; Règles Transfert</div>
-                  <div className="text-[11px] text-neutral-500">Tarifs Distance / Poids / Fixe &amp; réassort Showroom</div>
+            {isRouteVisible('/dashboard/delivery-companies') && (
+              <Link
+                href="/dashboard/delivery-companies"
+                className="flex items-center justify-between p-3 rounded-xl border border-neutral-200 hover:border-[#C59B27] hover:bg-[#FBF9F4] transition"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Truck className="w-4 h-4 text-[#B8860B]" />
+                  <div>
+                    <div className="font-bold text-neutral-900">Sociétés de Livraison &amp; Règles Transfert</div>
+                    <div className="text-[11px] text-neutral-500">Tarifs Distance / Poids / Fixe &amp; réassort Showroom</div>
+                  </div>
                 </div>
-              </div>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6]">
-                {liveStatus.deliveryCompaniesCount} société(s) <ExternalLink className="w-3 h-3" />
-              </span>
-            </Link>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6]">
+                  {liveStatus.deliveryCompaniesCount} société(s) <ExternalLink className="w-3 h-3" />
+                </span>
+              </Link>
+            )}
 
             <Link
               href="/dashboard/users"

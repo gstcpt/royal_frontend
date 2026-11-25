@@ -96,9 +96,12 @@ function mapOrderFromApi(o: any): OrderMasterItem {
     status: o.status || 'PENDING',
     paymentStatus: firstPayment?.status || 'PENDING',
     paymentMethod:
-      PAYMENT_METHOD_LABELS[firstPayment?.method] ||
-      firstPayment?.method ||
-      'Paiement à la livraison',
+      o.fulfillmentType === 'SHOWROOM_PICKUP' &&
+      (firstPayment?.method || 'CASH_ON_DELIVERY') === 'CASH_ON_DELIVERY'
+        ? 'Payer sur place (au showroom)'
+        : PAYMENT_METHOD_LABELS[firstPayment?.method] ||
+          firstPayment?.method ||
+          'Paiement à la livraison',
     customerName: fullName,
     customerEmail: o.customer?.email || o.guestEmail || '—',
     customerPhone: o.customer?.phone || o.guestPhone || addr.phone || '—',

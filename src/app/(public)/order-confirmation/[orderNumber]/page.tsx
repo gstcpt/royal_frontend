@@ -244,6 +244,19 @@ export default function OrderConfirmationPage() {
                     <span>Frais d&apos;expédition :</span>
                     <span>{Number(order.shippingAmount) === 0 ? 'OFFERTS' : `${Number(order.shippingAmount).toFixed(3)} TND`}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span>Mode de règlement :</span>
+                    <span className="font-semibold text-[#0C1A14]">
+                      {order.fulfillmentType === 'SHOWROOM_PICKUP' &&
+                      (order.payments?.[0]?.method || 'CASH_ON_DELIVERY') === 'CASH_ON_DELIVERY'
+                        ? 'Payer sur place (au showroom)'
+                        : order.payments?.[0]?.method === 'BANK_TRANSFER'
+                        ? 'Virement Bancaire'
+                        : order.payments?.[0]?.method === 'CARD_ONLINE'
+                        ? 'Carte Bancaire en ligne'
+                        : 'Paiement à la livraison'}
+                    </span>
+                  </div>
                   <div className="flex justify-between border-t border-[#EFECE6] pt-2 text-sm font-bold text-[#0C1A14]">
                     <span>Net Payé / Dû :</span>
                     <span className="text-[#0C1A14] font-bold tracking-tight text-base font-mono">{Number(order.totalAmount).toFixed(3)} TND</span>

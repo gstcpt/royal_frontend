@@ -31,6 +31,7 @@ import {
 } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
 import { cn, formatTndCurrency } from '@/lib/utils';
+import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 
 type DeliveryMethodType = 'DISTANCE' | 'WEIGHT' | 'FIXED';
 
@@ -140,6 +141,8 @@ const DELIVERY_COMPANIES_GUIDE: ViewGuideStep[] = [
 ];
 
 export default function DeliveryCompaniesPage() {
+  const { isRouteVisible } = useRouteVisibility();
+  const canViewDeliverySettings = isRouteVisible('/dashboard/root/delivery-settings');
   const [companies, setCompanies] = useState<DeliveryCompanyRecord[]>([]);
   const [countries, setCountries] = useState<CountryCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -600,13 +603,15 @@ export default function DeliveryCompaniesPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Link
-            href="/dashboard/root/delivery-settings"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-[#E6E1D6] bg-white hover:bg-[#FBF9F4] text-xs font-bold text-[#1D232E] transition"
-          >
-            <Sliders className="w-3.5 h-3.5 text-[#C59B27]" />
-            <span>Règles Distances &amp; Transferts</span>
-          </Link>
+          {canViewDeliverySettings && (
+            <Link
+              href="/dashboard/root/delivery-settings"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-[#E6E1D6] bg-white hover:bg-[#FBF9F4] text-xs font-bold text-[#1D232E] transition"
+            >
+              <Sliders className="w-3.5 h-3.5 text-[#C59B27]" />
+              <span>Règles Distances &amp; Transferts</span>
+            </Link>
+          )}
           <Button variant="gold" onClick={openCreateModal} className="text-xs px-4 py-2.5 flex items-center gap-2">
             <Plus className="w-4 h-4" />
             <span>Nouvelle Société</span>

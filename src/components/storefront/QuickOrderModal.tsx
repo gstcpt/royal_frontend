@@ -115,6 +115,8 @@ export function QuickOrderModal({
   const [appliedCoupon, setAppliedCoupon] = useState<{
     code: string;
     discountAmount: number;
+    type?: string;
+    freeShipping?: boolean;
   } | null>(null);
   const [couponError, setCouponError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -243,8 +245,11 @@ export function QuickOrderModal({
   const subtotal = Number((unitPrice * quantity).toFixed(3));
   const discount = appliedCoupon ? appliedCoupon.discountAmount : 0;
   const subtotalAfterDiscount = Math.max(0, subtotal - discount);
+  const isFreeShippingCoupon = Boolean(appliedCoupon?.freeShipping || appliedCoupon?.type === 'FREE_SHIPPING');
   const shippingCost =
-    subtotalAfterDiscount >= shippingThreshold || subtotal === 0 ? 0 : standardShippingFee;
+    isFreeShippingCoupon || subtotalAfterDiscount >= shippingThreshold || subtotal === 0
+      ? 0
+      : standardShippingFee;
   const taxAmount = Number((subtotalAfterDiscount * (vatRate / 100)).toFixed(3));
   const finalTotal = Number((subtotalAfterDiscount + shippingCost).toFixed(3));
 
@@ -274,6 +279,8 @@ export function QuickOrderModal({
         setAppliedCoupon({
           code: data.data.coupon.code,
           discountAmount: data.data.discountAmount,
+          type: data.data.coupon?.type,
+          freeShipping: Boolean(data.data.freeShipping || data.data.coupon?.type === 'FREE_SHIPPING'),
         });
         setCouponInput(data.data.coupon.code);
       } else {
@@ -822,7 +829,9 @@ export function QuickOrderModal({
                   <p className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>
-                      {appliedCoupon.code} (-{appliedCoupon.discountAmount.toFixed(3)} TND)
+                      {isFreeShippingCoupon && discount <= 0
+                        ? `${appliedCoupon.code} (Livraison offerte)`
+                        : `${appliedCoupon.code} (-${appliedCoupon.discountAmount.toFixed(3)} TND)`}
                     </span>
                   </p>
                 )}
@@ -857,9 +866,11 @@ export function QuickOrderModal({
                 </div>
                 {appliedCoupon && (
                   <div className="flex justify-between text-emerald-700 font-semibold">
-                    <span>{t('cart.discount')}</span>
+                    <span>{isFreeShippingCoupon && discount <= 0 ? 'Avantage Livraison' : t('cart.discount')}</span>
                     <span className="font-mono">
-                      -{discount.toFixed(3)} {t('common.currency')}
+                      {isFreeShippingCoupon && discount <= 0
+                        ? 'Livraison offerte'
+                        : `-${discount.toFixed(3)} ${t('common.currency')}`}
                     </span>
                   </div>
                 )}

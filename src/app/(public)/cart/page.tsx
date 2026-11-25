@@ -44,6 +44,8 @@ export default function CartPage() {
     code: string;
     discountAmount: number;
     description?: string;
+    type?: string;
+    freeShipping?: boolean;
   } | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState('');
@@ -147,12 +149,19 @@ export default function CartPage() {
 
       const data = await res.json();
       if (res.ok && data.data?.valid) {
+        const isFreeShip = Boolean(data.data.freeShipping || data.data.coupon?.type === 'FREE_SHIPPING');
         setAppliedCoupon({
           code: data.data.coupon.code,
           discountAmount: data.data.discountAmount,
           description: data.data.coupon.description,
+          type: data.data.coupon?.type,
+          freeShipping: isFreeShip,
         });
-        setCouponSuccess(`Coupon ${data.data.coupon.code} appliqué avec succès ! (-${data.data.discountAmount.toFixed(3)} TND)`);
+        setCouponSuccess(
+          isFreeShip
+            ? `Coupon ${data.data.coupon.code} appliqué — Livraison OFFERTE !`
+            : `Coupon ${data.data.coupon.code} appliqué avec succès ! (-${Number(data.data.discountAmount || 0).toFixed(3)} TND)`,
+        );
       } else {
         setCouponError(data.message || 'Code promo invalide ou expiré.');
       }
@@ -166,11 +175,17 @@ export default function CartPage() {
   const subtotal = items.reduce((sum, it) => sum + it.lineTotal, 0);
   const discount = appliedCoupon ? appliedCoupon.discountAmount : 0;
   const subtotalAfterDiscount = Math.max(0, subtotal - discount);
-  const shippingCost = subtotalAfterDiscount >= shippingThreshold || subtotal === 0 ? 0 : standardShippingFee;
+  const isFreeShippingCoupon = Boolean(appliedCoupon?.freeShipping || appliedCoupon?.type === 'FREE_SHIPPING');
+  const shippingCost =
+    isFreeShippingCoupon || subtotalAfterDiscount >= shippingThreshold || subtotal === 0
+      ? 0
+      : standardShippingFee;
   const taxAmount = Number((subtotalAfterDiscount * (vatRate / 100)).toFixed(3));
   const finalTotal = Number((subtotalAfterDiscount + shippingCost).toFixed(3));
-  const missingForFreeShipping = Math.max(0, shippingThreshold - subtotalAfterDiscount);
-  const progressPercent = Math.min(100, Math.round((subtotalAfterDiscount / shippingThreshold) * 100));
+  const missingForFreeShipping = isFreeShippingCoupon ? 0 : Math.max(0, shippingThreshold - subtotalAfterDiscount);
+  const progressPercent = isFreeShippingCoupon
+    ? 100
+    : Math.min(100, Math.round((subtotalAfterDiscount / shippingThreshold) * 100));
 
   return (
     <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 py-10 sm:py-12">
@@ -375,8 +390,16 @@ export default function CartPage() {
 
                 {appliedCoupon && (
                   <div className="flex justify-between text-emerald-700 font-medium">
-                    <span>{t('cart.discount')} ({appliedCoupon.code})</span>
-                    <span>-{discount.toFixed(3)} {t('common.currency')}</span>
+                    <span>
+                      {isFreeShippingCoupon && discount <= 0
+                        ? `Avantage Livraison (${appliedCoupon.code})`
+                        : `${t('cart.discount')} (${appliedCoupon.code})`}
+                    </span>
+                    <span>
+                      {isFreeShippingCoupon && discount <= 0
+                        ? 'Livraison offerte'
+                        : `-${discount.toFixed(3)} ${t('common.currency')}`}
+                    </span>
                   </div>
                 )}
 

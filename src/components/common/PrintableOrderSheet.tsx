@@ -118,15 +118,44 @@ export function PrintableOrderSheet({
           <div className="text-[10px] font-black uppercase tracking-wider border-b border-neutral-200 pb-1 mb-1.5">
             Livraison &amp; Règlement
           </div>
-          <div className="font-bold text-xs">
-            {addr.firstName || clientName} {addr.lastName || ''}
-          </div>
-          {addr.street && <div>{addr.street}</div>}
-          {addr.street2 && <div>{addr.street2}</div>}
-          <div>
-            {[addr.city, addr.state, addr.postalCode].filter(Boolean).join(', ') || 'Tunisie'}
-          </div>
-          <div>Mode : Livraison à Domicile &bull; Paiement à la livraison (Espèces)</div>
+          {order.fulfillmentType === 'SHOWROOM_PICKUP' ? (
+            <>
+              <div className="font-bold text-xs">
+                {order.pickupShowroom?.name || 'Showroom Royal'}
+              </div>
+              {(order.pickupShowroom?.address || order.pickupShowroom?.city) && (
+                <div>{order.pickupShowroom?.address || order.pickupShowroom?.city}</div>
+              )}
+              <div>
+                Mode : Retrait en Showroom &bull;{' '}
+                {(order.payments?.[0]?.method || order.paymentMethod || 'CASH_ON_DELIVERY') === 'CASH_ON_DELIVERY'
+                  ? 'Payer sur place (au showroom)'
+                  : order.payments?.[0]?.method === 'BANK_TRANSFER'
+                  ? 'Virement Bancaire'
+                  : 'Paiement en ligne'}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="font-bold text-xs">
+                {addr.firstName || clientName} {addr.lastName || ''}
+              </div>
+              {addr.street && <div>{addr.street}</div>}
+              {addr.street2 && <div>{addr.street2}</div>}
+              <div>
+                {[addr.city, addr.state, addr.postalCode].filter(Boolean).join(', ') || 'Tunisie'}
+              </div>
+              <div>
+                Mode : Livraison à Domicile
+                {order.deliveryCompany?.name ? ` (${order.deliveryCompany.name})` : ''} &bull;{' '}
+                {(order.payments?.[0]?.method || order.paymentMethod || 'CASH_ON_DELIVERY') === 'CASH_ON_DELIVERY'
+                  ? 'Paiement à la livraison (Espèces)'
+                  : order.payments?.[0]?.method === 'BANK_TRANSFER'
+                  ? 'Virement Bancaire'
+                  : 'Paiement en ligne'}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

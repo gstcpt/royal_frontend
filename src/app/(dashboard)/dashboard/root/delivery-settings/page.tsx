@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Breadcrumb, Button, GuideInfoButton, Toast, Toggle, ViewGuideModal, ViewGuideStep } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
+import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
 
 interface CustomDistanceRow {
   id: string;
@@ -62,6 +63,7 @@ const DELIVERY_SETTINGS_GUIDE: ViewGuideStep[] = [
 ];
 
 export default function DeliverySettingsPage() {
+  const { isRouteVisible } = useRouteVisibility();
   const [countries, setCountries] = useState<CountryCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -323,13 +325,15 @@ export default function DeliverySettingsPage() {
                 </span>
                 <ExternalLink className="w-3.5 h-3.5 text-[#C59B27]" />
               </Link>
-              <Link
-                href="/dashboard/delivery-companies"
-                className="flex items-center justify-between p-3 rounded-xl border border-neutral-200 hover:border-[#C59B27] hover:bg-[#FBF9F4] transition"
-              >
-                <span className="font-bold text-neutral-900">Gérer les Sociétés &amp; Tarifs de Livraison</span>
-                <ExternalLink className="w-3.5 h-3.5 text-[#C59B27]" />
-              </Link>
+              {isRouteVisible('/dashboard/delivery-companies') && (
+                <Link
+                  href="/dashboard/delivery-companies"
+                  className="flex items-center justify-between p-3 rounded-xl border border-neutral-200 hover:border-[#C59B27] hover:bg-[#FBF9F4] transition"
+                >
+                  <span className="font-bold text-neutral-900">Gérer les Sociétés &amp; Tarifs de Livraison</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-[#C59B27]" />
+                </Link>
+              )}
             </div>
           </div>
         </div>
