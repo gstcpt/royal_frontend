@@ -15,6 +15,8 @@ export interface SlideItem {
   subtitle: string;
   primaryCtaText: string;
   primaryCtaLink: string;
+  secondaryCtaText?: string;
+  secondaryCtaLink?: string;
   imageUrl: string;
 }
 
@@ -76,6 +78,8 @@ function sanitizeSlides(raw: unknown): SlideItem[] {
         typeof s.primaryCtaText === 'string' && s.primaryCtaText.trim() ? s.primaryCtaText : fb.primaryCtaText,
       primaryCtaLink:
         typeof s.primaryCtaLink === 'string' && s.primaryCtaLink.trim() ? s.primaryCtaLink : fb.primaryCtaLink,
+      secondaryCtaText: typeof s.secondaryCtaText === 'string' ? s.secondaryCtaText : undefined,
+      secondaryCtaLink: typeof s.secondaryCtaLink === 'string' ? s.secondaryCtaLink : undefined,
       imageUrl: typeof s.imageUrl === 'string' && s.imageUrl.trim() ? s.imageUrl : fb.imageUrl,
     };
   });
@@ -270,7 +274,9 @@ export function HeroBanner({ slides: propSlides }: { slides?: SlideItem[] }) {
       <div className="relative z-20 w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 flex flex-col justify-center pointer-events-none">
         <div
           key={`hero-copy-${currentSlide.id}-${safeIndex}`}
-          className="max-w-2xl opacity-100 translate-y-0 transition-all duration-500 pointer-events-auto"
+          className={`max-w-2xl opacity-100 translate-y-0 transition-all duration-500 pointer-events-auto ${
+            config.views.home.heroContentAlign === 'center' ? 'mx-auto text-center' : ''
+          }`}
         >
           {currentSlide.tagline && (
             <p className="text-xs uppercase tracking-[0.3em] font-semibold text-amber-300 mb-4">
@@ -288,12 +294,20 @@ export function HeroBanner({ slides: propSlides }: { slides?: SlideItem[] }) {
           </h1>
 
           {currentSlide.subtitle && (
-            <p className="mt-4 sm:mt-5 text-xs sm:text-base text-slate-200/90 max-w-lg leading-relaxed font-normal">
+            <p
+              className={`mt-4 sm:mt-5 text-xs sm:text-base text-slate-200/90 max-w-lg leading-relaxed font-normal ${
+                config.views.home.heroContentAlign === 'center' ? 'mx-auto' : ''
+              }`}
+            >
               {currentSlide.subtitle}
             </p>
           )}
 
-          <div className="mt-6 sm:mt-8 flex flex-wrap items-center gap-3 sm:gap-4">
+          <div
+            className={`mt-6 sm:mt-8 flex flex-wrap items-center gap-3 sm:gap-4 ${
+              config.views.home.heroContentAlign === 'center' ? 'justify-center' : ''
+            }`}
+          >
             <Link
               href={currentSlide.primaryCtaLink || '/articles'}
               className="group inline-flex items-center gap-2.5 px-6 sm:px-8 py-3.5 sm:py-4 rounded-full bg-white text-slate-950 font-bold text-xs uppercase tracking-wider transition-all shadow-xl hover:bg-slate-100 hover:scale-[1.02]"
@@ -303,10 +317,10 @@ export function HeroBanner({ slides: propSlides }: { slides?: SlideItem[] }) {
             </Link>
 
             <Link
-              href="/articles?sortBy=promo"
+              href={currentSlide.secondaryCtaLink || '/articles?sortBy=promo'}
               className="inline-flex items-center gap-2 px-5 sm:px-6 py-3.5 sm:py-4 rounded-full bg-white/15 hover:bg-white/25 border border-white/30 text-white font-semibold text-xs tracking-wider uppercase backdrop-blur-md transition"
             >
-              <span>{t('storefront.promo_offers')}</span>
+              <span>{currentSlide.secondaryCtaText || t('storefront.promo_offers')}</span>
             </Link>
           </div>
         </div>

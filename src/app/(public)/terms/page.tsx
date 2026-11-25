@@ -5,12 +5,13 @@ import { FileText } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
 import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHeader';
+import { CmsOrderedSections, CmsViewCodeInjector } from '@/components/storefront/CmsElementRuntime';
+import { buildCmsInlineStyle } from '@/lib/cms-builder';
 
 export default function TermsPage() {
   const { config } = useCmsConfig();
   const { locale, t } = useI18nStore();
   const termsCfg = config.views.terms || {};
-  const order = Array.isArray(termsCfg.sectionOrder) && termsCfg.sectionOrder.length > 0 ? termsCfg.sectionOrder : ['header', 'document', 'footerNote'];
 
   const [page, setPage] = useState<{ title: string; subtitle?: string; content: string; updatedAt?: string } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,9 +68,19 @@ export default function TermsPage() {
   };
 
   return (
-    <div className="bg-[var(--royal-bg)] min-h-screen py-10 sm:py-12">
+    <div
+      id={termsCfg.viewStyle?.domId?.trim() || 'royal-view-terms'}
+      style={buildCmsInlineStyle(termsCfg.viewStyle)}
+      className="bg-[var(--royal-bg)] min-h-screen py-10 sm:py-12"
+    >
+      <CmsViewCodeInjector viewKey="terms" viewStyle={termsCfg.viewStyle} />
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
-        {order.map((sec) => blocks[sec] || null)}
+        <CmsOrderedSections
+          viewKey="terms"
+          viewCfg={termsCfg}
+          defaultOrder={['header', 'document', 'footerNote']}
+          sections={blocks}
+        />
       </div>
     </div>
   );

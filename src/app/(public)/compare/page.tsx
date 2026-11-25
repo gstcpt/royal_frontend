@@ -5,7 +5,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCompareStore } from '@/stores/compare.store';
 import { useI18nStore } from '@/stores/i18n.store';
+import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHeader';
+import { CmsOrderedSections, CmsViewCodeInjector } from '@/components/storefront/CmsElementRuntime';
+import { buildCmsInlineStyle } from '@/lib/cms-builder';
 import {
   Layers,
   Trash2,
@@ -47,7 +50,10 @@ interface CompareItemDetail {
 
 export default function ComparePage() {
   const { items, removeFromCompare, clearCompare } = useCompareStore();
-  const { t } = useI18nStore();
+  const { locale, t } = useI18nStore();
+  const { config } = useCmsConfig();
+  const cmpCfg = config.views.compare || {};
+  const maxCmp = Math.max(2, Math.min(6, Number(cmpCfg.maxCompareItems || 4)));
   const [loading, setLoading] = useState(false);
   const [details, setDetails] = useState<CompareItemDetail[]>([]);
 
@@ -99,55 +105,26 @@ export default function ComparePage() {
     return `${price.toFixed(3)} TND`;
   };
 
-  if (items.length === 0) {
-    return (
-      <div className="py-10 sm:py-12 w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
-        <StorefrontPageHeader
-          title={t('compare.title')}
-          breadcrumbLabel={t('nav.compare')}
-          subtitle={t('compare.subtitle')}
-          badge={
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)]">
-              <Sparkles className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
-              <span>{t('compare.badge')}</span>
-            </div>
-          }
-        />
-        <div className="text-center py-16 sm:py-20 bg-[#F8F9FA] rounded-[32px] border border-neutral-200 p-6 sm:p-8 max-w-3xl mx-auto">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-white border border-neutral-200 flex items-center justify-center text-neutral-400 mb-4 shadow-sm">
-            <Layers className="w-8 h-8" />
-          </div>
-          <h2 className="font-heading font-bold text-2xl text-[#0C1A14] mb-2">
-            {t('compare.empty')}
-          </h2>
-          <p className="text-sm text-[#6B635B] max-w-md mx-auto mb-6">
-            {t('compare.empty_desc')}
-          </p>
-          <Link
-            href="/articles"
-            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs uppercase tracking-[0.2em] font-semibold hover:bg-[var(--royal-primary-hover)] transition shadow-md"
-          >
-            <span>{t('compare.explore_collections')}</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  const displayedDetails = details.slice(0, maxCmp);
 
-  return (
-    <div className="py-10 sm:py-12 w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
-      <StorefrontPageHeader
-        title={`${t('compare.title')} (${items.length}/4)`}
-        breadcrumbLabel={t('nav.compare')}
-        subtitle={t('compare.subtitle')}
-        badge={
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)]">
-            <Sparkles className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
-            <span>{t('compare.badge')}</span>
-          </div>
-        }
-        rightSlot={
+  const compareHeaderNode = (
+    <StorefrontPageHeader
+      key="header"
+      title={
+        items.length === 0
+          ? locale === 'ar' ? t('compare.title') : (cmpCfg.title || t('compare.title'))
+          : `${locale === 'ar' ? t('compare.title') : (cmpCfg.title || t('compare.title'))} (${Math.min(items.length, maxCmp)}/${maxCmp})`
+      }
+      breadcrumbLabel={t('nav.compare')}
+      subtitle={locale === 'ar' ? t('compare.subtitle') : (cmpCfg.subtitle || t('compare.subtitle'))}
+      badge={
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)]">
+          <Sparkles className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
+          <span>{locale === 'ar' ? t('compare.badge') : (cmpCfg.badgeText || t('compare.badge'))}</span>
+        </div>
+      }
+      rightSlot={
+        items.length > 0 ? (
           <>
             <button
               onClick={clearCompare}
@@ -163,18 +140,40 @@ export default function ComparePage() {
               <span>{t('compare.add_more')}</span>
             </Link>
           </>
-        }
-      />
+        ) : undefined
+      }
+    />
+  );
 
-      {/* Comparison Matrix Table */}
-      <div className="mt-10 overflow-x-auto">
+  const comparisonTableNode =
+    items.length === 0 ? (
+      <div key="comparisonTable" className="text-center py-16 sm:py-20 bg-[#F8F9FA] rounded-[32px] border border-neutral-200 p-6 sm:p-8 max-w-3xl mx-auto">
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-white border border-neutral-200 flex items-center justify-center text-neutral-400 mb-4 shadow-sm">
+          <Layers className="w-8 h-8" />
+        </div>
+        <h2 className="font-heading font-bold text-2xl text-[#0C1A14] mb-2">
+          {t('compare.empty')}
+        </h2>
+        <p className="text-sm text-[#6B635B] max-w-md mx-auto mb-6">
+          {t('compare.empty_desc')}
+        </p>
+        <Link
+          href="/articles"
+          className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs uppercase tracking-[0.2em] font-semibold hover:bg-[var(--royal-primary-hover)] transition shadow-md"
+        >
+          <span>{t('compare.explore_collections')}</span>
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+    ) : (
+      <div key="comparisonTable" className="mt-10 overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
             <tr>
               <th className="w-40 sm:w-48 p-4 text-left font-sans font-bold tracking-tight text-sm font-semibold text-[#0C1A14] bg-[#F7F5F0] border border-[#ECE7DE] rounded-tl-2xl">
                 {t('compare.features')}
               </th>
-              {details.map((item) => (
+              {displayedDetails.map((item) => (
                 <th
                   key={item.id}
                   className="p-5 text-center bg-white border border-[#ECE7DE] min-w-[280px] max-w-[320px] align-top"
@@ -218,7 +217,7 @@ export default function ComparePage() {
               <td className="p-4 font-semibold text-[#6B635B] bg-[#F7F5F0] border border-[#ECE7DE]">
                 Prix Unitaire (TND)
               </td>
-              {details.map((item) => {
+              {displayedDetails.map((item) => {
                 const isPromo = item.discountPrice && item.discountPrice < item.sellingPrice;
                 return (
                   <td key={item.id} className="p-4 text-center border border-[#ECE7DE] bg-white">
@@ -242,7 +241,7 @@ export default function ComparePage() {
               <td className="p-4 font-semibold text-[#6B635B] bg-[#F7F5F0] border border-[#ECE7DE]">
                 Disponibilité
               </td>
-              {details.map((item) => {
+              {displayedDetails.map((item) => {
                 const inStock = item.availableStock > 0;
                 return (
                   <td key={item.id} className="p-4 text-center border border-[#ECE7DE] bg-white">
@@ -269,7 +268,7 @@ export default function ComparePage() {
               <td className="p-4 font-semibold text-[#6B635B] bg-[#F7F5F0] border border-[#ECE7DE]">
                 Univers / Catégorie
               </td>
-              {details.map((item) => (
+              {displayedDetails.map((item) => (
                 <td key={item.id} className="p-4 text-center border border-[#ECE7DE] bg-white">
                   <span className="px-3 py-1 rounded-full bg-[#F4F1EA] text-[#0C1A14] font-medium">
                     {item.category?.name || 'Gastronomie'}
@@ -283,7 +282,7 @@ export default function ComparePage() {
               <td className="p-4 font-semibold text-[#6B635B] bg-[#F7F5F0] border border-[#ECE7DE]">
                 Avis Clients Vérifiés
               </td>
-              {details.map((item) => (
+              {displayedDetails.map((item) => (
                 <td key={item.id} className="p-4 text-center border border-[#ECE7DE] bg-white">
                   <div className="flex items-center justify-center gap-1 text-[#D4AF37]">
                     <Star className="w-4 h-4 fill-current" />
@@ -303,7 +302,7 @@ export default function ComparePage() {
               <td className="p-4 font-semibold text-[#6B635B] bg-[#F7F5F0] border border-[#ECE7DE]">
                 Poids Net
               </td>
-              {details.map((item) => (
+              {displayedDetails.map((item) => (
                 <td key={item.id} className="p-4 text-center border border-[#ECE7DE] bg-white font-mono">
                   {item.weightGrams ? `${(item.weightGrams / 1000).toFixed(2)} kg` : '6.50 kg'}
                 </td>
@@ -315,7 +314,7 @@ export default function ComparePage() {
               <td className="p-4 font-semibold text-[#6B635B] bg-[#F7F5F0] border border-[#ECE7DE]">
                 Garantie Manufacture
               </td>
-              {details.map((item) => (
+              {displayedDetails.map((item) => (
                 <td key={item.id} className="p-4 text-center border border-[#ECE7DE] bg-white">
                   <div className="inline-flex items-center gap-1.5 text-emerald-700">
                     <Shield className="w-3.5 h-3.5 text-[#D4AF37]" />
@@ -326,25 +325,42 @@ export default function ComparePage() {
             </tr>
 
             {/* Direct Action */}
-            <tr>
-              <td className="p-4 font-semibold text-[#6B635B] bg-[#F7F5F0] border border-[#ECE7DE] rounded-bl-2xl">
-                Action Rapide
-              </td>
-              {details.map((item) => (
-                <td key={item.id} className="p-4 text-center border border-[#ECE7DE] bg-white">
-                  <Link
-                    href={`/articles/${item.slug}`}
-                    className="inline-flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] hover:bg-[var(--royal-primary-hover)] text-xs font-semibold tracking-wider uppercase transition shadow-sm"
-                  >
-                    <ShoppingCart className="w-3.5 h-3.5" />
-                    <span>Voir la pièce</span>
-                  </Link>
+            {cmpCfg.showAddToCart !== false && (
+              <tr>
+                <td className="p-4 font-semibold text-[#6B635B] bg-[#F7F5F0] border border-[#ECE7DE] rounded-bl-2xl">
+                  Action Rapide
                 </td>
-              ))}
-            </tr>
+                {displayedDetails.map((item) => (
+                  <td key={item.id} className="p-4 text-center border border-[#ECE7DE] bg-white">
+                    <Link
+                      href={`/articles/${item.slug}`}
+                      className="inline-flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] hover:bg-[var(--royal-primary-hover)] text-xs font-semibold tracking-wider uppercase transition shadow-sm"
+                    >
+                      <ShoppingCart className="w-3.5 h-3.5" />
+                      <span>Voir la pièce</span>
+                    </Link>
+                  </td>
+                ))}
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
+    );
+
+  return (
+    <div
+      id={cmpCfg.viewStyle?.domId?.trim() || 'royal-view-compare'}
+      style={buildCmsInlineStyle(cmpCfg.viewStyle)}
+      className="py-10 sm:py-12 w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20"
+    >
+      <CmsViewCodeInjector viewKey="compare" viewStyle={cmpCfg.viewStyle} />
+      <CmsOrderedSections
+        viewKey="compare"
+        viewCfg={cmpCfg}
+        defaultOrder={['header', 'comparisonTable']}
+        sections={{ header: compareHeaderNode, comparisonTable: comparisonTableNode }}
+      />
     </div>
   );
 }

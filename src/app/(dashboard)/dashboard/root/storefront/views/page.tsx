@@ -41,14 +41,28 @@ import {
   Target,
   Tag,
   X,
+  ShoppingBag,
+  CreditCard,
+  Layers,
+  Heart,
+  Truck,
+  Code2,
+  FilePlus2,
 } from 'lucide-react';
 import { Button, Input, Textarea, Toggle, Select, Breadcrumb, Toast, Modal } from '@/components/ui';
 import { ImageDropzoneCropper } from '@/components/ui/image-dropzone-cropper';
 import { fetchApi, fetchAllPaginated } from '@/lib/api';
 import { getSafeImageUrl } from '@/lib/cart-session';
 import { useRouteVisibility } from '@/providers/DashboardVisibilityProvider';
+import { CmsDomIdBadge, CmsElementDesignEditor } from '@/components/dashboard/CmsElementDesignEditor';
+import {
+  CmsCustomBlockContentEditor,
+  CmsCustomViewsStudio,
+  CmsViewSettingsBar,
+} from '@/components/dashboard/CmsBuilderSubEditors';
+import type { CmsCustomBlock, CmsCustomViewRecord, CmsElementStyleConfig } from '@/lib/cms-builder';
 
-const VIEW_TABS = [
+const BUILTIN_MAIN_VIEWS = [
   { id: 'home', label: "Page d'accueil", icon: Home, publicHref: '/' },
   { id: 'articles', label: 'Tous les articles', icon: Package, publicHref: '/articles' },
   { id: 'product-detail', label: "Détails de l'article", icon: Eye, publicHref: '/articles' },
@@ -58,6 +72,16 @@ const VIEW_TABS = [
   { id: 'privacy', label: 'Politique de confidentialité', icon: Shield, publicHref: '/privacy' },
   { id: 'showrooms', label: "Salle d'exposition", icon: Store, publicHref: '/stores' },
 ];
+
+const BUILTIN_FLOW_VIEWS = [
+  { id: 'cart', label: 'Panier', icon: ShoppingBag, publicHref: '/cart' },
+  { id: 'checkout', label: 'Commande & Paiement', icon: CreditCard, publicHref: '/checkout' },
+  { id: 'compare', label: 'Comparateur Articles', icon: Layers, publicHref: '/compare' },
+  { id: 'wishlist', label: 'Favoris / Wishlist', icon: Heart, publicHref: '/wishlist' },
+  { id: 'track-order', label: 'Suivi Commande', icon: Truck, publicHref: '/track-order' },
+];
+
+const VIEW_TABS = [...BUILTIN_MAIN_VIEWS, ...BUILTIN_FLOW_VIEWS];
 
 interface ElementMeta {
   id: string;
@@ -89,6 +113,9 @@ const DEFAULT_TRUST_BADGES = [
 function AccordionElementCard({
   index,
   total,
+  viewKey,
+  elemId,
+  customDomId,
   title,
   summary,
   icon,
@@ -96,15 +123,21 @@ function AccordionElementCard({
   onToggleOpen,
   visible,
   onToggleVisible,
+  onDeleteCustom,
   isDragging,
   onDragStart,
   onDrop,
   onMoveUp,
   onMoveDown,
+  styleValue,
+  onChangeStyle,
   children,
 }: {
   index: number;
   total: number;
+  viewKey: string;
+  elemId: string;
+  customDomId?: string;
   title: string;
   summary: string;
   icon: React.ReactNode;
@@ -112,13 +145,18 @@ function AccordionElementCard({
   onToggleOpen: () => void;
   visible?: boolean;
   onToggleVisible?: (val: boolean) => void;
+  onDeleteCustom?: () => void;
   isDragging: boolean;
   onDragStart: () => void;
   onDrop: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
+  styleValue?: CmsElementStyleConfig;
+  onChangeStyle: (nextStyle: CmsElementStyleConfig) => void;
   children: React.ReactNode;
 }) {
+  const [activeInnerTab, setActiveInnerTab] = React.useState<'content' | 'design' | 'code'>('content');
+
   return (
     <div
       draggable
@@ -149,8 +187,9 @@ function AccordionElementCard({
             {icon}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-sm font-extrabold text-[var(--royal-ink)] truncate">{title}</h3>
+              <CmsDomIdBadge viewKey={viewKey} elemId={elemId} customDomId={customDomId} />
               {visible === false && (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
                   Masqué
@@ -161,7 +200,7 @@ function AccordionElementCard({
           </div>
         </div>
 
-        {/* Right Controls: Visibility Toggle + Up/Down + Détails Button (Open/Close Icon) */}
+        {/* Right Controls: Visibility Toggle + Up/Down + Delete Custom + Détails Button */}
         <div className="flex items-center gap-2 shrink-0">
           {onToggleVisible && typeof visible === 'boolean' && (
             <button
@@ -198,6 +237,16 @@ function AccordionElementCard({
             >
               <ArrowDown className="w-3.5 h-3.5" />
             </button>
+            {onDeleteCustom && (
+              <button
+                type="button"
+                onClick={onDeleteCustom}
+                title="Supprimer ce bloc Elementor"
+                className="p-1.5 rounded-lg border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 cursor-pointer transition"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           <button
@@ -216,10 +265,41 @@ function AccordionElementCard({
         </div>
       </div>
 
-      {/* Collapsible Details Editor */}
+      {/* Collapsible Details Editor with 3 Elementor Tabs */}
       {isOpen && (
-        <div className="px-4 sm:px-6 pb-6 pt-4 border-t border-[var(--royal-border)] bg-[var(--royal-bg)]/50 space-y-4 rounded-b-2xl">
-          {children}
+        <div className="px-4 sm:px-6 pb-6 pt-3 border-t border-[var(--royal-border)] bg-[var(--royal-bg)]/50 space-y-4 rounded-b-2xl">
+          <div className="flex flex-wrap items-center gap-2 border-b border-[var(--royal-border)] pb-3">
+            {[
+              { id: 'content', label: 'Contenu & Dynamique' },
+              { id: 'design', label: 'Design, Marge & Position' },
+              { id: 'code', label: 'CSS / JS (#id)' },
+            ].map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setActiveInnerTab(t.id as any)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  activeInnerTab === t.id
+                    ? 'bg-[var(--royal-primary)] text-white shadow-2xs'
+                    : 'bg-white text-slate-700 border border-[var(--royal-border)] hover:bg-[var(--royal-gold-light)]'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {activeInnerTab === 'content' ? (
+            children
+          ) : (
+            <CmsElementDesignEditor
+              viewKey={viewKey}
+              elemId={elemId}
+              value={styleValue}
+              onChange={onChangeStyle}
+              mode={activeInnerTab}
+            />
+          )}
         </div>
       )}
     </div>
@@ -551,7 +631,9 @@ function StorefrontViewsContent() {
   const router = useRouter();
   const { isRouteVisible } = useRouteVisibility();
   const activeView = searchParams.get('view') || 'home';
+  const customViewIdParam = searchParams.get('customId');
 
+  const [customViews, setCustomViews] = React.useState<CmsCustomViewRecord[]>([]);
   const [views, setViews] = React.useState<any>({
     home: {
       showHeroSlider: true,
@@ -559,6 +641,7 @@ function StorefrontViewsContent() {
       heroAutoplayMs: 6000,
       heroHeightPx: 720,
       heroAnimation: 'slide',
+      heroContentAlign: 'left',
       cardImageHeightPx: 280,
       sectionOrder: [
         'hero',
@@ -572,6 +655,7 @@ function StorefrontViewsContent() {
         'featuredVideo',
         'testimonials',
         'newsletter',
+        'bottomPromo',
       ],
       valuePropsItems: DEFAULT_VALUE_PROPS,
       editorialCards: DEFAULT_EDITORIAL_CARDS,
@@ -585,6 +669,10 @@ function StorefrontViewsContent() {
       showLifestyleGallery: true,
       showTestimonials: true,
       showNewsletter: true,
+      showBottomPromo: true,
+      elementStyles: {},
+      customBlocks: [],
+      viewStyle: {},
     },
     articles: {
       sectionOrder: ['header', 'filters', 'grid', 'actions', 'pagination'],
@@ -713,6 +801,71 @@ function StorefrontViewsContent() {
         'https://www.openstreetmap.org/export/embed.html?bbox=11.028%2C35.485%2C11.088%2C35.525&layer=mapnik&marker=35.5047%2C11.0622',
       showHours: true,
       showPhone: true,
+      elementStyles: {},
+      customBlocks: [],
+      viewStyle: {},
+    },
+    cart: {
+      sectionOrder: ['header', 'itemsList', 'guarantees', 'summary'],
+      showHeader: true,
+      badgeText: 'Mon Panier',
+      title: 'Votre Sélection Royal',
+      subtitle: 'Vérifiez vos articles, appliquez un code promo ou profitez de la livraison gratuite.',
+      showCouponBox: true,
+      showFreeShippingProgress: true,
+      showGuarantees: true,
+      checkoutCtaText: 'Finaliser la Commande',
+      elementStyles: {},
+      customBlocks: [],
+      viewStyle: {},
+    },
+    checkout: {
+      sectionOrder: ['header', 'contactStep', 'fulfillmentStep', 'shippingStep', 'paymentStep', 'notesStep', 'summary'],
+      badgeText: 'Commande Sécurisée',
+      title: 'Finaliser Votre Commande',
+      subtitle: 'Livraison rapide 24h–48h partout en Tunisie ou Retrait en Showroom Royal.',
+      showFulfillmentToggle: true,
+      allowDelivery: true,
+      allowShowroomPickup: true,
+      showCouponBox: true,
+      showNotesStep: true,
+      submitButtonText: 'Confirmer la Commande',
+      showroomPayLabel: 'Payer sur place (au showroom)',
+      elementStyles: {},
+      customBlocks: [],
+      viewStyle: {},
+    },
+    compare: {
+      sectionOrder: ['header', 'comparisonTable'],
+      badgeText: 'Comparateur Technique',
+      title: 'Comparer les Équipements',
+      subtitle: 'Analysez côte à côte prix, garanties et caractéristiques techniques jusqu’à 4 articles.',
+      maxCompareItems: 4,
+      showAddToCart: true,
+      elementStyles: {},
+      customBlocks: [],
+      viewStyle: {},
+    },
+    wishlist: {
+      sectionOrder: ['header', 'productsGrid'],
+      badgeText: 'Liste d’Envies',
+      title: 'Vos Articles Favoris',
+      subtitle: 'Retrouvez vos équipements enregistrés et ajoutez-les au panier en un clic.',
+      defaultColumns: '4',
+      cardImageHeightPx: 260,
+      elementStyles: {},
+      customBlocks: [],
+      viewStyle: {},
+    },
+    trackOrder: {
+      sectionOrder: ['header', 'searchForm', 'timelineResult'],
+      badgeText: 'Suivi Temps Réel',
+      title: 'Suivre Votre Commande',
+      subtitle: 'Saisissez votre référence CMD-... pour consulter l’état logistique de votre commande.',
+      showNineStepTimeline: true,
+      elementStyles: {},
+      customBlocks: [],
+      viewStyle: {},
     },
   });
 
@@ -807,7 +960,15 @@ function StorefrontViewsContent() {
           terms: { ...prev.terms, ...(cfg.views.terms || {}) },
           privacy: { ...prev.privacy, ...(cfg.views.privacy || {}) },
           showrooms: { ...prev.showrooms, ...(cfg.views.showrooms || {}) },
+          cart: { ...prev.cart, ...(cfg.views.cart || {}) },
+          checkout: { ...prev.checkout, ...(cfg.views.checkout || {}) },
+          compare: { ...prev.compare, ...(cfg.views.compare || {}) },
+          wishlist: { ...prev.wishlist, ...(cfg.views.wishlist || {}) },
+          trackOrder: { ...prev.trackOrder, ...(cfg.views.trackOrder || {}) },
         }));
+      }
+      if (Array.isArray(cfg?.customViews)) {
+        setCustomViews(cfg.customViews);
       }
       if (Array.isArray(cfg?.heroSlides)) {
         const validSlides = cfg.heroSlides.filter(
@@ -943,21 +1104,27 @@ function StorefrontViewsContent() {
   };
 
   // Map route param -> key inside `views` state
-  const viewStateKey = activeView === 'product-detail' ? 'productDetail' : activeView;
+  const viewStateKey =
+    activeView === 'product-detail'
+      ? 'productDetail'
+      : activeView === 'track-order'
+      ? 'trackOrder'
+      : activeView;
 
   const elementCatalogByView: Record<string, ElementMeta[]> = {
     home: [
       { id: 'hero', label: 'Slider Héro Principal + Barre Marques', summary: `${heroSlides.length} slide(s) · ${views.home.heroHeightPx ?? 720}px · ${views.home.heroAnimation || 'slide'}`, icon: <ImageIcon className="w-4 h-4" />, visibilityKey: 'showHeroSlider' },
       { id: 'categories', label: 'Carrousel Catégories', summary: `Titre : "${views.home.categoriesTitle || 'Explorer par Catégories'}"`, icon: <LayoutGrid className="w-4 h-4" />, visibilityKey: 'showCategoriesCarousel' },
       { id: 'valueProps', label: '4 Cartes Engagements Livraison & SAV', summary: `${(views.home.valuePropsItems || DEFAULT_VALUE_PROPS).length} cartes éditables`, icon: <ShieldCheck className="w-4 h-4" />, visibilityKey: 'showValueProps' },
-      { id: 'newArrivals', label: 'Carrousel Nouveautés', summary: `Titre : "${views.home.newArrivalsTitle || 'Nouveautés'}" · ${views.home.newArrivalsLimit ?? 16} max`, icon: <Sparkles className="w-4 h-4" />, visibilityKey: 'showNewArrivals' },
+      { id: 'newArrivals', label: 'Carrousel / Grille Nouveautés', summary: `Titre : "${views.home.newArrivalsTitle || 'Nouveautés'}" · ${views.home.newArrivalsLimit ?? 16} max`, icon: <Sparkles className="w-4 h-4" />, visibilityKey: 'showNewArrivals' },
       { id: 'featuredVideo', label: 'Coup de Cœur • Dernier Ajout', summary: `Badge : "${views.home.featuredVideoTag || 'Coup de Cœur • Dernier Ajout'}"`, icon: <Award className="w-4 h-4" />, visibilityKey: 'showFeaturedVideo' },
-      { id: 'topRated', label: 'Carrousel Mieux Notés', summary: `Titre : "${views.home.topRatedTitle || 'Mieux Notés'}"`, icon: <Sparkles className="w-4 h-4" />, visibilityKey: 'showTopRated' },
+      { id: 'topRated', label: 'Carrousel / Grille Mieux Notés', summary: `Titre : "${views.home.topRatedTitle || 'Mieux Notés'}"`, icon: <Sparkles className="w-4 h-4" />, visibilityKey: 'showTopRated' },
       { id: 'editorialBanner', label: 'Au Cœur des Foyers Tunisiens', summary: `Bloc : "${views.home.editorialTitle || 'Au Cœur des Foyers Tunisiens'}"`, icon: <Award className="w-4 h-4" />, visibilityKey: 'showEditorialBanner' },
-      { id: 'promotions', label: 'Carrousel Promotions', summary: `Titre : "${views.home.promotionsTitle || 'Promotions'}"`, icon: <Sparkles className="w-4 h-4" />, visibilityKey: 'showPromotions' },
+      { id: 'promotions', label: 'Carrousel / Grille Promotions', summary: `Titre : "${views.home.promotionsTitle || 'Promotions'}"`, icon: <Sparkles className="w-4 h-4" />, visibilityKey: 'showPromotions' },
       { id: 'lifestyle', label: 'Sélection Privilège Royal (Galerie)', summary: `Titre : "${views.home.lifestyleTitle || 'Sélection Privilège Royal'}"`, icon: <ImageIcon className="w-4 h-4" />, visibilityKey: 'showLifestyleGallery' },
       { id: 'testimonials', label: 'Témoignages Clients', summary: `Titre : "${views.home.testimonialsTitle || 'Ce que disent nos clients'}"`, icon: <MessageSquareQuote className="w-4 h-4" />, visibilityKey: 'showTestimonials' },
       { id: 'newsletter', label: 'Newsletter Club Privilège', summary: `Titre : "${views.home.newsletterTitle || 'Ne manquez aucune promotion Royal'}"`, icon: <Mail className="w-4 h-4" />, visibilityKey: 'showNewsletter' },
+      { id: 'bottomPromo', label: 'Encart Flottant Promo Bas de Page', summary: `Titre : "${views.home.bottomPromoTitle || 'Ambiance & Équipement Royal'}"`, icon: <Sparkles className="w-4 h-4" />, visibilityKey: 'showBottomPromo' },
     ],
     articles: [
       { id: 'header', label: 'En-tête & Bannière Catalogue', summary: `Titre : "${views.articles.headerTitle || 'Tous nos Articles'}"`, icon: <Package className="w-4 h-4" />, visibilityKey: 'showHeaderBanner' },
@@ -1000,9 +1167,50 @@ function StorefrontViewsContent() {
       { id: 'cards', label: 'Cartes Showrooms (Grille / Liste)', summary: `Mode : ${views.showrooms.layoutStyle === 'list' ? 'Liste détaillée' : 'Grille'}`, icon: <LayoutGrid className="w-4 h-4" /> },
       { id: 'map', label: 'Carte Localisation Showrooms', summary: `Hauteur : ${views.showrooms.mapHeightPx ?? 380}px`, icon: <MapPin className="w-4 h-4" />, visibilityKey: 'showMap' },
     ],
+    cart: [
+      { id: 'header', label: 'En-tête Page Panier', summary: `Titre : "${views.cart?.title || 'Votre Sélection Royal'}"`, icon: <ShoppingBag className="w-4 h-4" />, visibilityKey: 'showHeader' },
+      { id: 'itemsList', label: 'Liste des Articles & Quantités', summary: 'Vignettes, contrôle quantité +/- et sous-totaux', icon: <ListOrdered className="w-4 h-4" /> },
+      { id: 'guarantees', label: 'Encarts Réassurance Panier', summary: '3 garanties affichées sous les articles', icon: <ShieldCheck className="w-4 h-4" />, visibilityKey: 'showGuarantees' },
+      { id: 'summary', label: 'Résumé Commande, Promo & Livraison', summary: `CTA : "${views.cart?.checkoutCtaText || 'Finaliser la Commande'}"`, icon: <CreditCard className="w-4 h-4" /> },
+    ],
+    checkout: [
+      { id: 'header', label: 'En-tête Tunnel de Commande', summary: `Titre : "${views.checkout?.title || 'Finaliser Votre Commande'}"`, icon: <CreditCard className="w-4 h-4" /> },
+      { id: 'contactStep', label: 'Étape 1 · Coordonnées Client', summary: 'E-mail, Nom, Prénom, Téléphone', icon: <Mail className="w-4 h-4" /> },
+      { id: 'fulfillmentStep', label: 'Étape 2 · Livraison vs Retrait Showroom', summary: 'Basculer Domicile / Showroom', icon: <Store className="w-4 h-4" />, visibilityKey: 'showFulfillmentToggle' },
+      { id: 'shippingStep', label: 'Étape 3 · Adresse & Transporteurs', summary: 'Devis live Pays/Gouvernorat & choix transporteur', icon: <Truck className="w-4 h-4" /> },
+      { id: 'paymentStep', label: 'Étape 4 · Modes de Paiement', summary: `Showroom : "${views.checkout?.showroomPayLabel || 'Payer sur place (au showroom)'}"`, icon: <CreditCard className="w-4 h-4" /> },
+      { id: 'notesStep', label: 'Étape 5 · Notes & Instructions', summary: 'Instructions livreur / retrait showroom', icon: <Edit3 className="w-4 h-4" />, visibilityKey: 'showNotesStep' },
+      { id: 'summary', label: 'Encart Latéral Récapitulatif & Promo', summary: `Bouton : "${views.checkout?.submitButtonText || 'Confirmer la Commande'}"`, icon: <ShoppingBag className="w-4 h-4" /> },
+    ],
+    compare: [
+      { id: 'header', label: 'En-tête Comparateur', summary: `Titre : "${views.compare?.title || 'Comparer les Équipements'}"`, icon: <Layers className="w-4 h-4" /> },
+      { id: 'comparisonTable', label: 'Tableau Comparatif Côte à Côte', summary: `Max ${views.compare?.maxCompareItems ?? 4} articles`, icon: <LayoutGrid className="w-4 h-4" /> },
+    ],
+    wishlist: [
+      { id: 'header', label: 'En-tête Liste d’Envies', summary: `Titre : "${views.wishlist?.title || 'Vos Articles Favoris'}"`, icon: <Heart className="w-4 h-4" /> },
+      { id: 'productsGrid', label: 'Grille des Articles Favoris', summary: `${views.wishlist?.defaultColumns || '4'} colonnes · ${views.wishlist?.cardImageHeightPx ?? 260}px`, icon: <LayoutGrid className="w-4 h-4" /> },
+    ],
+    trackOrder: [
+      { id: 'header', label: 'En-tête Suivi de Commande', summary: `Titre : "${views.trackOrder?.title || 'Suivre Votre Commande'}"`, icon: <Truck className="w-4 h-4" /> },
+      { id: 'searchForm', label: 'Formulaire Recherche Référence', summary: 'Saisie numéro CMD-... et téléphone', icon: <Search className="w-4 h-4" /> },
+      { id: 'timelineResult', label: 'Frise Logistique 9 Étapes', summary: 'Statut détaillé, transporteur & showroom', icon: <ListOrdered className="w-4 h-4" />, visibilityKey: 'showNineStepTimeline' },
+    ],
   };
 
-  const rawCatalog = elementCatalogByView[viewStateKey] || [];
+  const viewCustomBlocks: CmsCustomBlock[] = Array.isArray(views[viewStateKey]?.customBlocks)
+    ? views[viewStateKey].customBlocks
+    : [];
+
+  const rawCatalog: Array<ElementMeta & { isCustomBlock?: boolean }> = [
+    ...(elementCatalogByView[viewStateKey] || []),
+    ...viewCustomBlocks.map((cb) => ({
+      id: cb.id,
+      label: cb.label || cb.type,
+      summary: `Bloc Elementor ${cb.type} · Ajouté manuellement`,
+      icon: <Sparkles className="w-4 h-4" />,
+      isCustomBlock: true,
+    })),
+  ];
   const rawOrder: string[] = Array.isArray(views[viewStateKey]?.sectionOrder)
     ? views[viewStateKey].sectionOrder
     : rawCatalog.map((e) => e.id);
@@ -1015,12 +1223,33 @@ function StorefrontViewsContent() {
   const currentTabInfo = VIEW_TABS.find((t) => t.id === activeView) || VIEW_TABS[0];
 
   const renderElementEditor = (viewKey: string, elemId: string) => {
+    if (elemId.startsWith('custom-')) {
+      const blocksList: CmsCustomBlock[] = Array.isArray(views[viewKey]?.customBlocks) ? views[viewKey].customBlocks : [];
+      const blkIdx = blocksList.findIndex((b) => b.id === elemId);
+      if (blkIdx >= 0) {
+        return (
+          <CmsCustomBlockContentEditor
+            block={blocksList[blkIdx]}
+            onChange={(updated) => {
+              const nextBlocks = [...blocksList];
+              nextBlocks[blkIdx] = updated;
+              setViews((prev: any) => ({
+                ...prev,
+                [viewKey]: { ...prev[viewKey], customBlocks: nextBlocks },
+              }));
+            }}
+            categories={cmsCategories}
+            products={cmsProducts}
+          />
+        );
+      }
+    }
     if (viewKey === 'home') {
       const h = views.home;
       if (elemId === 'hero') {
         return (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <Input label="Vitesse Autoplay (ms)" type="number" value={h.heroAutoplayMs} onChange={(e) => setViews({ ...views, home: { ...h, heroAutoplayMs: Number(e.target.value) || 6000 } })} />
               <Input label="Hauteur Bannière (px)" type="number" min={420} max={980} value={h.heroHeightPx ?? 720} onChange={(e) => setViews({ ...views, home: { ...h, heroHeightPx: Number(e.target.value) || 720 } })} />
               <Select
@@ -1031,6 +1260,15 @@ function StorefrontViewsContent() {
                   { value: 'slide', label: 'Glissement Latéral (Slide)' },
                   { value: 'fade', label: 'Fondu Doux (Fade)' },
                   { value: 'zoom', label: 'Zoom Cinématique (Scale)' },
+                ]}
+              />
+              <Select
+                label="Alignement Texte"
+                value={h.heroContentAlign || 'left'}
+                onChange={(e) => setViews({ ...views, home: { ...h, heroContentAlign: e.target.value } })}
+                options={[
+                  { value: 'left', label: 'Aligné à Gauche' },
+                  { value: 'center', label: 'Centré' },
                 ]}
               />
               <div className="flex items-end">
@@ -1081,9 +1319,11 @@ function StorefrontViewsContent() {
                       <Input label="Titre Principal" value={slide.title || ''} onChange={(e) => { const n = [...heroSlides]; n[idx] = { ...n[idx], title: e.target.value }; setHeroSlides(n); }} />
                       <Input label="Texte Mis en Avant" value={slide.highlightText || ''} onChange={(e) => { const n = [...heroSlides]; n[idx] = { ...n[idx], highlightText: e.target.value }; setHeroSlides(n); }} />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <Input label="Texte Bouton CTA" value={slide.primaryCtaText || ''} onChange={(e) => { const n = [...heroSlides]; n[idx] = { ...n[idx], primaryCtaText: e.target.value }; setHeroSlides(n); }} />
-                      <Input label="Lien Bouton CTA (Automatique ou Manuel)" value={slide.primaryCtaLink || ''} onChange={(e) => { const n = [...heroSlides]; n[idx] = { ...n[idx], primaryCtaLink: e.target.value }; setHeroSlides(n); }} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                      <Input label="Texte Bouton CTA Principal" value={slide.primaryCtaText || ''} onChange={(e) => { const n = [...heroSlides]; n[idx] = { ...n[idx], primaryCtaText: e.target.value }; setHeroSlides(n); }} />
+                      <Input label="Lien CTA Principal" value={slide.primaryCtaLink || ''} onChange={(e) => { const n = [...heroSlides]; n[idx] = { ...n[idx], primaryCtaLink: e.target.value }; setHeroSlides(n); }} />
+                      <Input label="Texte 2ème Bouton (Optionnel)" value={slide.secondaryCtaText || ''} onChange={(e) => { const n = [...heroSlides]; n[idx] = { ...n[idx], secondaryCtaText: e.target.value }; setHeroSlides(n); }} />
+                      <Input label="Lien 2ème Bouton" value={slide.secondaryCtaLink || ''} onChange={(e) => { const n = [...heroSlides]; n[idx] = { ...n[idx], secondaryCtaLink: e.target.value }; setHeroSlides(n); }} />
                     </div>
                     <CmsImageFieldWithPreview
                       label={`Image Bannière Slide #${idx + 1}`}
@@ -1148,9 +1388,10 @@ function StorefrontViewsContent() {
       if (elemId === 'categories') {
         return (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Input label="Sur-titre (Tag)" value={h.categoriesTag ?? 'Collections & Rayons'} onChange={(e) => setViews({ ...views, home: { ...h, categoriesTag: e.target.value } })} />
               <Input label="Titre Section Catégories" value={h.categoriesTitle ?? 'Explorer par Catégories'} onChange={(e) => setViews({ ...views, home: { ...h, categoriesTitle: e.target.value } })} />
+              <Input label="Hauteur Image Cartes (px)" type="number" min={160} max={360} value={h.categoriesCardHeightPx ?? 240} onChange={(e) => setViews({ ...views, home: { ...h, categoriesCardHeightPx: Number(e.target.value) || 240 } })} />
             </div>
             <DynamicTargetSelector
               label="Source Dynamique des Catégories Affichées"
@@ -1218,8 +1459,21 @@ function StorefrontViewsContent() {
                   { value: 'grid', label: 'Grille Multi-Lignes' },
                 ]}
               />
+              <Select
+                label="Colonnes (si Grille)"
+                value={String(h[`${prefix}Columns`] || '4')}
+                onChange={(e) => setViews({ ...views, home: { ...h, [`${prefix}Columns`]: e.target.value } })}
+                options={[
+                  { value: '3', label: '3 Colonnes' },
+                  { value: '4', label: '4 Colonnes' },
+                ]}
+              />
               <Input label="Max Articles" type="number" min={4} max={24} value={h[`${prefix}Limit`] ?? 16} onChange={(e) => setViews({ ...views, home: { ...h, [`${prefix}Limit`]: Number(e.target.value) || 16 } })} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
               <Input label="Hauteur Image Cartes (px)" type="number" min={180} max={420} value={h.cardImageHeightPx ?? 280} onChange={(e) => setViews({ ...views, home: { ...h, cardImageHeightPx: Number(e.target.value) || 280 } })} />
+              <Input label="Libellé Bouton « Voir tout »" value={h[`${prefix}ViewAllText`] ?? 'Voir tout'} onChange={(e) => setViews({ ...views, home: { ...h, [`${prefix}ViewAllText`]: e.target.value } })} />
+              <Toggle label="Afficher Bouton « Voir tout »" checked={h[`${prefix}ShowViewAll`] !== false} onChange={(v) => setViews({ ...views, home: { ...h, [`${prefix}ShowViewAll`]: v } })} />
             </div>
             <Input label="Description Sous-titre" value={h[`${prefix}Subtitle`] ?? defaults[prefix].sub} onChange={(e) => setViews({ ...views, home: { ...h, [`${prefix}Subtitle`]: e.target.value } })} />
             <DynamicTargetSelector
@@ -1244,11 +1498,24 @@ function StorefrontViewsContent() {
           : [];
         return (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Input label="Badge Coup de Cœur" value={h.featuredVideoTag ?? 'Coup de Cœur • Dernier Ajout au Catalogue'} onChange={(e) => setViews({ ...views, home: { ...h, featuredVideoTag: e.target.value } })} />
-              <div className="p-3 rounded-xl bg-white border border-[var(--royal-border)] text-xs text-slate-500 flex items-center">
-                Par défaut : dernier produit actif. Ou choisissez un article ciblé et une image personnalisée ci-dessous.
-              </div>
+              <Select
+                label="Disposition Média"
+                value={h.featuredVideoLayout || 'media-right'}
+                onChange={(e) => setViews({ ...views, home: { ...h, featuredVideoLayout: e.target.value } })}
+                options={[
+                  { value: 'media-right', label: 'Texte Gauche · Média Droite' },
+                  { value: 'media-left', label: 'Média Gauche · Texte Droite' },
+                ]}
+              />
+              <Input label="Hauteur Média (px)" type="number" min={280} max={680} value={h.featuredVideoHeightPx ?? 480} onChange={(e) => setViews({ ...views, home: { ...h, featuredVideoHeightPx: Number(e.target.value) || 480 } })} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Input label="Titre Personnalisé (vide = nom article)" value={h.featuredVideoTitleOverride || ''} onChange={(e) => setViews({ ...views, home: { ...h, featuredVideoTitleOverride: e.target.value } })} />
+              <Input label="Description Personnalisée (Optionnel)" value={h.featuredVideoSubtitleOverride || ''} onChange={(e) => setViews({ ...views, home: { ...h, featuredVideoSubtitleOverride: e.target.value } })} />
+              <Input label="Texte Bouton Acheter" value={h.featuredVideoBuyText ?? 'Acheter'} onChange={(e) => setViews({ ...views, home: { ...h, featuredVideoBuyText: e.target.value } })} />
+              <Input label="Texte Lien Fiche Produit" value={h.featuredVideoDetailText ?? 'Voir fiche complète'} onChange={(e) => setViews({ ...views, home: { ...h, featuredVideoDetailText: e.target.value } })} />
             </div>
             <CmsImageFieldWithPreview
               label="Image Visuelle Coup de Cœur (Optionnel)"
@@ -1276,9 +1543,11 @@ function StorefrontViewsContent() {
         const cards = Array.isArray(h.editorialCards) && h.editorialCards.length === 3 ? h.editorialCards : DEFAULT_EDITORIAL_CARDS;
         return (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Input label="Sur-titre" value={h.editorialTag ?? 'Nos Engagements & Réseau'} onChange={(e) => setViews({ ...views, home: { ...h, editorialTag: e.target.value } })} />
               <Input label="Titre Éditorial" value={h.editorialTitle ?? 'Au Cœur des Foyers Tunisiens'} onChange={(e) => setViews({ ...views, home: { ...h, editorialTitle: e.target.value } })} />
+              <Input label="Badge Carte Produit" value={h.editorialBadgeText ?? 'Référence Phare'} onChange={(e) => setViews({ ...views, home: { ...h, editorialBadgeText: e.target.value } })} />
+              <Input label="Texte Bouton CTA" value={h.editorialCtaText ?? 'Découvrir l’Article'} onChange={(e) => setViews({ ...views, home: { ...h, editorialCtaText: e.target.value } })} />
             </div>
             <Textarea label="Description" rows={2} value={h.editorialSubtitle ?? 'Royal sélectionne les meilleurs équipements culinaires et appareils électroménagers pour vous garantir fiabilité, sécurité et plaisir quotidien partout en Tunisie.'} onChange={(e) => setViews({ ...views, home: { ...h, editorialSubtitle: e.target.value } })} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1360,10 +1629,11 @@ function StorefrontViewsContent() {
       if (elemId === 'testimonials') {
         return (
           <div className="space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Input label="Sur-titre" value={h.testimonialsTag ?? 'Avis Clients Vérifiés'} onChange={(e) => setViews({ ...views, home: { ...h, testimonialsTag: e.target.value } })} />
               <Input label="Titre Section" value={h.testimonialsTitle ?? 'Ce que disent nos clients'} onChange={(e) => setViews({ ...views, home: { ...h, testimonialsTitle: e.target.value } })} />
               <Input label="Note Confiance" value={h.testimonialsBadge ?? '4.9 / 5 sur plus de 1 200 commandes'} onChange={(e) => setViews({ ...views, home: { ...h, testimonialsBadge: e.target.value } })} />
+              <Input label="Mention Bas de Carte" value={h.testimonialsVerifiedText ?? 'Achat Vérifié'} onChange={(e) => setViews({ ...views, home: { ...h, testimonialsVerifiedText: e.target.value } })} />
             </div>
             {isRouteVisible('/dashboard/seo/testimonials') && (
               <Link href="/dashboard/seo/testimonials" className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--royal-primary)] hover:underline">
@@ -1383,6 +1653,30 @@ function StorefrontViewsContent() {
             <div className="md:col-span-2 lg:col-span-4">
               <Input label="Description" value={h.newsletterSubtitle ?? 'Inscrivez-vous à notre newsletter pour recevoir nos nouveaux arrivages, ventes flash et codes promo exclusifs.'} onChange={(e) => setViews({ ...views, home: { ...h, newsletterSubtitle: e.target.value } })} />
             </div>
+          </div>
+        );
+      }
+      if (elemId === 'bottomPromo') {
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Input label="Badge Supérieur" value={h.bottomPromoBadge ?? 'Offres Privilèges'} onChange={(e) => setViews({ ...views, home: { ...h, bottomPromoBadge: e.target.value } })} />
+              <Input label="Titre Encart Promo" value={h.bottomPromoTitle ?? 'L’Excellence Électroménager chez Vous'} onChange={(e) => setViews({ ...views, home: { ...h, bottomPromoTitle: e.target.value } })} />
+              <Input label="Texte Bouton CTA" value={h.bottomPromoCtaText ?? 'Découvrir les Offres'} onChange={(e) => setViews({ ...views, home: { ...h, bottomPromoCtaText: e.target.value } })} />
+              <Input label="Lien CTA" value={h.bottomPromoCtaLink ?? '/articles?sortBy=promo'} onChange={(e) => setViews({ ...views, home: { ...h, bottomPromoCtaLink: e.target.value } })} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <Textarea label="Sous-titre Description" rows={2} value={h.bottomPromoSubtitle ?? 'Profitez de remises exclusives avec garantie constructeur officielle.'} onChange={(e) => setViews({ ...views, home: { ...h, bottomPromoSubtitle: e.target.value } })} />
+              </div>
+              <Input label="Hauteur Carte (px)" type="number" min={280} max={760} value={h.bottomPromoHeightPx ?? 480} onChange={(e) => setViews({ ...views, home: { ...h, bottomPromoHeightPx: Number(e.target.value) || 480 } })} />
+            </div>
+            <CmsImageFieldWithPreview
+              label="Image Fond Encart Flottant"
+              value={h.bottomPromoImageUrl || ''}
+              onChange={(url) => setViews({ ...views, home: { ...h, bottomPromoImageUrl: url } })}
+              aspectRatio={16 / 7}
+            />
           </div>
         );
       }
@@ -2050,6 +2344,142 @@ function StorefrontViewsContent() {
       }
     }
 
+    if (viewKey === 'cart') {
+      const ca = views.cart || {};
+      if (elemId === 'header') {
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input label="Badge Supérieur" value={ca.badgeText ?? 'Mon Panier'} onChange={(e) => setViews({ ...views, cart: { ...ca, badgeText: e.target.value } })} />
+            <Input label="Titre Page Panier" value={ca.title ?? 'Votre Sélection Royal'} onChange={(e) => setViews({ ...views, cart: { ...ca, title: e.target.value } })} />
+            <Input label="Sous-titre" value={ca.subtitle ?? ''} onChange={(e) => setViews({ ...views, cart: { ...ca, subtitle: e.target.value } })} />
+          </div>
+        );
+      }
+      if (elemId === 'itemsList') {
+        return (
+          <div className="p-3 rounded-xl bg-white border border-[var(--royal-border)] text-xs text-slate-600">
+            Affiche la liste interactive des articles du panier (quantité, suppression, prix promo). Configurez ses marges/paddings/design et CSS/JS ci-dessus via ses onglets Elementor.
+          </div>
+        );
+      }
+      if (elemId === 'guarantees') {
+        return (
+          <Toggle label="Afficher les 3 Encarts Réassurance" checked={ca.showGuarantees !== false} onChange={(v) => setViews({ ...views, cart: { ...ca, showGuarantees: v } })} />
+        );
+      }
+      if (elemId === 'summary') {
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <Input label="Texte Bouton Commander" value={ca.checkoutCtaText ?? 'Finaliser la Commande'} onChange={(e) => setViews({ ...views, cart: { ...ca, checkoutCtaText: e.target.value } })} />
+            <Toggle label="Afficher Champ Code Promo" checked={ca.showCouponBox !== false} onChange={(v) => setViews({ ...views, cart: { ...ca, showCouponBox: v } })} />
+            <Toggle label="Barre Seuil Livraison Gratuite" checked={ca.showFreeShippingProgress !== false} onChange={(v) => setViews({ ...views, cart: { ...ca, showFreeShippingProgress: v } })} />
+          </div>
+        );
+      }
+    }
+
+    if (viewKey === 'checkout') {
+      const ch = views.checkout || {};
+      if (elemId === 'header') {
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input label="Badge Supérieur" value={ch.badgeText ?? 'Commande Sécurisée'} onChange={(e) => setViews({ ...views, checkout: { ...ch, badgeText: e.target.value } })} />
+            <Input label="Titre Tunnel" value={ch.title ?? 'Finaliser Votre Commande'} onChange={(e) => setViews({ ...views, checkout: { ...ch, title: e.target.value } })} />
+            <Input label="Sous-titre" value={ch.subtitle ?? ''} onChange={(e) => setViews({ ...views, checkout: { ...ch, subtitle: e.target.value } })} />
+          </div>
+        );
+      }
+      if (elemId === 'fulfillmentStep') {
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Toggle label="Afficher Choix Domicile / Showroom" checked={ch.showFulfillmentToggle !== false} onChange={(v) => setViews({ ...views, checkout: { ...ch, showFulfillmentToggle: v } })} />
+            <Toggle label="Autoriser Livraison à Domicile" checked={ch.allowDelivery !== false} onChange={(v) => setViews({ ...views, checkout: { ...ch, allowDelivery: v } })} />
+            <Toggle label="Autoriser Retrait en Showroom" checked={ch.allowShowroomPickup !== false} onChange={(v) => setViews({ ...views, checkout: { ...ch, allowShowroomPickup: v } })} />
+          </div>
+        );
+      }
+      if (elemId === 'paymentStep') {
+        return (
+          <Input label="Libellé Paiement Retrait Showroom" value={ch.showroomPayLabel ?? 'Payer sur place (au showroom)'} onChange={(e) => setViews({ ...views, checkout: { ...ch, showroomPayLabel: e.target.value } })} />
+        );
+      }
+      if (elemId === 'summary') {
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+            <Input label="Texte Bouton Confirmation" value={ch.submitButtonText ?? 'Confirmer la Commande'} onChange={(e) => setViews({ ...views, checkout: { ...ch, submitButtonText: e.target.value } })} />
+            <Toggle label="Afficher Champ Code Promo" checked={ch.showCouponBox !== false} onChange={(v) => setViews({ ...views, checkout: { ...ch, showCouponBox: v } })} />
+          </div>
+        );
+      }
+      return (
+        <div className="p-3 rounded-xl bg-white border border-[var(--royal-border)] text-xs text-slate-600">
+          Bloc tunnel de commande connecté à l&apos;API `/orders` et `/deliveries/calculate-quote`. Personnalisez son design, marges/paddings et CSS/JS dans les onglets dédiés.
+        </div>
+      );
+    }
+
+    if (viewKey === 'compare') {
+      const cp = views.compare || {};
+      if (elemId === 'header') {
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input label="Badge Supérieur" value={cp.badgeText ?? 'Comparateur Technique'} onChange={(e) => setViews({ ...views, compare: { ...cp, badgeText: e.target.value } })} />
+            <Input label="Titre Page" value={cp.title ?? 'Comparer les Équipements'} onChange={(e) => setViews({ ...views, compare: { ...cp, title: e.target.value } })} />
+            <Input label="Sous-titre" value={cp.subtitle ?? ''} onChange={(e) => setViews({ ...views, compare: { ...cp, subtitle: e.target.value } })} />
+          </div>
+        );
+      }
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+          <Input label="Nombre max articles comparés" type="number" min={2} max={6} value={cp.maxCompareItems ?? 4} onChange={(e) => setViews({ ...views, compare: { ...cp, maxCompareItems: Number(e.target.value) || 4 } })} />
+          <Toggle label="Afficher Bouton Ajouter au Panier" checked={cp.showAddToCart !== false} onChange={(v) => setViews({ ...views, compare: { ...cp, showAddToCart: v } })} />
+        </div>
+      );
+    }
+
+    if (viewKey === 'wishlist') {
+      const wl = views.wishlist || {};
+      if (elemId === 'header') {
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input label="Badge Supérieur" value={wl.badgeText ?? 'Liste d’Envies'} onChange={(e) => setViews({ ...views, wishlist: { ...wl, badgeText: e.target.value } })} />
+            <Input label="Titre Page" value={wl.title ?? 'Vos Articles Favoris'} onChange={(e) => setViews({ ...views, wishlist: { ...wl, title: e.target.value } })} />
+            <Input label="Sous-titre" value={wl.subtitle ?? ''} onChange={(e) => setViews({ ...views, wishlist: { ...wl, subtitle: e.target.value } })} />
+          </div>
+        );
+      }
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Select
+            label="Colonnes Grille Favoris"
+            value={String(wl.defaultColumns || '4')}
+            onChange={(e) => setViews({ ...views, wishlist: { ...wl, defaultColumns: e.target.value } })}
+            options={[
+              { value: '3', label: '3 Colonnes' },
+              { value: '4', label: '4 Colonnes' },
+            ]}
+          />
+          <Input label="Hauteur Image Cartes (px)" type="number" min={180} max={400} value={wl.cardImageHeightPx ?? 260} onChange={(e) => setViews({ ...views, wishlist: { ...wl, cardImageHeightPx: Number(e.target.value) || 260 } })} />
+        </div>
+      );
+    }
+
+    if (viewKey === 'trackOrder') {
+      const tr = views.trackOrder || {};
+      if (elemId === 'header') {
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input label="Badge Supérieur" value={tr.badgeText ?? 'Suivi Temps Réel'} onChange={(e) => setViews({ ...views, trackOrder: { ...tr, badgeText: e.target.value } })} />
+            <Input label="Titre Page" value={tr.title ?? 'Suivre Votre Commande'} onChange={(e) => setViews({ ...views, trackOrder: { ...tr, title: e.target.value } })} />
+            <Input label="Sous-titre" value={tr.subtitle ?? ''} onChange={(e) => setViews({ ...views, trackOrder: { ...tr, subtitle: e.target.value } })} />
+          </div>
+        );
+      }
+      return (
+        <Toggle label="Afficher la Frise 9 Étapes Logistiques" checked={tr.showNineStepTimeline !== false} onChange={(v) => setViews({ ...views, trackOrder: { ...tr, showNineStepTimeline: v } })} />
+      );
+    }
+
     return null;
   };
 
@@ -2073,21 +2503,32 @@ function StorefrontViewsContent() {
 
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href={currentTabInfo.publicHref}
-              target="_blank"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[var(--royal-border)] bg-white hover:bg-[var(--royal-gold-light)] text-xs font-bold text-[var(--royal-ink)] transition"
+              href="/dashboard/root/storefront/layouts?section=custom-code"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#E6D6A6] bg-[#FBF6E8] hover:bg-[#F3E9C9] text-xs font-bold text-[#9A7414] transition"
             >
-              <ExternalLink className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
-              <span>Voir la page publique</span>
+              <Code2 className="w-3.5 h-3.5" />
+              <span>CSS/JS &amp; En-tête Global</span>
             </Link>
-            <Button variant="outline" size="sm" onClick={() => setResetModalOpen(true)} isLoading={resetting}>
-              <RotateCcw className="w-4 h-4" />
-              <span>Réinitialiser</span>
-            </Button>
-            <Button variant="gold" size="sm" onClick={handleSaveViews} isLoading={saving}>
-              <Save className="w-4 h-4" />
-              <span>Enregistrer la Vue</span>
-            </Button>
+            {activeView !== 'custom' && (
+              <>
+                <Link
+                  href={currentTabInfo.publicHref}
+                  target="_blank"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[var(--royal-border)] bg-white hover:bg-[var(--royal-gold-light)] text-xs font-bold text-[var(--royal-ink)] transition"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
+                  <span>Voir la page publique</span>
+                </Link>
+                <Button variant="outline" size="sm" onClick={() => setResetModalOpen(true)} isLoading={resetting}>
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Réinitialiser</span>
+                </Button>
+                <Button variant="gold" size="sm" onClick={handleSaveViews} isLoading={saving}>
+                  <Save className="w-4 h-4" />
+                  <span>Enregistrer la Vue</span>
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -2102,74 +2543,249 @@ function StorefrontViewsContent() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <aside className="lg:col-span-3 bg-white p-3 rounded-3xl border border-[var(--royal-border)] shadow-xs lg:sticky lg:top-24 space-y-1.5">
-          <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            Vues Vitrine ({VIEW_TABS.length})
+        <aside className="lg:col-span-3 bg-white p-3 rounded-3xl border border-[var(--royal-border)] shadow-xs lg:sticky lg:top-24 space-y-3">
+          <div className="space-y-1">
+            <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Vues Principales ({BUILTIN_MAIN_VIEWS.length})
+            </div>
+            {BUILTIN_MAIN_VIEWS.map((t) => {
+              const Icon = t.icon;
+              const active = activeView === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => router.replace(`/dashboard/root/storefront/views?view=${t.id}`, { scroll: false })}
+                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-2xl text-xs font-bold text-left transition cursor-pointer ${
+                    active
+                      ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)] shadow-xs'
+                      : 'text-[var(--royal-ink)] hover:bg-[var(--royal-gold-light)]'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-[var(--royal-primary-text)]' : 'text-[var(--royal-primary)]'}`} />
+                  <span className="truncate">{t.label}</span>
+                </button>
+              );
+            })}
           </div>
-          {VIEW_TABS.map((t) => {
-            const Icon = t.icon;
-            const active = activeView === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => router.replace(`/dashboard/root/storefront/views?view=${t.id}`, { scroll: false })}
-                className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-bold text-left transition cursor-pointer ${
-                  active
-                    ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)] shadow-xs'
-                    : 'text-[var(--royal-ink)] hover:bg-[var(--royal-gold-light)]'
-                }`}
-              >
-                <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-[var(--royal-primary-text)]' : 'text-[var(--royal-primary)]'}`} />
-                <span className="truncate">{t.label}</span>
-              </button>
-            );
-          })}
+
+          <div className="space-y-1 pt-2 border-t border-slate-100">
+            <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Vues Tunnel &amp; Client ({BUILTIN_FLOW_VIEWS.length})
+            </div>
+            {BUILTIN_FLOW_VIEWS.map((t) => {
+              const Icon = t.icon;
+              const active = activeView === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => router.replace(`/dashboard/root/storefront/views?view=${t.id}`, { scroll: false })}
+                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-2xl text-xs font-bold text-left transition cursor-pointer ${
+                    active
+                      ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)] shadow-xs'
+                      : 'text-[var(--royal-ink)] hover:bg-[var(--royal-gold-light)]'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-[var(--royal-primary-text)]' : 'text-[var(--royal-primary)]'}`} />
+                  <span className="truncate">{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="space-y-1 pt-2 border-t border-slate-100">
+            <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#9A7414]">
+              Vues Personnalisées ({customViews.length})
+            </div>
+            <button
+              type="button"
+              onClick={() => router.replace('/dashboard/root/storefront/views?view=custom', { scroll: false })}
+              className={`w-full flex items-center gap-2.5 px-3.5 py-2 rounded-2xl text-xs font-bold text-left transition cursor-pointer ${
+                activeView === 'custom' && !customViewIdParam
+                  ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)] shadow-xs'
+                  : 'text-[#9A7414] bg-[#FBF6E8]/70 hover:bg-[#FBF6E8]'
+              }`}
+            >
+              <FilePlus2 className="w-4 h-4 shrink-0" />
+              <span className="truncate">Gérer / Créer Pages (/pages)</span>
+            </button>
+            {customViews.map((cv) => {
+              const active = activeView === 'custom' && customViewIdParam === cv.id;
+              return (
+                <button
+                  key={cv.id}
+                  type="button"
+                  onClick={() =>
+                    router.replace(`/dashboard/root/storefront/views?view=custom&customId=${encodeURIComponent(cv.id)}`, { scroll: false })
+                  }
+                  className={`w-full flex items-center justify-between gap-2 px-3.5 py-2 rounded-2xl text-xs font-bold text-left transition cursor-pointer ${
+                    active
+                      ? 'bg-[var(--royal-primary)] text-[var(--royal-primary-text)] shadow-xs'
+                      : 'text-[var(--royal-ink)] hover:bg-[var(--royal-gold-light)]'
+                  }`}
+                >
+                  <span className="truncate">{cv.title}</span>
+                  <span className="text-[10px] font-mono opacity-75 shrink-0">/{cv.slug}</span>
+                </button>
+              );
+            })}
+          </div>
         </aside>
 
-        {/* Unified Ordered Accordion Element Cards for Selected View (All Closed By Default) */}
-        <div className="lg:col-span-9 space-y-3">
-        {orderedIds.map((elemId, idx) => {
-          const meta = rawCatalog.find((e) => e.id === elemId);
-          if (!meta) return null;
-          const isOpen = Boolean(openAccordions[elemId]);
-          const viewObj = views[viewStateKey] || {};
-          const vis = meta.visibilityKey ? viewObj[meta.visibilityKey] !== false : undefined;
-
-          return (
-            <AccordionElementCard
-              key={elemId}
-              index={idx}
-              total={orderedIds.length}
-              title={meta.label}
-              summary={meta.summary}
-              icon={meta.icon}
-              isOpen={isOpen}
-              onToggleOpen={() => toggleAccordion(elemId)}
-              visible={vis}
-              onToggleVisible={
-                meta.visibilityKey
-                  ? (nextVal) =>
-                      setViews((prev: any) => ({
-                        ...prev,
-                        [viewStateKey]: { ...prev[viewStateKey], [meta.visibilityKey!]: nextVal },
-                      }))
-                  : undefined
+        {/* Right Panel: Custom Views Studio OR Built-in Elementor View Stack */}
+        {activeView === 'custom' ? (
+          <div className="lg:col-span-9">
+            <CmsCustomViewsStudio
+              customViews={customViews}
+              selectedId={customViewIdParam}
+              onSelectId={(id) =>
+                router.replace(
+                  id ? `/dashboard/root/storefront/views?view=custom&customId=${encodeURIComponent(id)}` : '/dashboard/root/storefront/views?view=custom',
+                  { scroll: false },
+                )
               }
-              isDragging={dragIdx === idx}
-              onDragStart={() => setDragIdx(idx)}
-              onDrop={() => {
-                if (dragIdx !== null) moveOrder(viewStateKey, orderedIds, dragIdx, idx);
-                setDragIdx(null);
+              onRefreshConfig={loadAll}
+              categories={cmsCategories}
+              products={cmsProducts}
+              onNotify={(msg) => setToastMsg(msg)}
+            />
+          </div>
+        ) : (
+          <div className="lg:col-span-9 space-y-4">
+            <CmsViewSettingsBar
+              viewKey={viewStateKey}
+              viewLabel={currentTabInfo.label}
+              viewStyle={views[viewStateKey]?.viewStyle || {}}
+              onChangeViewStyle={(nextStyle) =>
+                setViews((prev: any) => ({
+                  ...prev,
+                  [viewStateKey]: { ...prev[viewStateKey], viewStyle: nextStyle },
+                }))
+              }
+              onAddCustomBlock={(newBlk) => {
+                setViews((prev: any) => {
+                  const curView = prev[viewStateKey] || {};
+                  const nextBlocks = [...(Array.isArray(curView.customBlocks) ? curView.customBlocks : []), newBlk];
+                  const nextOrder = [...orderedIds, newBlk.id];
+                  return {
+                    ...prev,
+                    [viewStateKey]: { ...curView, customBlocks: nextBlocks, sectionOrder: nextOrder },
+                  };
+                });
+                setOpenAccordions((prev) => ({ ...prev, [newBlk.id]: true }));
+                setToastMsg(`Bloc "${newBlk.label}" ajouté — n'oubliez pas d'enregistrer la vue !`);
               }}
-              onMoveUp={() => moveOrder(viewStateKey, orderedIds, idx, idx - 1)}
-              onMoveDown={() => moveOrder(viewStateKey, orderedIds, idx, idx + 1)}
-            >
-              {renderElementEditor(viewStateKey, elemId)}
-            </AccordionElementCard>
-          );
-        })}
-        </div>
+            />
+
+            <div className="space-y-3">
+              {orderedIds.map((elemId, idx) => {
+                const meta = rawCatalog.find((e) => e.id === elemId);
+                if (!meta) return null;
+                const isOpen = Boolean(openAccordions[elemId]);
+                const viewObj = views[viewStateKey] || {};
+                const vis = meta.isCustomBlock
+                  ? ((viewObj.customBlocks || []).find((b: any) => b.id === elemId)?.visible ?? true)
+                  : meta.visibilityKey
+                  ? viewObj[meta.visibilityKey] !== false
+                  : undefined;
+
+                const currentStyle: CmsElementStyleConfig = meta.isCustomBlock
+                  ? ((viewObj.customBlocks || []).find((b: any) => b.id === elemId)?.style || {})
+                  : (viewObj.elementStyles?.[elemId] || {});
+
+                const handleStyleChange = (nextStyle: CmsElementStyleConfig) => {
+                  if (meta.isCustomBlock) {
+                    setViews((prev: any) => {
+                      const blocks = Array.isArray(prev[viewStateKey]?.customBlocks)
+                        ? [...prev[viewStateKey].customBlocks]
+                        : [];
+                      const bi = blocks.findIndex((b: any) => b.id === elemId);
+                      if (bi >= 0) blocks[bi] = { ...blocks[bi], style: nextStyle };
+                      return {
+                        ...prev,
+                        [viewStateKey]: { ...prev[viewStateKey], customBlocks: blocks },
+                      };
+                    });
+                  } else {
+                    setViews((prev: any) => ({
+                      ...prev,
+                      [viewStateKey]: {
+                        ...prev[viewStateKey],
+                        elementStyles: {
+                          ...(prev[viewStateKey]?.elementStyles || {}),
+                          [elemId]: nextStyle,
+                        },
+                      },
+                    }));
+                  }
+                };
+
+                return (
+                  <AccordionElementCard
+                    key={elemId}
+                    index={idx}
+                    total={orderedIds.length}
+                    viewKey={viewStateKey}
+                    elemId={elemId}
+                    customDomId={currentStyle?.domId}
+                    title={meta.label}
+                    summary={meta.summary}
+                    icon={meta.icon}
+                    isOpen={isOpen}
+                    onToggleOpen={() => toggleAccordion(elemId)}
+                    visible={vis}
+                    onToggleVisible={
+                      meta.isCustomBlock
+                        ? (nextVal) =>
+                            setViews((prev: any) => {
+                              const blocks = [...(prev[viewStateKey]?.customBlocks || [])];
+                              const bi = blocks.findIndex((b: any) => b.id === elemId);
+                              if (bi >= 0) blocks[bi] = { ...blocks[bi], visible: nextVal };
+                              return {
+                                ...prev,
+                                [viewStateKey]: { ...prev[viewStateKey], customBlocks: blocks },
+                              };
+                            })
+                        : meta.visibilityKey
+                        ? (nextVal) =>
+                            setViews((prev: any) => ({
+                              ...prev,
+                              [viewStateKey]: { ...prev[viewStateKey], [meta.visibilityKey!]: nextVal },
+                            }))
+                        : undefined
+                    }
+                    onDeleteCustom={
+                      meta.isCustomBlock
+                        ? () =>
+                            setViews((prev: any) => ({
+                              ...prev,
+                              [viewStateKey]: {
+                                ...prev[viewStateKey],
+                                customBlocks: (prev[viewStateKey]?.customBlocks || []).filter((b: any) => b.id !== elemId),
+                                sectionOrder: orderedIds.filter((id) => id !== elemId),
+                              },
+                            }))
+                        : undefined
+                    }
+                    isDragging={dragIdx === idx}
+                    onDragStart={() => setDragIdx(idx)}
+                    onDrop={() => {
+                      if (dragIdx !== null) moveOrder(viewStateKey, orderedIds, dragIdx, idx);
+                      setDragIdx(null);
+                    }}
+                    onMoveUp={() => moveOrder(viewStateKey, orderedIds, idx, idx - 1)}
+                    onMoveDown={() => moveOrder(viewStateKey, orderedIds, idx, idx + 1)}
+                    styleValue={currentStyle}
+                    onChangeStyle={handleStyleChange}
+                  >
+                    {renderElementEditor(viewStateKey, elemId)}
+                  </AccordionElementCard>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       <Modal

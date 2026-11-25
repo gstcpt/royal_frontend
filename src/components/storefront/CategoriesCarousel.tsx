@@ -126,8 +126,11 @@ export function CategoriesCarousel({ categories }: CategoriesCarouselProps) {
                   href={`/articles?category=${cat.slug}`}
                   className="group block relative rounded-2xl overflow-hidden bg-[var(--royal-silver-light)] border border-[var(--royal-border)] transition-all duration-300 hover:border-[var(--royal-primary)] hover:shadow-lg"
                 >
-                  {/* Full-bleed responsive category card image with fixed height */}
-                  <div className="relative h-60 w-full bg-[var(--royal-card)] overflow-hidden">
+                  {/* Full-bleed responsive category card image with configurable height */}
+                  <div
+                    className="relative w-full bg-[var(--royal-card)] overflow-hidden"
+                    style={{ height: `${Math.max(150, Number(home.categoriesCardHeightPx || 240))}px` }}
+                  >
                     <img
                       src={imgUrl}
                       alt={cat.name}

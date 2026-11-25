@@ -149,7 +149,11 @@ export function TestimonialsCarousel() {
 
               <div className="mt-5 pt-3 border-t border-slate-200/60 flex items-center gap-2 text-[11px] text-emerald-700 font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span>{t('common.verified')}</span>
+                <span>
+                  {locale === 'ar'
+                    ? t('common.verified')
+                    : (config.views.home.testimonialsVerifiedText || t('common.verified'))}
+                </span>
               </div>
             </div>
             );

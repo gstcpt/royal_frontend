@@ -4,6 +4,12 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { useWishlistStore } from '@/stores/wishlist.store';
 import { useCompareStore } from '@/stores/compare.store';
 import { useI18nStore } from '@/stores/i18n.store';
+import type {
+  CmsCustomBlock,
+  CmsCustomViewRecord,
+  CmsElementStyleConfig,
+  CmsNavLinkItem,
+} from '@/lib/cms-builder';
 
 export interface CmsThemeConfig {
   primaryHex: string;
@@ -52,6 +58,12 @@ export interface CmsHeaderConfig {
   showCompare: boolean;
   showWishlist: boolean;
   showTrackOrder: boolean;
+  showCartButton?: boolean;
+  showAccountButton?: boolean;
+  transparentOnHome?: boolean;
+  stickyMode?: 'auto' | 'always' | 'static';
+  navLinks?: CmsNavLinkItem[];
+  elementStyles?: Record<string, CmsElementStyleConfig>;
 }
 
 export interface CmsFooterLink {
@@ -73,6 +85,11 @@ export interface CmsFooterConfig {
   showNewsletter?: boolean;
   newsletterTitle?: string;
   showSocialLinks?: boolean;
+  showAddress?: boolean;
+  showPhone?: boolean;
+  showWhatsapp?: boolean;
+  showEmail?: boolean;
+  elementStyles?: Record<string, CmsElementStyleConfig>;
 }
 
 export interface CmsTargetConfig {
@@ -102,20 +119,30 @@ export interface CmsHeroSlideConfig extends CmsTargetConfig {
   subtitle: string;
   primaryCtaText: string;
   primaryCtaLink: string;
+  secondaryCtaText?: string;
+  secondaryCtaLink?: string;
   imageUrl: string;
 }
 
+export interface CmsViewExtensibility {
+  elementStyles?: Record<string, CmsElementStyleConfig>;
+  customBlocks?: CmsCustomBlock[];
+  viewStyle?: CmsElementStyleConfig;
+}
+
 export interface CmsViewsConfig {
-  home: {
+  home: CmsViewExtensibility & {
     showHeroSlider: boolean;
     showBrandMarquee?: boolean;
     heroAutoplayMs: number;
     heroHeightPx?: number;
     heroAnimation?: 'slide' | 'fade' | 'zoom';
+    heroContentAlign?: 'left' | 'center';
     cardImageHeightPx?: number;
     sectionOrder?: string[];
     categoriesTag?: string;
     categoriesTitle?: string;
+    categoriesCardHeightPx?: number;
     categoriesTargetType?: 'AUTO' | 'CATEGORIES';
     categoriesTargetSlugs?: string[];
     valuePropsItems?: Array<{ title: string; subtitle: string }>;
@@ -124,10 +151,19 @@ export interface CmsViewsConfig {
     newArrivalsSubtitle?: string;
     newArrivalsLimit?: number;
     newArrivalsDisplayMode?: 'carousel' | 'grid';
+    newArrivalsColumns?: '3' | '4';
+    newArrivalsViewAllText?: string;
+    newArrivalsShowViewAll?: boolean;
     newArrivalsTargetType?: 'AUTO' | 'CATEGORIES' | 'ARTICLES';
     newArrivalsTargetCategorySlugs?: string[];
     newArrivalsTargetProductIds?: string[];
     featuredVideoTag?: string;
+    featuredVideoTitleOverride?: string;
+    featuredVideoSubtitleOverride?: string;
+    featuredVideoBuyText?: string;
+    featuredVideoDetailText?: string;
+    featuredVideoLayout?: 'media-right' | 'media-left';
+    featuredVideoHeightPx?: number;
     featuredVideoCustomImageUrl?: string;
     featuredVideoTargetType?: 'AUTO' | 'ARTICLES';
     featuredVideoTargetProductId?: string;
@@ -137,6 +173,9 @@ export interface CmsViewsConfig {
     topRatedSubtitle?: string;
     topRatedLimit?: number;
     topRatedDisplayMode?: 'carousel' | 'grid';
+    topRatedColumns?: '3' | '4';
+    topRatedViewAllText?: string;
+    topRatedShowViewAll?: boolean;
     topRatedTargetType?: 'AUTO' | 'CATEGORIES' | 'ARTICLES';
     topRatedTargetCategorySlugs?: string[];
     topRatedTargetProductIds?: string[];
@@ -145,6 +184,9 @@ export interface CmsViewsConfig {
     editorialSubtitle?: string;
     editorialStatTitle?: string;
     editorialStatDesc?: string;
+    editorialBadgeText?: string;
+    editorialCtaText?: string;
+    editorialLayout?: 'stat-left' | 'stat-right';
     editorialCards?: Array<{ title: string; desc: string }>;
     editorialCustomImageUrl?: string;
     editorialTargetType?: 'AUTO' | 'CATEGORIES' | 'ARTICLES';
@@ -155,6 +197,9 @@ export interface CmsViewsConfig {
     promotionsSubtitle?: string;
     promotionsLimit?: number;
     promotionsDisplayMode?: 'carousel' | 'grid';
+    promotionsColumns?: '3' | '4';
+    promotionsViewAllText?: string;
+    promotionsShowViewAll?: boolean;
     promotionsTargetType?: 'AUTO' | 'CATEGORIES' | 'ARTICLES';
     promotionsTargetCategorySlugs?: string[];
     promotionsTargetProductIds?: string[];
@@ -168,11 +213,19 @@ export interface CmsViewsConfig {
     testimonialsTag?: string;
     testimonialsTitle?: string;
     testimonialsBadge?: string;
+    testimonialsVerifiedText?: string;
     newsletterTag?: string;
     newsletterTitle?: string;
     newsletterSubtitle?: string;
     newsletterPlaceholder?: string;
     newsletterButtonText?: string;
+    bottomPromoBadge?: string;
+    bottomPromoTitle?: string;
+    bottomPromoSubtitle?: string;
+    bottomPromoCtaText?: string;
+    bottomPromoCtaLink?: string;
+    bottomPromoImageUrl?: string;
+    bottomPromoHeightPx?: number;
     showCategoriesCarousel: boolean;
     showValueProps: boolean;
     showNewArrivals: boolean;
@@ -183,8 +236,9 @@ export interface CmsViewsConfig {
     showLifestyleGallery: boolean;
     showTestimonials: boolean;
     showNewsletter: boolean;
+    showBottomPromo?: boolean;
   };
-  articles: {
+  articles: CmsViewExtensibility & {
     sectionOrder?: string[];
     headerBadge?: string;
     headerTitle?: string;
@@ -212,7 +266,7 @@ export interface CmsViewsConfig {
     targetCategorySlugs?: string[];
     targetProductIds?: string[];
   };
-  productDetail: {
+  productDetail: CmsViewExtensibility & {
     sectionOrder?: string[];
     showBreadcrumb?: boolean;
     showDescription?: boolean;
@@ -251,7 +305,7 @@ export interface CmsViewsConfig {
     galleryHeightPx?: number;
     defaultTab?: 'desc' | 'specs' | 'reviews' | 'delivery';
   };
-  contact: {
+  contact: CmsViewExtensibility & {
     sectionOrder?: string[];
     badgeText?: string;
     title?: string;
@@ -272,7 +326,7 @@ export interface CmsViewsConfig {
     emailRequired: boolean;
     subjectRequired: boolean;
   };
-  faq: {
+  faq: CmsViewExtensibility & {
     sectionOrder?: string[];
     badgeText?: string;
     title: string;
@@ -284,21 +338,21 @@ export interface CmsViewsConfig {
     ctaSubtitle?: string;
     ctaButtonText?: string;
   };
-  terms?: {
+  terms?: CmsViewExtensibility & {
     sectionOrder?: string[];
     showBackLink?: boolean;
     badgeText?: string;
     showFooterNote?: boolean;
     footerNoteText?: string;
   };
-  privacy?: {
+  privacy?: CmsViewExtensibility & {
     sectionOrder?: string[];
     showBackLink?: boolean;
     badgeText?: string;
     showFooterNote?: boolean;
     footerNoteText?: string;
   };
-  showrooms: {
+  showrooms: CmsViewExtensibility & {
     enabled?: boolean;
     sectionOrder?: string[];
     badgeText?: string;
@@ -310,6 +364,53 @@ export interface CmsViewsConfig {
     mapEmbedUrl?: string;
     showHours: boolean;
     showPhone: boolean;
+  };
+  cart?: CmsViewExtensibility & {
+    sectionOrder?: string[];
+    showHeader?: boolean;
+    badgeText?: string;
+    title?: string;
+    subtitle?: string;
+    showCouponBox?: boolean;
+    showFreeShippingProgress?: boolean;
+    showGuarantees?: boolean;
+    checkoutCtaText?: string;
+  };
+  checkout?: CmsViewExtensibility & {
+    sectionOrder?: string[];
+    badgeText?: string;
+    title?: string;
+    subtitle?: string;
+    showFulfillmentToggle?: boolean;
+    allowDelivery?: boolean;
+    allowShowroomPickup?: boolean;
+    showCouponBox?: boolean;
+    showNotesStep?: boolean;
+    submitButtonText?: string;
+    showroomPayLabel?: string;
+  };
+  compare?: CmsViewExtensibility & {
+    sectionOrder?: string[];
+    badgeText?: string;
+    title?: string;
+    subtitle?: string;
+    maxCompareItems?: number;
+    showAddToCart?: boolean;
+  };
+  wishlist?: CmsViewExtensibility & {
+    sectionOrder?: string[];
+    badgeText?: string;
+    title?: string;
+    subtitle?: string;
+    defaultColumns?: string;
+    cardImageHeightPx?: number;
+  };
+  trackOrder?: CmsViewExtensibility & {
+    sectionOrder?: string[];
+    badgeText?: string;
+    title?: string;
+    subtitle?: string;
+    showNineStepTimeline?: boolean;
   };
 }
 
@@ -340,6 +441,8 @@ export interface CmsConfig {
   header: CmsHeaderConfig;
   footer: CmsFooterConfig;
   views: CmsViewsConfig;
+  customViews?: CmsCustomViewRecord[];
+  globalCustomCode?: { customCss?: string; customJs?: string };
   heroSlides?: CmsHeroSlideConfig[];
   testimonials: CmsTestimonialItem[];
   contact: Record<string, string>;
@@ -394,6 +497,17 @@ const DEFAULT_CONFIG: CmsConfig = {
     showCompare: true,
     showWishlist: true,
     showTrackOrder: true,
+    showCartButton: true,
+    showAccountButton: true,
+    transparentOnHome: true,
+    stickyMode: 'auto',
+    navLinks: [
+      { id: 'nav-home', label: 'Accueil', href: '/', i18nKey: 'nav.home', visible: true, highlight: false },
+      { id: 'nav-articles', label: 'Articles', href: '/articles', i18nKey: 'nav.articles', visible: true, highlight: false },
+      { id: 'nav-rays', label: 'Rayons', href: '#rays', type: 'RAYONS_DROPDOWN', i18nKey: 'nav.rays', visible: true, highlight: false },
+      { id: 'nav-promos', label: 'Promotions', href: '/articles?sortBy=promo', i18nKey: 'nav.promos', visible: true, highlight: true },
+    ],
+    elementStyles: {},
   },
   footer: {
     aboutDescription:
@@ -420,7 +534,14 @@ const DEFAULT_CONFIG: CmsConfig = {
     showNewsletter: true,
     newsletterTitle: 'Restez Informé de nos Offres & Nouveautés',
     showSocialLinks: true,
+    showAddress: true,
+    showPhone: true,
+    showWhatsapp: true,
+    showEmail: true,
+    elementStyles: {},
   },
+  customViews: [],
+  globalCustomCode: { customCss: '', customJs: '' },
   views: {
     home: {
       showHeroSlider: true,
@@ -440,6 +561,7 @@ const DEFAULT_CONFIG: CmsConfig = {
         'featuredVideo',
         'testimonials',
         'newsletter',
+        'bottomPromo',
       ],
       showCategoriesCarousel: true,
       showValueProps: true,
@@ -451,6 +573,10 @@ const DEFAULT_CONFIG: CmsConfig = {
       showLifestyleGallery: true,
       showTestimonials: true,
       showNewsletter: true,
+      showBottomPromo: true,
+      elementStyles: {},
+      customBlocks: [],
+      viewStyle: {},
     },
     articles: {
       sectionOrder: ['header', 'filters', 'grid', 'actions', 'pagination'],
@@ -550,6 +676,66 @@ const DEFAULT_CONFIG: CmsConfig = {
       showMap: true,
       showHours: true,
       showPhone: true,
+    },
+    cart: {
+      sectionOrder: ['header', 'itemsList', 'guarantees', 'summary'],
+      showHeader: true,
+      badgeText: 'Mon Panier',
+      title: 'Votre Sélection Royal',
+      subtitle: 'Vérifiez vos articles, appliquez un code promo ou profitez de la livraison gratuite.',
+      showCouponBox: true,
+      showFreeShippingProgress: true,
+      showGuarantees: true,
+      elementStyles: {},
+      customBlocks: [],
+      viewStyle: {},
+    },
+    checkout: {
+      sectionOrder: ['header', 'contactStep', 'fulfillmentStep', 'shippingStep', 'paymentStep', 'notesStep', 'summary'],
+      badgeText: 'Commande Sécurisée',
+      title: 'Finaliser Votre Commande',
+      subtitle: 'Livraison rapide 24h–48h partout en Tunisie ou Retrait en Showroom Royal.',
+      showFulfillmentToggle: true,
+      allowDelivery: true,
+      allowShowroomPickup: true,
+      showCouponBox: true,
+      showNotesStep: true,
+      showroomPayLabel: 'Payer sur place (au showroom)',
+      elementStyles: {},
+      customBlocks: [],
+      viewStyle: {},
+    },
+    compare: {
+      sectionOrder: ['header', 'comparisonTable'],
+      badgeText: 'Comparateur Technique',
+      title: 'Comparer les Équipements',
+      subtitle: 'Analysez côte à côte prix, garanties et caractéristiques techniques jusqu’à 4 articles.',
+      maxCompareItems: 4,
+      showAddToCart: true,
+      elementStyles: {},
+      customBlocks: [],
+      viewStyle: {},
+    },
+    wishlist: {
+      sectionOrder: ['header', 'productsGrid'],
+      badgeText: 'Liste d’Envies',
+      title: 'Vos Articles Favoris',
+      subtitle: 'Retrouvez vos équipements enregistrés et ajoutez-les au panier en un clic.',
+      defaultColumns: '4',
+      cardImageHeightPx: 260,
+      elementStyles: {},
+      customBlocks: [],
+      viewStyle: {},
+    },
+    trackOrder: {
+      sectionOrder: ['header', 'searchForm', 'timelineResult'],
+      badgeText: 'Suivi Temps Réel',
+      title: 'Suivre Votre Commande',
+      subtitle: 'Saisissez votre référence CMD-... pour consulter l’état logistique de votre commande.',
+      showNineStepTimeline: true,
+      elementStyles: {},
+      customBlocks: [],
+      viewStyle: {},
     },
   },
   testimonials: [],
@@ -746,6 +932,16 @@ export function CmsConfigProvider({ children }: { children: React.ReactNode }) {
               terms: { ...DEFAULT_CONFIG.views.terms, ...(data.views?.terms || {}) },
               privacy: { ...DEFAULT_CONFIG.views.privacy, ...(data.views?.privacy || {}) },
               showrooms: { ...DEFAULT_CONFIG.views.showrooms, ...(data.views?.showrooms || {}) },
+              cart: { ...DEFAULT_CONFIG.views.cart, ...(data.views?.cart || {}) },
+              checkout: { ...DEFAULT_CONFIG.views.checkout, ...(data.views?.checkout || {}) },
+              compare: { ...DEFAULT_CONFIG.views.compare, ...(data.views?.compare || {}) },
+              wishlist: { ...DEFAULT_CONFIG.views.wishlist, ...(data.views?.wishlist || {}) },
+              trackOrder: { ...DEFAULT_CONFIG.views.trackOrder, ...(data.views?.trackOrder || {}) },
+            },
+            customViews: Array.isArray(data.customViews) ? data.customViews : [],
+            globalCustomCode: {
+              customCss: data.globalCustomCode?.customCss || '',
+              customJs: data.globalCustomCode?.customJs || '',
             },
           };
           setConfig(merged);

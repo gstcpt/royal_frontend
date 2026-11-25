@@ -6,6 +6,8 @@ import { ChevronDown, HelpCircle, MessageCircle, ArrowRight, Search } from 'luci
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
 import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHeader';
+import { CmsOrderedSections, CmsViewCodeInjector } from '@/components/storefront/CmsElementRuntime';
+import { buildCmsInlineStyle } from '@/lib/cms-builder';
 
 interface FaqItem {
   id: string;
@@ -18,7 +20,6 @@ export default function FaqPage() {
   const { config } = useCmsConfig();
   const { locale, t } = useI18nStore();
   const faqCfg = config.views.faq;
-  const order = Array.isArray(faqCfg.sectionOrder) && faqCfg.sectionOrder.length > 0 ? faqCfg.sectionOrder : ['hero', 'categories', 'questions', 'cta'];
 
   const [faqs, setFaqs] = useState<FaqItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,9 +169,19 @@ export default function FaqPage() {
   };
 
   return (
-    <div className="bg-[var(--royal-bg)] min-h-screen py-10 sm:py-12">
+    <div
+      id={faqCfg.viewStyle?.domId?.trim() || 'royal-view-faq'}
+      style={buildCmsInlineStyle(faqCfg.viewStyle)}
+      className="bg-[var(--royal-bg)] min-h-screen py-10 sm:py-12"
+    >
+      <CmsViewCodeInjector viewKey="faq" viewStyle={faqCfg.viewStyle} />
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
-        {order.map((sec) => blocks[sec] || null)}
+        <CmsOrderedSections
+          viewKey="faq"
+          viewCfg={faqCfg}
+          defaultOrder={['hero', 'categories', 'questions', 'cta']}
+          sections={blocks}
+        />
       </div>
     </div>
   );

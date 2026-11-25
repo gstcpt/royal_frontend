@@ -9,10 +9,15 @@ import { useI18nStore } from '@/stores/i18n.store';
 import { getCartHeaders, getSafeImageUrl } from '@/lib/cart-session';
 import { ProductCard, StorefrontProduct } from '@/components/storefront/ProductCard';
 import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHeader';
+import { CmsOrderedSections, CmsViewCodeInjector } from '@/components/storefront/CmsElementRuntime';
+import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { buildCmsInlineStyle } from '@/lib/cms-builder';
 import { Heart, ShoppingBag, ArrowRight, Check } from 'lucide-react';
 
 export default function WishlistPage() {
-  const { t } = useI18nStore();
+  const { config } = useCmsConfig();
+  const { locale, t } = useI18nStore();
+  const wishCfg = config.views.wishlist || {};
   const { items, removeItem, clearWishlist, setItems } = useWishlistStore();
   const { addItem: addToCart } = useCartStore();
   const { isAuthenticated } = useAuthStore();
@@ -118,16 +123,20 @@ export default function WishlistPage() {
     setTimeout(() => setAddedAll(false), 2500);
   };
 
-  return (
-    <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 py-10 sm:py-12">
+  const wishColsClass =
+    wishCfg.defaultColumns === '3' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6';
+
+  const wishSections: Record<string, React.ReactNode> = {
+    header: (
       <StorefrontPageHeader
-        title={`${t('wishlist.title')} (${cardProducts.length})`}
+        key="header"
+        title={`${locale === 'ar' ? t('wishlist.title') : (wishCfg.title || t('wishlist.title'))} (${cardProducts.length})`}
         breadcrumbLabel={t('nav.wishlist')}
-        subtitle={t('wishlist.subtitle')}
+        subtitle={locale === 'ar' ? t('wishlist.subtitle') : (wishCfg.subtitle || t('wishlist.subtitle'))}
         badge={
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)]">
             <Heart className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
-            <span>{t('wishlist.badge')}</span>
+            <span>{locale === 'ar' ? t('wishlist.badge') : (wishCfg.badgeText || t('wishlist.badge'))}</span>
           </div>
         }
         rightSlot={
@@ -152,10 +161,10 @@ export default function WishlistPage() {
           ) : undefined
         }
       />
-
-      {/* Empty State or Canonical ProductCard Grid */}
-      {cardProducts.length === 0 ? (
-        <div className="text-center py-20 sm:py-24 bg-[#F8F9FA] rounded-[32px] border border-neutral-200 p-6 sm:p-8">
+    ),
+    productsGrid:
+      cardProducts.length === 0 ? (
+        <div key="productsGrid" className="text-center py-20 sm:py-24 bg-[#F8F9FA] rounded-[32px] border border-neutral-200 p-6 sm:p-8">
           <div className="w-16 h-16 rounded-full bg-white text-neutral-400 flex items-center justify-center mx-auto mb-4 border border-neutral-200 shadow-sm">
             <Heart className="w-8 h-8" />
           </div>
@@ -174,12 +183,33 @@ export default function WishlistPage() {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div key="productsGrid" className={`grid ${wishColsClass}`}>
           {cardProducts.map((product) => (
-            <ProductCard key={product.id} product={product} layout="grid" />
+            <ProductCard
+              key={product.id}
+              product={product}
+              layout="grid"
+              imageHeightPx={wishCfg.cardImageHeightPx}
+            />
           ))}
         </div>
-      )}
+      ),
+  };
+
+  return (
+    <div
+      id={wishCfg.viewStyle?.domId?.trim() || 'royal-view-wishlist'}
+      style={buildCmsInlineStyle(wishCfg.viewStyle)}
+      className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 py-10 sm:py-12"
+    >
+      <CmsViewCodeInjector viewKey="wishlist" viewStyle={wishCfg.viewStyle} />
+      <CmsOrderedSections
+        viewKey="wishlist"
+        viewCfg={wishCfg}
+        defaultOrder={['header', 'productsGrid']}
+        sections={wishSections}
+        products={cardProducts}
+      />
     </div>
   );
 }

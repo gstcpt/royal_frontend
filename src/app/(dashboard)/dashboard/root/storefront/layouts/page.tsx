@@ -10,9 +10,17 @@ import {
   Sliders,
   Sparkles,
   RotateCcw,
+  Code2,
+  Plus,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  Link2,
 } from 'lucide-react';
 import { Button, Input, Textarea, Select, Toggle, Breadcrumb, Toast, Modal } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
+import { CmsDomIdBadge, CmsElementDesignEditor } from '@/components/dashboard/CmsElementDesignEditor';
+import type { CmsCustomViewRecord, CmsElementStyleConfig, CmsNavLinkItem } from '@/lib/cms-builder';
 
 function StorefrontLayoutsContent() {
   const searchParams = useSearchParams();
@@ -37,13 +45,37 @@ function StorefrontLayoutsContent() {
     arabicFont: 'Cairo',
   });
 
-  const [header, setHeader] = React.useState({
+  const [header, setHeader] = React.useState<{
+    announcementText: string;
+    showSearch: boolean;
+    showLanguageSwitch: boolean;
+    showCompare: boolean;
+    showWishlist: boolean;
+    showTrackOrder: boolean;
+    showCartButton: boolean;
+    showAccountButton: boolean;
+    transparentOnHome: boolean;
+    stickyMode: 'auto' | 'always' | 'static';
+    navLinks: CmsNavLinkItem[];
+    elementStyles: Record<string, CmsElementStyleConfig>;
+  }>({
     announcementText: 'Livraison 24–48h partout en Tunisie',
     showSearch: true,
     showLanguageSwitch: true,
     showCompare: true,
     showWishlist: true,
     showTrackOrder: true,
+    showCartButton: true,
+    showAccountButton: true,
+    transparentOnHome: true,
+    stickyMode: 'auto',
+    navLinks: [
+      { id: 'nav-home', label: 'Accueil', href: '/', i18nKey: 'nav.home', visible: true, highlight: false },
+      { id: 'nav-articles', label: 'Articles', href: '/articles', i18nKey: 'nav.articles', visible: true, highlight: false },
+      { id: 'nav-rays', label: 'Rayons', href: '#rays', type: 'RAYONS_DROPDOWN', i18nKey: 'nav.rays', visible: true, highlight: false },
+      { id: 'nav-promos', label: 'Promotions', href: '/articles?sortBy=promo', i18nKey: 'nav.promos', visible: true, highlight: true },
+    ],
+    elementStyles: {},
   });
 
   const [footer, setFooter] = React.useState<{
@@ -60,6 +92,11 @@ function StorefrontLayoutsContent() {
     showNewsletter?: boolean;
     newsletterTitle?: string;
     showSocialLinks?: boolean;
+    showAddress?: boolean;
+    showPhone?: boolean;
+    showWhatsapp?: boolean;
+    showEmail?: boolean;
+    elementStyles?: Record<string, CmsElementStyleConfig>;
   }>({
     aboutDescription: '',
     col1Title: 'À Propos',
@@ -84,7 +121,18 @@ function StorefrontLayoutsContent() {
     showNewsletter: true,
     newsletterTitle: 'Restez Informé de nos Offres & Nouveautés',
     showSocialLinks: true,
+    showAddress: true,
+    showPhone: true,
+    showWhatsapp: true,
+    showEmail: true,
+    elementStyles: {},
   });
+
+  const [globalCustomCode, setGlobalCustomCode] = React.useState<{ customCss: string; customJs: string }>({
+    customCss: '',
+    customJs: '',
+  });
+  const [customViews, setCustomViews] = React.useState<CmsCustomViewRecord[]>([]);
 
   const [saving, setSaving] = React.useState(false);
   const [resetModalOpen, setResetModalOpen] = React.useState(false);
@@ -96,6 +144,8 @@ function StorefrontLayoutsContent() {
         if (cfg?.theme) setTheme((prev) => ({ ...prev, ...cfg.theme }));
         if (cfg?.header) setHeader((prev) => ({ ...prev, ...cfg.header }));
         if (cfg?.footer) setFooter((prev) => ({ ...prev, ...cfg.footer }));
+        if (cfg?.globalCustomCode) setGlobalCustomCode({ customCss: cfg.globalCustomCode.customCss || '', customJs: cfg.globalCustomCode.customJs || '' });
+        if (Array.isArray(cfg?.customViews)) setCustomViews(cfg.customViews);
       })
       .catch(() => null);
   }, []);
@@ -106,12 +156,12 @@ function StorefrontLayoutsContent() {
     try {
       await fetchApi('/storefront-cms/cms/layout', {
         method: 'PATCH',
-        body: JSON.stringify({ theme, header, footer }),
+        body: JSON.stringify({ theme, header, footer, globalCustomCode }),
       });
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('royal-cms-updated'));
       }
-      setToastMsg('Mise en page, couleurs, polices, en-tête et pied de page sauvegardés et appliqués en direct !');
+      setToastMsg('Mise en page, en-tête, pied de page et CSS/JS global sauvegardés et appliqués en direct !');
     } finally {
       setSaving(false);
     }
@@ -200,6 +250,7 @@ function StorefrontLayoutsContent() {
             { id: 'design', label: 'Mise en page & Couleurs', href: '/dashboard/root/storefront/layouts', icon: Palette },
             { id: 'header', label: 'En-tête & Menu', href: '/dashboard/root/storefront/layouts?section=header', icon: Layout },
             { id: 'footer', label: 'Pied de page (4 Colonnes)', href: '/dashboard/root/storefront/layouts?section=footer', icon: Sliders },
+            { id: 'custom-code', label: 'CSS & JS Global Site', href: '/dashboard/root/storefront/layouts?section=custom-code', icon: Code2 },
           ].map((tab) => {
             const Icon = tab.icon;
             const active = (tab.id === 'design' && sectionParam === 'design') || sectionParam === tab.id;
@@ -360,58 +411,232 @@ function StorefrontLayoutsContent() {
         )}
 
         {sectionParam === 'header' && (
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E6E1D6] shadow-sm space-y-6">
-            <h2 className="text-sm font-heading font-extrabold text-[#1D232E] uppercase tracking-wider border-b border-[#E6E1D6] pb-3 flex items-center gap-2">
-              <Layout className="w-4 h-4 text-[#C59B27]" />
-              <span>Configuration de l&apos;En-tête &amp; Barre d&apos;Annonce</span>
-            </h2>
-            <Input
-              label="Texte d'Annonce Barre Supérieure"
-              value={header.announcementText}
-              onChange={(e) => setHeader({ ...header, announcementText: e.target.value })}
-            />
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <Toggle
-                label="Barre de recherche Header"
-                checked={header.showSearch}
-                onChange={(v) => setHeader({ ...header, showSearch: v })}
-              />
-              <Toggle
-                label="Sélecteur FR / AR"
-                checked={header.showLanguageSwitch}
-                onChange={(v) => setHeader({ ...header, showLanguageSwitch: v })}
-              />
-              <Toggle
-                label="Bouton Comparateur"
-                checked={header.showCompare}
-                onChange={(v) => setHeader({ ...header, showCompare: v })}
-              />
-              <Toggle
-                label="Bouton Favoris / Wishlist"
-                checked={header.showWishlist}
-                onChange={(v) => setHeader({ ...header, showWishlist: v })}
-              />
-              <Toggle
-                label="Lien Suivre ma commande"
-                checked={header.showTrackOrder}
-                onChange={(v) => setHeader({ ...header, showTrackOrder: v })}
-              />
-            </div>
-            <div className="flex justify-end">
-              <Button type="submit" variant="gold" isLoading={saving}>
-                <Save className="w-4 h-4" />
-                <span>Enregistrer En-tête</span>
-              </Button>
+          <div className="space-y-6">
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E6E1D6] shadow-sm space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E6E1D6] pb-3">
+                <h2 className="text-sm font-heading font-extrabold text-[#1D232E] uppercase tracking-wider flex items-center gap-2">
+                  <Layout className="w-4 h-4 text-[#C59B27]" />
+                  <span>Configuration de l&apos;En-tête, Barre d&apos;Annonce &amp; Menu</span>
+                </h2>
+                <div className="flex flex-wrap gap-1.5">
+                  <CmsDomIdBadge viewKey="header" elemId="main" customDomId={header.elementStyles?.main?.domId || 'royal-header-main'} />
+                  <CmsDomIdBadge viewKey="header" elemId="topbar" customDomId={header.elementStyles?.topbar?.domId || 'royal-header-topbar'} />
+                  <CmsDomIdBadge viewKey="header" elemId="nav" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <Input
+                    label="Texte d'Annonce Barre Supérieure"
+                    value={header.announcementText}
+                    onChange={(e) => setHeader({ ...header, announcementText: e.target.value })}
+                  />
+                </div>
+                <Select
+                  label="Comportement Collant (Sticky)"
+                  value={header.stickyMode || 'auto'}
+                  onChange={(e) => setHeader({ ...header, stickyMode: e.target.value as any })}
+                  options={[
+                    { value: 'auto', label: 'Auto (Transparent Accueil · Sticky ailleurs)' },
+                    { value: 'always', label: 'Toujours Sticky Fond Blanc' },
+                    { value: 'static', label: 'Statique (Suit le défilement)' },
+                  ]}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <Toggle label="Barre de recherche" checked={header.showSearch} onChange={(v) => setHeader({ ...header, showSearch: v })} />
+                <Toggle label="Sélecteur FR / AR" checked={header.showLanguageSwitch} onChange={(v) => setHeader({ ...header, showLanguageSwitch: v })} />
+                <Toggle label="Bouton Comparateur" checked={header.showCompare} onChange={(v) => setHeader({ ...header, showCompare: v })} />
+                <Toggle label="Bouton Favoris" checked={header.showWishlist} onChange={(v) => setHeader({ ...header, showWishlist: v })} />
+                <Toggle label="Suivre ma commande" checked={header.showTrackOrder} onChange={(v) => setHeader({ ...header, showTrackOrder: v })} />
+                <Toggle label="Bouton Panier" checked={header.showCartButton !== false} onChange={(v) => setHeader({ ...header, showCartButton: v })} />
+                <Toggle label="Bouton Compte Client" checked={header.showAccountButton !== false} onChange={(v) => setHeader({ ...header, showAccountButton: v })} />
+                <Toggle label="Transparent sur Accueil" checked={header.transparentOnHome !== false} onChange={(v) => setHeader({ ...header, transparentOnHome: v })} />
+              </div>
+
+              {/* Navigation Menu Builder */}
+              <div className="p-4 rounded-2xl bg-[#FBF9F4] border border-[#E6E1D6] space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-[#1D232E]">
+                    Liens de Navigation Menu Principal ({(header.navLinks || []).length})
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {customViews.length > 0 && (
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          const cv = customViews.find((v) => v.slug === e.target.value);
+                          if (!cv) return;
+                          setHeader((prev) => ({
+                            ...prev,
+                            navLinks: [
+                              ...(prev.navLinks || []),
+                              { id: `nav-${cv.slug}-${Date.now()}`, label: cv.title, href: `/pages/${cv.slug}`, visible: true, highlight: false },
+                            ],
+                          }));
+                        }}
+                        className="px-3 py-1.5 rounded-xl border border-[#E6D6A6] bg-white text-[11px] font-bold text-[#9A7414]"
+                      >
+                        <option value="">+ Lier une Vue Personnalisée...</option>
+                        {customViews.map((cv) => (
+                          <option key={cv.id} value={cv.slug}>
+                            {cv.title} (/pages/{cv.slug})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setHeader((prev) => ({
+                          ...prev,
+                          navLinks: [
+                            ...(prev.navLinks || []),
+                            { id: `nav-${Date.now()}`, label: 'Nouveau Lien', href: '/articles', visible: true, highlight: false },
+                          ],
+                        }))
+                      }
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white border border-[#E6D6A6] text-[11px] font-bold text-[#9A7414] hover:bg-[#FBF6E8] cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Ajouter un lien</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {(header.navLinks || []).map((lnk, idx) => (
+                    <div key={lnk.id || idx} className="p-2.5 rounded-xl bg-white border border-[#E6E1D6] flex flex-wrap items-center gap-2">
+                      <input
+                        type="text"
+                        value={lnk.label}
+                        onChange={(e) => {
+                          const next = [...header.navLinks];
+                          next[idx] = { ...lnk, label: e.target.value };
+                          setHeader({ ...header, navLinks: next });
+                        }}
+                        placeholder="Libellé"
+                        className="w-36 px-2.5 py-1.5 rounded-lg border border-[#E6E1D6] text-xs font-semibold"
+                      />
+                      <input
+                        type="text"
+                        value={lnk.href}
+                        disabled={lnk.type === 'RAYONS_DROPDOWN'}
+                        onChange={(e) => {
+                          const next = [...header.navLinks];
+                          next[idx] = { ...lnk, href: e.target.value };
+                          setHeader({ ...header, navLinks: next });
+                        }}
+                        placeholder="/route"
+                        className="flex-1 min-w-[140px] px-2.5 py-1.5 rounded-lg border border-[#E6E1D6] font-mono text-xs disabled:bg-slate-50"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = [...header.navLinks];
+                          next[idx] = { ...lnk, visible: lnk.visible === false };
+                          setHeader({ ...header, navLinks: next });
+                        }}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-bold border cursor-pointer ${
+                          lnk.visible !== false ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'
+                        }`}
+                      >
+                        {lnk.visible !== false ? 'Visible' : 'Masqué'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = [...header.navLinks];
+                          next[idx] = { ...lnk, highlight: !lnk.highlight };
+                          setHeader({ ...header, navLinks: next });
+                        }}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-bold border cursor-pointer ${
+                          lnk.highlight ? 'bg-amber-50 text-amber-800 border-amber-300' : 'bg-white text-slate-500 border-[#E6E1D6]'
+                        }`}
+                      >
+                        Accent Or
+                      </button>
+                      <button
+                        type="button"
+                        disabled={idx === 0}
+                        onClick={() => {
+                          const next = [...header.navLinks];
+                          const [m] = next.splice(idx, 1);
+                          next.splice(idx - 1, 0, m);
+                          setHeader({ ...header, navLinks: next });
+                        }}
+                        className="p-1.5 rounded-lg border border-[#E6E1D6] disabled:opacity-30 cursor-pointer"
+                      >
+                        <ArrowUp className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={idx === header.navLinks.length - 1}
+                        onClick={() => {
+                          const next = [...header.navLinks];
+                          const [m] = next.splice(idx, 1);
+                          next.splice(idx + 1, 0, m);
+                          setHeader({ ...header, navLinks: next });
+                        }}
+                        className="p-1.5 rounded-lg border border-[#E6E1D6] disabled:opacity-30 cursor-pointer"
+                      >
+                        <ArrowDown className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHeader({ ...header, navLinks: header.navLinks.filter((_, i) => i !== idx) })}
+                        className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Header Elementor Style & CSS/JS */}
+              <div className="space-y-3 pt-2 border-t border-[#E6E1D6]">
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#1D232E]">
+                  Design, Marge, Padding &amp; CSS/JS de l&apos;En-tête (#royal-header-main)
+                </h3>
+                <CmsElementDesignEditor
+                  viewKey="header"
+                  elemId="main"
+                  value={header.elementStyles?.main || {}}
+                  onChange={(nextStyle) =>
+                    setHeader({
+                      ...header,
+                      elementStyles: { ...(header.elementStyles || {}), main: nextStyle },
+                    })
+                  }
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <Button type="submit" variant="gold" isLoading={saving}>
+                  <Save className="w-4 h-4" />
+                  <span>Enregistrer En-tête &amp; Menu</span>
+                </Button>
+              </div>
             </div>
           </div>
         )}
 
         {sectionParam === 'footer' && (
           <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E6E1D6] shadow-sm space-y-6">
-            <h2 className="text-sm font-heading font-extrabold text-[#1D232E] uppercase tracking-wider border-b border-[#E6E1D6] pb-3 flex items-center gap-2">
-              <Sliders className="w-4 h-4 text-[#C59B27]" />
-              <span>Gestion des 4 Colonnes &amp; Liens du Pied de Page</span>
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E6E1D6] pb-3">
+              <h2 className="text-sm font-heading font-extrabold text-[#1D232E] uppercase tracking-wider flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-[#C59B27]" />
+                <span>Gestion des 4 Colonnes, Liens &amp; Design du Pied de Page</span>
+              </h2>
+              <div className="flex flex-wrap gap-1.5">
+                <CmsDomIdBadge viewKey="footer" elemId="main" customDomId={footer.elementStyles?.main?.domId || 'royal-footer-main'} />
+                <CmsDomIdBadge viewKey="footer" elemId="brand" />
+                <CmsDomIdBadge viewKey="footer" elemId="cols" />
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Input label="Titre Colonne 1" value={footer.col1Title} onChange={(e) => setFooter({ ...footer, col1Title: e.target.value })} />
               <Input label="Titre Colonne 2" value={footer.col2Title} onChange={(e) => setFooter({ ...footer, col2Title: e.target.value })} />
@@ -446,6 +671,27 @@ function StorefrontLayoutsContent() {
                         + Lien
                       </button>
                     </div>
+                    {customViews.length > 0 && (
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          const cv = customViews.find((v) => v.slug === e.target.value);
+                          if (!cv) return;
+                          setFooter((prev) => ({
+                            ...prev,
+                            [key]: [...(prev[key] || []), { label: cv.title, href: `/pages/${cv.slug}` }],
+                          }));
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-[#E6D6A6] bg-white text-[11px] font-bold text-[#9A7414]"
+                      >
+                        <option value="">+ Connecter une Vue Personnalisée...</option>
+                        {customViews.map((cv) => (
+                          <option key={cv.id} value={cv.slug}>
+                            {cv.title} (/pages/{cv.slug})
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     <div className="space-y-2">
                       {links.map((lnk, idx) => (
                         <div key={idx} className="flex items-center gap-1.5">
@@ -501,22 +747,14 @@ function StorefrontLayoutsContent() {
               onChange={(e) => setFooter({ ...footer, aboutDescription: e.target.value })}
               rows={3}
             />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Toggle
-                label="Afficher Bloc Logo & Slogan (Haut Footer)"
-                checked={footer.showBrandHeader !== false}
-                onChange={(v) => setFooter({ ...footer, showBrandHeader: v })}
-              />
-              <Toggle
-                label="Afficher Formulaire Newsletter Footer"
-                checked={footer.showNewsletter !== false}
-                onChange={(v) => setFooter({ ...footer, showNewsletter: v })}
-              />
-              <Toggle
-                label="Afficher Icônes Réseaux Sociaux"
-                checked={footer.showSocialLinks !== false}
-                onChange={(v) => setFooter({ ...footer, showSocialLinks: v })}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              <Toggle label="Bloc Logo & Slogan (Haut Footer)" checked={footer.showBrandHeader !== false} onChange={(v) => setFooter({ ...footer, showBrandHeader: v })} />
+              <Toggle label="Formulaire Newsletter Footer" checked={footer.showNewsletter !== false} onChange={(v) => setFooter({ ...footer, showNewsletter: v })} />
+              <Toggle label="Icônes Réseaux Sociaux" checked={footer.showSocialLinks !== false} onChange={(v) => setFooter({ ...footer, showSocialLinks: v })} />
+              <Toggle label="Afficher Adresse (Col. 4)" checked={footer.showAddress !== false} onChange={(v) => setFooter({ ...footer, showAddress: v })} />
+              <Toggle label="Afficher Téléphone (Col. 4)" checked={footer.showPhone !== false} onChange={(v) => setFooter({ ...footer, showPhone: v })} />
+              <Toggle label="Afficher WhatsApp (Col. 4)" checked={footer.showWhatsapp !== false} onChange={(v) => setFooter({ ...footer, showWhatsapp: v })} />
+              <Toggle label="Afficher E-mail (Col. 4)" checked={footer.showEmail !== false} onChange={(v) => setFooter({ ...footer, showEmail: v })} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
@@ -530,10 +768,72 @@ function StorefrontLayoutsContent() {
                 onChange={(e) => setFooter({ ...footer, copyrightText: e.target.value })}
               />
             </div>
+
+            <div className="space-y-3 pt-2 border-t border-[#E6E1D6]">
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#1D232E]">
+                Design, Marge, Padding &amp; CSS/JS du Pied de Page (#royal-footer-main)
+              </h3>
+              <CmsElementDesignEditor
+                viewKey="footer"
+                elemId="main"
+                value={footer.elementStyles?.main || {}}
+                onChange={(nextStyle) =>
+                  setFooter({
+                    ...footer,
+                    elementStyles: { ...(footer.elementStyles || {}), main: nextStyle },
+                  })
+                }
+              />
+            </div>
+
             <div className="flex justify-end">
               <Button type="submit" variant="gold" isLoading={saving}>
                 <Save className="w-4 h-4" />
                 <span>Enregistrer Pied de Page</span>
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {sectionParam === 'custom-code' && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E6E1D6] shadow-sm space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E6E1D6] pb-3">
+              <div>
+                <h2 className="text-sm font-heading font-extrabold text-[#1D232E] uppercase tracking-wider flex items-center gap-2">
+                  <Code2 className="w-4 h-4 text-[#C59B27]" />
+                  <span>CSS &amp; JavaScript Global (Tout le Storefront)</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Appliqué sur toutes les pages publiques. Utilisez les IDs affichés dans En-tête, Pied de Page ou Vues (ex : <code className="font-mono text-[#9A7414]">#royal-header-main</code>, <code className="font-mono text-[#9A7414]">#royal-footer-main</code>, <code className="font-mono text-[#9A7414]">#royal-home-hero</code>).
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#FBF6E8] border border-[#E6D6A6] font-mono text-[11px] font-bold text-[#9A7414]">
+                <Link2 className="w-3 h-3" /> Global Storefront Scope
+              </span>
+            </div>
+
+            <Textarea
+              label="CSS Personnalisé Global (appliqué sur tout le Storefront)"
+              rows={10}
+              className="font-mono text-xs"
+              value={globalCustomCode.customCss}
+              onChange={(e) => setGlobalCustomCode({ ...globalCustomCode, customCss: e.target.value })}
+              placeholder={`/* Exemple CSS Global */\n#royal-home-hero .btn-cta {\n  border-radius: 9999px;\n}`}
+            />
+
+            <Textarea
+              label="JavaScript Personnalisé Global (exécuté au chargement Storefront)"
+              rows={10}
+              className="font-mono text-xs"
+              value={globalCustomCode.customJs}
+              onChange={(e) => setGlobalCustomCode({ ...globalCustomCode, customJs: e.target.value })}
+              placeholder={`// Exemple JS Global\nconsole.log('Storefront Royal prêt', document.querySelectorAll('[id^="royal-"]').length);`}
+            />
+
+            <div className="flex justify-end">
+              <Button type="submit" variant="gold" isLoading={saving}>
+                <Save className="w-4 h-4" />
+                <span>Publier CSS &amp; JS Global</span>
               </Button>
             </div>
           </div>

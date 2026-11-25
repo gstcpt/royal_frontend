@@ -5,6 +5,12 @@ import Link from 'next/link';
 import { ArrowRight, Mail, Phone, MapPin, Instagram, Facebook, MessageCircle } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
+import {
+  buildCmsInlineStyle,
+  buildCmsResponsiveClass,
+  getCmsElementDomId,
+  scopeElementCustomCss,
+} from '@/lib/cms-builder';
 
 export function StorefrontFooter() {
   const { config } = useCmsConfig();
@@ -45,19 +51,41 @@ export function StorefrontFooter() {
     setEmail('');
   };
 
+  const footerElRef = React.useRef<HTMLElement | null>(null);
+  const footerMainStyleCfg = config.footer.elementStyles?.main;
+  const footerDomId = getCmsElementDomId('footer', 'main', footerMainStyleCfg?.domId);
+  const footerBrandDomId = getCmsElementDomId('footer', 'brand', config.footer.elementStyles?.brand?.domId);
+  const footerColsDomId = getCmsElementDomId('footer', 'cols', config.footer.elementStyles?.cols?.domId);
+  const footerCustomCss = scopeElementCustomCss(footerDomId, footerMainStyleCfg?.customCss);
+  const footerCustomJs = footerMainStyleCfg?.customJs?.trim();
+
+  React.useEffect(() => {
+    if (!footerCustomJs) return;
+    try {
+      const fn = new Function('root', 'ctx', footerCustomJs);
+      fn(footerElRef.current, { viewKey: 'footer', elemId: 'main', domId: footerDomId, config });
+    } catch (err) {
+      console.warn('[Royal CMS Footer JS]', err);
+    }
+  }, [footerCustomJs, footerDomId, config]);
+
   return (
     <footer
+      ref={footerElRef}
+      id={footerDomId}
       style={{
         background: 'linear-gradient(to bottom, var(--royal-bg), var(--royal-silver-light))',
         color: 'var(--royal-ink)',
         borderColor: 'var(--royal-border)',
+        ...buildCmsInlineStyle(footerMainStyleCfg),
       }}
-      className="pt-20 pb-12 border-t"
+      className={`pt-20 pb-12 border-t ${buildCmsResponsiveClass(footerMainStyleCfg)}`}
     >
+      {footerCustomCss ? <style data-cms-elem-css={footerDomId}>{footerCustomCss}</style> : null}
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
         {/* Giant Brand Wordmark + Official Logo + Newsletter */}
         {(config.footer.showBrandHeader !== false || config.footer.showNewsletter !== false) && (
-          <div className="pb-14 border-b border-[var(--royal-border)]">
+          <div id={footerBrandDomId} className="pb-14 border-b border-[var(--royal-border)]">
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
               {config.footer.showBrandHeader !== false && (
                 <div className="flex items-start sm:items-center gap-5">
@@ -119,7 +147,7 @@ export function StorefrontFooter() {
         )}
 
         {/* 4 Clean Columns */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10 py-12 sm:py-14 border-b border-[var(--royal-border)] text-xs sm:text-sm">
+        <div id={footerColsDomId} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10 py-12 sm:py-14 border-b border-[var(--royal-border)] text-xs sm:text-sm">
           {/* Col 1: À Propos */}
           <div className="min-w-0">
             <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--royal-gold-dark)] mb-5 sm:mb-6">
@@ -215,33 +243,41 @@ export function StorefrontFooter() {
               {locale === 'ar' ? t('footer.col4_title') : (config.footer.col4Title || t('footer.col4_title'))}
             </h4>
             <ul className="space-y-3.5 text-slate-700">
-              <li className="flex items-start gap-2.5">
-                <MapPin className="w-4 h-4 text-[var(--royal-primary)] mt-0.5 flex-shrink-0" />
-                <span className="break-words">{config.identity.address || 'Mahdia 5100, Tunisie'}</span>
-              </li>
-              <li className="flex items-center gap-2.5">
-                <Phone className="w-4 h-4 text-[var(--royal-primary)] flex-shrink-0" />
-                <a href={`tel:${config.identity.phone || '+21648091914'}`} className="hover:text-[var(--royal-gold-dark)] transition break-all">
-                  {config.identity.phone || '48 091 914'}
-                </a>
-              </li>
-              <li className="flex items-center gap-2.5">
-                <MessageCircle className="w-4 h-4 text-[var(--royal-primary)] flex-shrink-0" />
-                <a
-                  href={`https://wa.me/${(config.identity.whatsapp || '21648091914').replace(/\D/g, '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-[var(--royal-gold-dark)] transition break-all"
-                >
-                  {t('footer.whatsapp')} : {config.identity.whatsapp || '48 091 914'}
-                </a>
-              </li>
-              <li className="flex items-center gap-2.5">
-                <Mail className="w-4 h-4 text-[var(--royal-primary)] flex-shrink-0" />
-                <a href={`mailto:${config.identity.email || 'royaltn24@gmail.com'}`} className="hover:text-[var(--royal-gold-dark)] transition break-all">
-                  {config.identity.email || 'royaltn24@gmail.com'}
-                </a>
-              </li>
+              {config.footer.showAddress !== false && (
+                <li className="flex items-start gap-2.5">
+                  <MapPin className="w-4 h-4 text-[var(--royal-primary)] mt-0.5 flex-shrink-0" />
+                  <span className="break-words">{config.identity.address || 'Mahdia 5100, Tunisie'}</span>
+                </li>
+              )}
+              {config.footer.showPhone !== false && (
+                <li className="flex items-center gap-2.5">
+                  <Phone className="w-4 h-4 text-[var(--royal-primary)] flex-shrink-0" />
+                  <a href={`tel:${config.identity.phone || '+21648091914'}`} className="hover:text-[var(--royal-gold-dark)] transition break-all">
+                    {config.identity.phone || '48 091 914'}
+                  </a>
+                </li>
+              )}
+              {config.footer.showWhatsapp !== false && (
+                <li className="flex items-center gap-2.5">
+                  <MessageCircle className="w-4 h-4 text-[var(--royal-primary)] flex-shrink-0" />
+                  <a
+                    href={`https://wa.me/${(config.identity.whatsapp || '21648091914').replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-[var(--royal-gold-dark)] transition break-all"
+                  >
+                    {t('footer.whatsapp')} : {config.identity.whatsapp || '48 091 914'}
+                  </a>
+                </li>
+              )}
+              {config.footer.showEmail !== false && (
+                <li className="flex items-center gap-2.5">
+                  <Mail className="w-4 h-4 text-[var(--royal-primary)] flex-shrink-0" />
+                  <a href={`mailto:${config.identity.email || 'royaltn24@gmail.com'}`} className="hover:text-[var(--royal-gold-dark)] transition break-all">
+                    {config.identity.email || 'royaltn24@gmail.com'}
+                  </a>
+                </li>
+              )}
             </ul>
 
             {config.footer.showSocialLinks !== false && (

@@ -21,6 +21,9 @@ export function IsolatedProductCarousel({
   products,
   viewAllHref,
   displayMode = 'carousel',
+  columns = '4',
+  viewAllText,
+  showViewAll = true,
   cardImageHeightPx,
 }: {
   title: string;
@@ -30,6 +33,9 @@ export function IsolatedProductCarousel({
   products: StorefrontProduct[];
   viewAllHref: string;
   displayMode?: 'carousel' | 'grid';
+  columns?: '3' | '4';
+  viewAllText?: string;
+  showViewAll?: boolean;
   cardImageHeightPx?: number;
 }) {
   const { t } = useI18nStore();
@@ -81,13 +87,15 @@ export function IsolatedProductCarousel({
           </div>
 
           <div className="flex items-center gap-3">
-            <Link
-              href={viewAllHref}
-              className="text-xs font-bold text-[var(--royal-gold-dark)] hover:text-[var(--royal-ink)] hover:underline inline-flex items-center gap-1 mr-2"
-            >
-              <span>{t('common.view_all')}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            {showViewAll !== false && (
+              <Link
+                href={viewAllHref}
+                className="text-xs font-bold text-[var(--royal-gold-dark)] hover:text-[var(--royal-ink)] hover:underline inline-flex items-center gap-1 mr-2"
+              >
+                <span>{viewAllText || t('common.view_all')}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            )}
             {displayMode !== 'grid' && (
               <>
                 <button
@@ -112,7 +120,7 @@ export function IsolatedProductCarousel({
         </div>
 
         {displayMode === 'grid' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className={`grid grid-cols-1 sm:grid-cols-2 ${columns === '3' ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-5`}>
             {products.map((product) => (
               <ProductCard
                 key={product.id}

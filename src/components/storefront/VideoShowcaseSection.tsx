@@ -56,15 +56,17 @@ export function VideoShowcaseSection({ product }: { product?: StorefrontProduct 
     <section className="py-16 md:py-24 bg-[var(--royal-bg)] border-b border-[var(--royal-border)] overflow-hidden">
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center bg-[var(--royal-card)] rounded-3xl p-5 sm:p-10 lg:p-16 border border-[var(--royal-border)] shadow-xs">
-          {/* Left Column */}
-          <div className="lg:col-span-6 space-y-6">
+          {/* Text Column */}
+          <div className={`lg:col-span-6 space-y-6 ${config.views.home.featuredVideoLayout === 'media-left' ? 'lg:order-2' : ''}`}>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-[var(--royal-border)] text-xs font-bold text-[var(--royal-ink)] shadow-sm">
               <Sparkles className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
               <span>{locale === 'ar' ? t('storefront.video_tag') : (config.views.home.featuredVideoTag || t('storefront.video_tag'))}</span>
             </div>
 
             <h2 className="font-heading font-extrabold text-2xl sm:text-4xl lg:text-5xl text-slate-950 tracking-tight leading-tight">
-              {product.name}
+              {locale === 'fr' && config.views.home.featuredVideoTitleOverride?.trim()
+                ? config.views.home.featuredVideoTitleOverride
+                : product.name}
               {product.brand?.name && (
                 <span className="block text-slate-500 font-bold mt-1 text-xl sm:text-2xl">
                   {t('storefront.video_brand')} {product.brand.name} • {t('storefront.video_ref')} {product.sku}
@@ -72,9 +74,11 @@ export function VideoShowcaseSection({ product }: { product?: StorefrontProduct 
               )}
             </h2>
 
-            {product.shortDescription && (
+            {(config.views.home.featuredVideoSubtitleOverride?.trim() || product.shortDescription) && (
               <p className="text-sm text-slate-600 leading-relaxed max-w-lg line-clamp-3">
-                {product.shortDescription}
+                {locale === 'fr' && config.views.home.featuredVideoSubtitleOverride?.trim()
+                  ? config.views.home.featuredVideoSubtitleOverride
+                  : product.shortDescription}
               </p>
             )}
 
@@ -150,27 +154,40 @@ export function VideoShowcaseSection({ product }: { product?: StorefrontProduct 
                   className="px-6 py-3 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] font-bold text-xs uppercase tracking-wider transition shadow-md flex items-center gap-2 cursor-pointer"
                 >
                   {added ? <Check className="w-4 h-4 text-emerald-400" /> : <ShoppingBag className="w-4 h-4" />}
-                  <span>{added ? t('storefront.video_added') : t('actions.buy')}</span>
+                  <span>
+                    {added
+                      ? t('storefront.video_added')
+                      : locale === 'fr' && config.views.home.featuredVideoBuyText?.trim()
+                      ? config.views.home.featuredVideoBuyText
+                      : t('actions.buy')}
+                  </span>
                 </button>
 
                 <Link
                   href={`/articles/${product.slug}`}
                   className="text-xs font-bold text-slate-900 hover:underline inline-flex items-center gap-1"
                 >
-                  <span>{t('storefront.video_view_detail')}</span>
+                  <span>
+                    {locale === 'fr' && config.views.home.featuredVideoDetailText?.trim()
+                      ? config.views.home.featuredVideoDetailText
+                      : t('storefront.video_view_detail')}
+                  </span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
             </div>
           </div>
 
-          {/* Right Column: Edge-to-Edge Autoplay Product Media Viewer */}
-          <div className="lg:col-span-6 relative w-full">
-            <div className="relative w-full h-[360px] sm:h-[420px] lg:h-[480px] rounded-3xl border border-slate-200/80 overflow-hidden shadow-sm">
+          {/* Media Column */}
+          <div className={`lg:col-span-6 relative w-full ${config.views.home.featuredVideoLayout === 'media-left' ? 'lg:order-1' : ''}`}>
+            <div
+              className="relative w-full rounded-3xl border border-slate-200/80 overflow-hidden shadow-sm"
+              style={{ height: `${Math.max(280, Number(config.views.home.featuredVideoHeightPx || 480))}px` }}
+            >
               <ProductMediaViewer
                 images={showcaseImages}
                 alt={product.name}
-                heightClassName="h-[360px] sm:h-[420px] lg:h-[480px]"
+                heightClassName="h-full"
                 roundedClassName="rounded-3xl"
                 wrapperClassName="h-full w-full space-y-0"
                 borderClassName="border-0"

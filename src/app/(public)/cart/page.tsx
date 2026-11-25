@@ -6,6 +6,9 @@ import { useCartStore } from '@/stores/cart.store';
 import { getCartHeaders, getSafeImageUrl } from '@/lib/cart-session';
 import { useI18nStore } from '@/stores/i18n.store';
 import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHeader';
+import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { CmsElementWrapper, CmsCustomBlockRenderer, CmsViewCodeInjector } from '@/components/storefront/CmsElementRuntime';
+import { buildCmsInlineStyle } from '@/lib/cms-builder';
 import {
   ShoppingBag,
   Trash2,
@@ -36,7 +39,9 @@ interface CartItem {
 }
 
 export default function CartPage() {
-  const { t } = useI18nStore();
+  const { locale, t } = useI18nStore();
+  const { config } = useCmsConfig();
+  const cartCfg = config.views.cart || {};
   const [items, setItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [couponCode, setCouponCode] = useState('');
@@ -188,21 +193,38 @@ export default function CartPage() {
     : Math.min(100, Math.round((subtotalAfterDiscount / shippingThreshold) * 100));
 
   return (
-    <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 py-10 sm:py-12">
-      <StorefrontPageHeader
-        title={t('cart.title')}
-        breadcrumbLabel={t('nav.my_cart')}
-        subtitle={`${items.length} ${t('catalog.articles_word')}`}
-        rightSlot={
-          <Link
-            href="/articles"
-            className="text-xs uppercase font-medium tracking-widest text-[#0C1A14] hover:text-[var(--royal-primary)] flex items-center gap-1.5 transition"
-          >
-            <span>{t('actions.continue_shopping')}</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        }
-      />
+    <div
+      id={cartCfg.viewStyle?.domId?.trim() || 'royal-view-cart'}
+      style={buildCmsInlineStyle(cartCfg.viewStyle)}
+      className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 py-10 sm:py-12"
+    >
+      <CmsViewCodeInjector viewKey="cart" viewStyle={cartCfg.viewStyle} />
+      {cartCfg.showHeader !== false && (
+        <CmsElementWrapper viewKey="cart" elemId="header" styleCfg={cartCfg.elementStyles?.header}>
+          <StorefrontPageHeader
+            title={locale === 'ar' ? t('cart.title') : (cartCfg.title || t('cart.title'))}
+            breadcrumbLabel={t('nav.my_cart')}
+            subtitle={locale === 'ar' ? `${items.length} ${t('catalog.articles_word')}` : (cartCfg.subtitle ? `${cartCfg.subtitle} (${items.length})` : `${items.length} ${t('catalog.articles_word')}`)}
+            badge={
+              cartCfg.badgeText ? (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)]">
+                  <Sparkles className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
+                  <span>{cartCfg.badgeText}</span>
+                </div>
+              ) : undefined
+            }
+            rightSlot={
+              <Link
+                href="/articles"
+                className="text-xs uppercase font-medium tracking-widest text-[#0C1A14] hover:text-[var(--royal-primary)] flex items-center gap-1.5 transition"
+              >
+                <span>{t('actions.continue_shopping')}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            }
+          />
+        </CmsElementWrapper>
+      )}
 
       {loading ? (
         <div className="py-24 text-center">
@@ -229,31 +251,34 @@ export default function CartPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
           {/* Items List */}
           <div className="lg:col-span-8 space-y-6">
-            {/* Free shipping progress bar */}
-            <div className="bg-[var(--royal-gold-light)] text-[var(--royal-ink)] p-4 sm:p-5 rounded-2xl shadow-sm border border-[var(--royal-primary)]/40">
-              <div className="flex items-center justify-between gap-2 mb-2 text-xs">
-                <span className="flex items-center gap-2 font-medium min-w-0">
-                  <Truck className="w-4 h-4 text-[var(--royal-primary)] shrink-0" />
-                  {missingForFreeShipping === 0 ? (
-                    <span className="text-[var(--royal-gold-dark)] font-bold">{t('cart.free_shipping_ok')}</span>
-                  ) : (
-                    <span>
-                      {t('cart.free_shipping_more')} <strong className="text-[var(--royal-gold-dark)]">{missingForFreeShipping.toFixed(3)} {t('common.currency')}</strong> {t('cart.free_shipping_unlock')}
+            <CmsElementWrapper viewKey="cart" elemId="itemsList" styleCfg={cartCfg.elementStyles?.itemsList} className="space-y-6">
+              {/* Free shipping progress bar */}
+              {cartCfg.showFreeShippingProgress !== false && (
+                <div className="bg-[var(--royal-gold-light)] text-[var(--royal-ink)] p-4 sm:p-5 rounded-2xl shadow-sm border border-[var(--royal-primary)]/40">
+                  <div className="flex items-center justify-between gap-2 mb-2 text-xs">
+                    <span className="flex items-center gap-2 font-medium min-w-0">
+                      <Truck className="w-4 h-4 text-[var(--royal-primary)] shrink-0" />
+                      {missingForFreeShipping === 0 ? (
+                        <span className="text-[var(--royal-gold-dark)] font-bold">{t('cart.free_shipping_ok')}</span>
+                      ) : (
+                        <span>
+                          {t('cart.free_shipping_more')} <strong className="text-[var(--royal-gold-dark)]">{missingForFreeShipping.toFixed(3)} {t('common.currency')}</strong> {t('cart.free_shipping_unlock')}
+                        </span>
+                      )}
                     </span>
-                  )}
-                </span>
-                <span className="text-[var(--royal-ink)]/70 font-semibold shrink-0">{progressPercent}%</span>
-              </div>
-              <div className="w-full bg-white/80 border border-[var(--royal-primary)]/20 h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-[var(--royal-primary)] h-full rounded-full transition-all duration-500"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
+                    <span className="text-[var(--royal-ink)]/70 font-semibold shrink-0">{progressPercent}%</span>
+                  </div>
+                  <div className="w-full bg-white/80 border border-[var(--royal-primary)]/20 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-[var(--royal-primary)] h-full rounded-full transition-all duration-500"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                </div>
+              )}
 
-            {/* Cart Table / Cards */}
-            <div className="bg-white rounded-3xl border border-[#EFECE6] divide-y divide-[#EFECE6] overflow-hidden shadow-sm">
+              {/* Cart Table / Cards */}
+              <div className="bg-white rounded-3xl border border-[#EFECE6] divide-y divide-[#EFECE6] overflow-hidden shadow-sm">
               {items.map((item) => (
                 <div key={item.id} className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 hover:bg-[#FBF9F5]/50 transition">
                   {/* Image & Details */}
@@ -316,34 +341,40 @@ export default function CartPage() {
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            </CmsElementWrapper>
 
             {/* Quick Guarantees */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
-              <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-[#EFECE6]">
-                <ShieldCheck className="w-6 h-6 text-[#D4AF37] shrink-0" />
-                <span className="text-xs text-[#0C1A14]/80">{t('cart.guarantee_warranty')}</span>
-              </div>
-              <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-[#EFECE6]">
-                <Truck className="w-6 h-6 text-[#D4AF37] shrink-0" />
-                <span className="text-xs text-[#0C1A14]/80">{t('cart.guarantee_delivery')}</span>
-              </div>
-              <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-[#EFECE6]">
-                <Sparkles className="w-6 h-6 text-[#D4AF37] shrink-0" />
-                <span className="text-xs text-[#0C1A14]/80">{t('cart.guarantee_cod')}</span>
-              </div>
-            </div>
+            {cartCfg.showGuarantees !== false && (
+              <CmsElementWrapper viewKey="cart" elemId="guarantees" styleCfg={cartCfg.elementStyles?.guarantees}>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
+                  <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-[#EFECE6]">
+                    <ShieldCheck className="w-6 h-6 text-[#D4AF37] shrink-0" />
+                    <span className="text-xs text-[#0C1A14]/80">{t('cart.guarantee_warranty')}</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-[#EFECE6]">
+                    <Truck className="w-6 h-6 text-[#D4AF37] shrink-0" />
+                    <span className="text-xs text-[#0C1A14]/80">{t('cart.guarantee_delivery')}</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-[#EFECE6]">
+                    <Sparkles className="w-6 h-6 text-[#D4AF37] shrink-0" />
+                    <span className="text-xs text-[#0C1A14]/80">{t('cart.guarantee_cod')}</span>
+                  </div>
+                </div>
+              </CmsElementWrapper>
+            )}
           </div>
 
           {/* Cart Summary Card */}
-          <div className="lg:col-span-4 space-y-6">
+          <CmsElementWrapper viewKey="cart" elemId="summary" styleCfg={cartCfg.elementStyles?.summary} className="lg:col-span-4 space-y-6">
             <div className="bg-white rounded-3xl border border-[#EFECE6] p-6 shadow-sm sticky top-28">
               <h2 className="font-sans font-bold tracking-tight text-xl text-[#0C1A14] font-semibold pb-4 border-b border-[#EFECE6]">
                 {t('cart.summary_title')}
               </h2>
 
               {/* Promo code form */}
-              <div className="pt-5 pb-5 border-b border-[#EFECE6]">
+              {cartCfg.showCouponBox !== false && (
+                <div className="pt-5 pb-5 border-b border-[#EFECE6]">
                 <form onSubmit={handleApplyCoupon} className="space-y-2">
                   <label className="text-xs font-medium text-[#0C1A14]/70 flex items-center gap-1.5">
                     <Tag className="w-3.5 h-3.5 text-[#D4AF37]" />
@@ -379,7 +410,8 @@ export default function CartPage() {
                     <span>{couponError}</span>
                   </div>
                 )}
-              </div>
+                </div>
+              )}
 
               {/* Price Breakdown */}
               <div className="space-y-3 py-5 text-sm text-[#0C1A14]/80">
@@ -433,7 +465,7 @@ export default function CartPage() {
                   href="/checkout"
                   className="w-full py-4 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs uppercase font-bold tracking-widest hover:bg-[var(--royal-primary-hover)] transition-all flex items-center justify-center gap-2 shadow-lg"
                 >
-                  <span>{t('cart.checkout_button')}</span>
+                  <span>{locale === 'ar' ? t('cart.checkout_button') : (cartCfg.checkoutCtaText || t('cart.checkout_button'))}</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
 
@@ -442,9 +474,11 @@ export default function CartPage() {
                 </p>
               </div>
             </div>
-          </div>
+          </CmsElementWrapper>
         </div>
       )}
+      {Array.isArray(cartCfg.customBlocks) &&
+        cartCfg.customBlocks.map((cb) => <CmsCustomBlockRenderer key={cb.id} block={cb} viewKey="cart" />)}
     </div>
   );
 }

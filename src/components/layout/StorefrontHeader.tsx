@@ -22,6 +22,12 @@ import { useCartStore } from '@/stores/cart.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useI18nStore } from '@/stores/i18n.store';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import {
+  buildCmsInlineStyle,
+  buildCmsResponsiveClass,
+  getCmsElementDomId,
+  scopeElementCustomCss,
+} from '@/lib/cms-builder';
 
 export function StorefrontHeader() {
   const { config } = useCmsConfig();
@@ -114,20 +120,61 @@ export function StorefrontHeader() {
     setLocale(locale === 'fr' ? 'ar' : 'fr');
   };
 
-  const isTransparent = isHomePage && !isScrolled;
+  const headerElRef = React.useRef<HTMLElement | null>(null);
+  const headerMainStyleCfg = config.header.elementStyles?.main;
+  const headerDomId = getCmsElementDomId('header', 'main', headerMainStyleCfg?.domId);
+  const topbarDomId = getCmsElementDomId('header', 'topbar', config.header.elementStyles?.topbar?.domId);
+  const navDomId = getCmsElementDomId('header', 'nav', config.header.elementStyles?.nav?.domId);
+  const headerCustomCss = scopeElementCustomCss(headerDomId, headerMainStyleCfg?.customCss);
+  const headerCustomJs = headerMainStyleCfg?.customJs?.trim();
+
+  React.useEffect(() => {
+    if (!headerCustomJs) return;
+    try {
+      const fn = new Function('root', 'ctx', headerCustomJs);
+      fn(headerElRef.current, { viewKey: 'header', elemId: 'main', domId: headerDomId, config });
+    } catch (err) {
+      console.warn('[Royal CMS Header JS]', err);
+    }
+  }, [headerCustomJs, headerDomId, config]);
+
+  const navItems = Array.isArray(config.header.navLinks) && config.header.navLinks.length > 0
+    ? config.header.navLinks.filter((l) => l.visible !== false)
+    : [
+        { id: 'nav-home', label: t('nav.home'), href: '/', i18nKey: 'nav.home', visible: true, highlight: false },
+        { id: 'nav-articles', label: t('nav.articles'), href: '/articles', i18nKey: 'nav.articles', visible: true, highlight: false },
+        { id: 'nav-rays', label: t('nav.rays'), href: '#rays', type: 'RAYONS_DROPDOWN' as const, i18nKey: 'nav.rays', visible: true, highlight: false },
+        { id: 'nav-promos', label: t('nav.promos'), href: '/articles?sortBy=promo', i18nKey: 'nav.promos', visible: true, highlight: true },
+      ];
+
+  const isTransparent =
+    config.header.stickyMode !== 'always' &&
+    config.header.transparentOnHome !== false &&
+    isHomePage &&
+    !isScrolled;
+
+  const stickyPositionCls =
+    config.header.stickyMode === 'static'
+      ? 'relative'
+      : isHomePage && config.header.stickyMode !== 'always' && config.header.transparentOnHome !== false
+      ? 'fixed top-0 left-0 right-0'
+      : 'sticky top-0';
 
   return (
     <header
-      className={`w-full transition-all duration-300 z-50 ${
-        isHomePage ? 'fixed top-0 left-0 right-0' : 'sticky top-0'
-      } ${
+      ref={headerElRef}
+      id={headerDomId}
+      style={buildCmsInlineStyle(headerMainStyleCfg)}
+      className={`w-full transition-all duration-300 z-50 ${stickyPositionCls} ${
         isTransparent
           ? 'bg-gradient-to-b from-black/75 via-black/40 to-transparent text-white'
           : 'bg-white/95 backdrop-blur-md text-[#1D232E] border-b border-[#E6E1D6] shadow-sm'
-      }`}
+      } ${buildCmsResponsiveClass(headerMainStyleCfg)}`}
     >
+      {headerCustomCss ? <style data-cms-elem-css={headerDomId}>{headerCustomCss}</style> : null}
       {/* Top Mini Bar */}
       <div
+        id={topbarDomId}
         className={`text-[11px] py-1.5 border-b transition-all duration-200 ${
           isTransparent
             ? 'border-white/10 text-white/90'
@@ -212,71 +259,69 @@ export function StorefrontHeader() {
           </div>
         </Link>
 
-        {/* Center Navigation Links (Clean: Accueil, Articles, Rayons only — Footer holds Contact/FAQ/Legal) */}
-        <nav className="hidden lg:flex items-center gap-8 text-[13px] font-bold tracking-wide">
-          <Link
-            href="/"
-            className={`transition-colors ${
-              isTransparent ? 'text-white/90 hover:text-white' : 'text-neutral-700 hover:text-neutral-950'
-            }`}
-          >
-            {t('nav.home')}
-          </Link>
-          <Link
-            href="/articles"
-            className={`transition-colors ${
-              isTransparent ? 'text-white/90 hover:text-white' : 'text-neutral-700 hover:text-neutral-950'
-            }`}
-          >
-            {t('nav.articles')}
-          </Link>
-
-          {/* Rayons Dropdown */}
-          <div className="relative" ref={categoryMenuRef}>
-            <button
-              type="button"
-              onClick={() => setCategoryMenuOpen((prev) => !prev)}
-              aria-expanded={categoryMenuOpen}
-              className={`flex items-center gap-1.5 cursor-pointer py-1 transition-colors ${
-                isTransparent ? 'text-white/90 hover:text-white' : 'text-neutral-700 hover:text-neutral-950'
-              }`}
-            >
-              <span>{t('nav.rays')}</span>
-              <ChevronDown className={`w-3.5 h-3.5 opacity-60 transition-transform ${categoryMenuOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {categoryMenuOpen && (
-              <div className="absolute start-0 mt-3 w-72 rounded-2xl bg-white border border-neutral-200 shadow-2xl py-2 z-50 text-neutral-900">
-                {dynamicCategories.map((cat) => (
-                  <Link
-                    key={cat.id}
-                    href={`/articles?category=${encodeURIComponent(cat.slug)}`}
-                    onClick={() => setCategoryMenuOpen(false)}
-                    className="block px-4 py-2.5 text-xs font-semibold hover:bg-neutral-50 text-neutral-800"
+        {/* Center Navigation Links (Dynamic from CMS Header navLinks) */}
+        <nav id={navDomId} className="hidden lg:flex items-center gap-8 text-[13px] font-bold tracking-wide">
+          {navItems.map((item) => {
+            if (item.type === 'RAYONS_DROPDOWN' || item.id === 'nav-rays') {
+              return (
+                <div key={item.id} className="relative" ref={categoryMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryMenuOpen((prev) => !prev)}
+                    aria-expanded={categoryMenuOpen}
+                    className={`flex items-center gap-1.5 cursor-pointer py-1 transition-colors ${
+                      isTransparent ? 'text-white/90 hover:text-white' : 'text-neutral-700 hover:text-neutral-950'
+                    }`}
                   >
-                    {cat.name}
-                  </Link>
-                ))}
-                <div className="border-t border-neutral-100 my-1" />
-                <Link
-                  href="/articles"
-                  onClick={() => setCategoryMenuOpen(false)}
-                  className="block px-4 py-2 text-xs font-bold text-neutral-950 hover:bg-neutral-50"
-                >
-                  {t('header.view_full_catalog')}
-                </Link>
-              </div>
-            )}
-          </div>
+                    <span>{locale === 'ar' && item.i18nKey ? t(item.i18nKey) : item.label}</span>
+                    <ChevronDown className={`w-3.5 h-3.5 opacity-60 transition-transform ${categoryMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
 
-          <Link
-            href="/articles?sortBy=promo"
-            className={`transition-colors ${
-              isTransparent ? 'text-amber-300 hover:text-amber-200' : 'text-amber-600 hover:text-amber-700'
-            }`}
-          >
-            {t('nav.promos')}
-          </Link>
+                  {categoryMenuOpen && (
+                    <div className="absolute start-0 mt-3 w-72 rounded-2xl bg-white border border-neutral-200 shadow-2xl py-2 z-50 text-neutral-900">
+                      {dynamicCategories.map((cat) => (
+                        <Link
+                          key={cat.id}
+                          href={`/articles?category=${encodeURIComponent(cat.slug)}`}
+                          onClick={() => setCategoryMenuOpen(false)}
+                          className="block px-4 py-2.5 text-xs font-semibold hover:bg-neutral-50 text-neutral-800"
+                        >
+                          {cat.name}
+                        </Link>
+                      ))}
+                      <div className="border-t border-neutral-100 my-1" />
+                      <Link
+                        href="/articles"
+                        onClick={() => setCategoryMenuOpen(false)}
+                        className="block px-4 py-2 text-xs font-bold text-neutral-950 hover:bg-neutral-50"
+                      >
+                        {t('header.view_full_catalog')}
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            const labelText = locale === 'ar' && item.i18nKey ? t(item.i18nKey) : item.label;
+            return (
+              <Link
+                key={item.id}
+                href={item.href || '/'}
+                target={item.openInNewTab ? '_blank' : undefined}
+                className={`transition-colors ${
+                  item.highlight
+                    ? isTransparent
+                      ? 'text-amber-300 hover:text-amber-200'
+                      : 'text-amber-600 hover:text-amber-700'
+                    : isTransparent
+                    ? 'text-white/90 hover:text-white'
+                    : 'text-neutral-700 hover:text-neutral-950'
+                }`}
+              >
+                {labelText}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Right Action Elements */}
@@ -340,24 +385,26 @@ export function StorefrontHeader() {
             </Link>
           )}
 
-          <Link
-            href="/cart"
-            className={`relative p-1.5 sm:p-2 rounded-full transition ${
-              isTransparent
-                ? 'text-white hover:bg-white/10'
-                : 'text-neutral-700 hover:text-neutral-950 hover:bg-neutral-100'
-            }`}
-            title={t('header.cart_title')}
-          >
-            <ShoppingBag className="w-5 h-5" />
-            {cartItemsCount > 0 && (
-              <span className="absolute top-0 right-0 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center bg-[var(--royal-primary)] text-[var(--royal-primary-text)] shadow-sm">
-                {cartItemsCount}
-              </span>
-            )}
-          </Link>
+          {config.header.showCartButton !== false && (
+            <Link
+              href="/cart"
+              className={`relative p-1.5 sm:p-2 rounded-full transition ${
+                isTransparent
+                  ? 'text-white hover:bg-white/10'
+                  : 'text-neutral-700 hover:text-neutral-950 hover:bg-neutral-100'
+              }`}
+              title={t('header.cart_title')}
+            >
+              <ShoppingBag className="w-5 h-5" />
+              {cartItemsCount > 0 && (
+                <span className="absolute top-0 right-0 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center bg-[var(--royal-primary)] text-[var(--royal-primary-text)] shadow-sm">
+                  {cartItemsCount}
+                </span>
+              )}
+            </Link>
+          )}
 
-          {isAuthenticated ? (
+          {config.header.showAccountButton !== false && isAuthenticated ? (
             <div
               className="relative hidden sm:block ml-1"
               onMouseEnter={() => setUserMenuOpen(true)}
@@ -429,7 +476,7 @@ export function StorefrontHeader() {
                 </div>
               )}
             </div>
-          ) : (
+          ) : config.header.showAccountButton !== false ? (
             <Link
               href="/login"
               className={`hidden sm:inline-flex items-center gap-1.5 lg:gap-2 px-3.5 lg:px-5 py-2 rounded-full text-xs font-bold tracking-wide transition shadow-sm ms-1 ${
@@ -441,7 +488,7 @@ export function StorefrontHeader() {
               <User className="w-3.5 h-3.5" />
               <span>{t('nav.login')}</span>
             </Link>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -467,12 +514,13 @@ export function StorefrontHeader() {
             </form>
           )}
           <nav className="flex flex-col space-y-3 font-semibold text-sm">
-            <Link href="/" onClick={() => setMobileMenuOpen(false)} className="py-1">
-              {t('nav.home')}
-            </Link>
-            <Link href="/articles" onClick={() => setMobileMenuOpen(false)} className="py-1">
-              {t('nav.articles')}
-            </Link>
+            {navItems
+              .filter((it) => it.type !== 'RAYONS_DROPDOWN' && it.id !== 'nav-rays')
+              .map((it) => (
+                <Link key={it.id} href={it.href || '/'} onClick={() => setMobileMenuOpen(false)} className="py-1">
+                  {locale === 'ar' && it.i18nKey ? t(it.i18nKey) : it.label}
+                </Link>
+              ))}
             {dynamicCategories.slice(0, 5).map((cat) => (
               <Link
                 key={cat.id}

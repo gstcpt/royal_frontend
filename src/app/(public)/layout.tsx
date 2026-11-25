@@ -4,6 +4,7 @@ import { StorefrontFooter } from '@/components/layout/StorefrontFooter';
 import { CompareBar } from '@/components/storefront/CompareBar';
 import { ScrollToTop } from '@/components/common/ScrollToTop';
 import { MaintenanceGate } from '@/components/storefront/MaintenanceGate';
+import { CmsGlobalCodeInjector } from '@/components/storefront/CmsElementRuntime';
 
 export default function PublicLayout({
   children,
@@ -12,6 +13,7 @@ export default function PublicLayout({
 }) {
   return (
     <div className="flex flex-col min-h-screen bg-[var(--royal-bg)] text-[var(--royal-ink)] font-sans selection:bg-[var(--royal-primary)] selection:text-[var(--royal-primary-text)]">
+      <CmsGlobalCodeInjector />
       {/* Luxury Storefront Sticky Header */}
       <StorefrontHeader />
 

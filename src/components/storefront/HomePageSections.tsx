@@ -17,6 +17,12 @@ import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
 import { fetchAllPaginated } from '@/lib/api';
 import { Sparkles, Star, Percent } from 'lucide-react';
+import {
+  CmsCustomBlockRenderer,
+  CmsElementWrapper,
+  CmsViewCodeInjector,
+} from '@/components/storefront/CmsElementRuntime';
+import { buildCmsInlineStyle } from '@/lib/cms-builder';
 
 export function HomePageSections({
   categories,
@@ -190,6 +196,9 @@ export function HomePageSections({
         icon={<Sparkles className="w-4 h-4 text-[var(--royal-primary)]" />}
         products={resolvedNewProducts}
         displayMode={home.newArrivalsDisplayMode || 'carousel'}
+        columns={home.newArrivalsColumns || '4'}
+        viewAllText={locale === 'fr' ? home.newArrivalsViewAllText : undefined}
+        showViewAll={home.newArrivalsShowViewAll !== false}
         cardImageHeightPx={home.cardImageHeightPx}
         viewAllHref="/articles?sortBy=newest"
       />
@@ -206,6 +215,9 @@ export function HomePageSections({
         icon={<Star className="w-4 h-4 text-[var(--royal-primary)] fill-current" />}
         products={resolvedTopRatedProducts}
         displayMode={home.topRatedDisplayMode || 'carousel'}
+        columns={home.topRatedColumns || '4'}
+        viewAllText={locale === 'fr' ? home.topRatedViewAllText : undefined}
+        showViewAll={home.topRatedShowViewAll !== false}
         cardImageHeightPx={home.cardImageHeightPx}
         viewAllHref="/articles?sortBy=popular"
       />
@@ -222,6 +234,9 @@ export function HomePageSections({
         icon={<Percent className="w-4 h-4 text-rose-600" />}
         products={resolvedPromoProducts}
         displayMode={home.promotionsDisplayMode || 'carousel'}
+        columns={home.promotionsColumns || '4'}
+        viewAllText={locale === 'fr' ? home.promotionsViewAllText : undefined}
+        showViewAll={home.promotionsShowViewAll !== false}
         cardImageHeightPx={home.cardImageHeightPx}
         viewAllHref="/articles?collection=promo&sortBy=promo"
       />
@@ -231,11 +246,12 @@ export function HomePageSections({
       <LifestyleGallery key="lifestyle" featuredProducts={resolvedGallery} />
     ) : null,
     testimonials: home.showTestimonials ? <TestimonialsCarousel key="testimonials" /> : null,
+    bottomPromo: home.showBottomPromo !== false ? <BottomPromoFloatingCard key="bottomPromo" /> : null,
   };
 
-  const order =
+  const baseOrder =
     Array.isArray(home.sectionOrder) && home.sectionOrder.length > 0
-      ? home.sectionOrder
+      ? [...home.sectionOrder]
       : [
           'hero',
           'categories',
@@ -248,12 +264,49 @@ export function HomePageSections({
           'newsletter',
           'lifestyle',
           'testimonials',
+          'bottomPromo',
         ];
+  if (!baseOrder.includes('bottomPromo')) {
+    baseOrder.push('bottomPromo');
+  }
+
+  const customBlocks = Array.isArray(home.customBlocks) ? home.customBlocks : [];
+  for (const cb of customBlocks) {
+    if (cb?.id && !baseOrder.includes(cb.id)) baseOrder.push(cb.id);
+  }
+
+  const viewDomId = home.viewStyle?.domId?.trim() || 'royal-view-home';
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {order.map((secKey) => sectionRenderers[secKey] || null)}
-      <BottomPromoFloatingCard />
+    <div id={viewDomId} style={buildCmsInlineStyle(home.viewStyle)} className="flex flex-col min-h-screen">
+      <CmsViewCodeInjector viewKey="home" viewStyle={home.viewStyle} />
+      {baseOrder.map((secKey) => {
+        if (secKey.startsWith('custom-')) {
+          const cb = customBlocks.find((b) => b.id === secKey);
+          if (!cb) return null;
+          return (
+            <CmsCustomBlockRenderer
+              key={cb.id}
+              block={cb}
+              viewKey="home"
+              categories={categories}
+              products={combinedPool}
+            />
+          );
+        }
+        const node = sectionRenderers[secKey];
+        if (!node) return null;
+        return (
+          <CmsElementWrapper
+            key={secKey}
+            viewKey="home"
+            elemId={secKey}
+            styleCfg={home.elementStyles?.[secKey]}
+          >
+            {node}
+          </CmsElementWrapper>
+        );
+      })}
     </div>
   );
 }

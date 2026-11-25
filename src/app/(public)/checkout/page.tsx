@@ -10,6 +10,9 @@ import { getCartHeaders, getSafeImageUrl } from '@/lib/cart-session';
 import { trackMarketingEvent } from '@/components/storefront/MarketingPixelsTracker';
 import { TUNISIAN_GOVERNORATES } from '@/components/storefront/QuickOrderModal';
 import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHeader';
+import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { CmsElementWrapper, CmsCustomBlockRenderer, CmsViewCodeInjector } from '@/components/storefront/CmsElementRuntime';
+import { buildCmsInlineStyle } from '@/lib/cms-builder';
 import {
   ShieldCheck,
   Truck,
@@ -45,7 +48,11 @@ const EMPTY_CART_ITEMS: CartItem[] = [];
 export default function CheckoutPage() {
   const router = useRouter();
   const { user, fetchMe } = useAuthStore();
-  const { t } = useI18nStore();
+  const { locale, t } = useI18nStore();
+  const { config } = useCmsConfig();
+  const ckCfg = config.views.checkout || {};
+  const allowDelivery = ckCfg.allowDelivery !== false;
+  const allowShowroom = ckCfg.allowShowroomPickup !== false;
   const storeCart = useCartStore((s) => s.cart);
   const storeCartItems = React.useMemo(() => storeCart?.items ?? EMPTY_CART_ITEMS, [storeCart]);
 
@@ -484,31 +491,56 @@ export default function CheckoutPage() {
     geoCountries.find((c) => c.code === (formData.country || 'TN'))?.states?.map((s) => s.name) ||
     TUNISIAN_GOVERNORATES;
 
+  useEffect(() => {
+    if (!allowDelivery && allowShowroom && fulfillmentType === 'DELIVERY') {
+      setFulfillmentType('SHOWROOM_PICKUP');
+    } else if (allowDelivery && !allowShowroom && fulfillmentType === 'SHOWROOM_PICKUP') {
+      setFulfillmentType('DELIVERY');
+    }
+  }, [allowDelivery, allowShowroom, fulfillmentType]);
+
+  const ckOrder = Array.isArray(ckCfg.sectionOrder) && ckCfg.sectionOrder.length > 0
+    ? ckCfg.sectionOrder
+    : ['header', 'contactStep', 'fulfillmentStep', 'shippingStep', 'paymentStep', 'notesStep', 'summary'];
+  const getCkOrderIdx = (key: string, fallback: number) => {
+    const idx = ckOrder.indexOf(key);
+    return idx >= 0 ? idx : fallback;
+  };
+
   return (
-    <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 py-10 sm:py-12">
-      <StorefrontPageHeader
-        title={t('checkout.title')}
-        breadcrumbLabel={t('actions.checkout')}
-        badge={
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)]">
-            <Sparkles className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
-            <span>{t('checkout.badge')}</span>
-          </div>
-        }
-        rightSlot={
-          <div className="hidden sm:flex items-center gap-2 text-xs text-[#0C1A14]/70 bg-white px-4 py-2 rounded-full border border-[#EFECE6]">
-            <Lock className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
-            <span>{t('checkout.ssl_badge')}</span>
-          </div>
-        }
-      />
+    <div
+      id={ckCfg.viewStyle?.domId?.trim() || 'royal-view-checkout'}
+      style={buildCmsInlineStyle(ckCfg.viewStyle)}
+      className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 py-10 sm:py-12"
+    >
+      <CmsViewCodeInjector viewKey="checkout" viewStyle={ckCfg.viewStyle} />
+      <CmsElementWrapper viewKey="checkout" elemId="header" styleCfg={ckCfg.elementStyles?.header}>
+        <StorefrontPageHeader
+          title={locale === 'ar' ? t('checkout.title') : (ckCfg.title || t('checkout.title'))}
+          breadcrumbLabel={t('actions.checkout')}
+          subtitle={locale === 'ar' ? undefined : ckCfg.subtitle}
+          badge={
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-xs uppercase tracking-widest font-bold text-[var(--royal-gold-dark)]">
+              <Sparkles className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
+              <span>{locale === 'ar' ? t('checkout.badge') : (ckCfg.badgeText || t('checkout.badge'))}</span>
+            </div>
+          }
+          rightSlot={
+            <div className="hidden sm:flex items-center gap-2 text-xs text-[#0C1A14]/70 bg-white px-4 py-2 rounded-full border border-[#EFECE6]">
+              <Lock className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
+              <span>{t('checkout.ssl_badge')}</span>
+            </div>
+          }
+        />
+      </CmsElementWrapper>
 
       <form onSubmit={handleSubmitOrder}>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
           {/* Main Form (Steps) */}
-          <div className="lg:col-span-7 space-y-8">
+          <div className="lg:col-span-7 flex flex-col gap-8">
             {/* Step 1: Contact Information */}
-            <div className="bg-white rounded-3xl border border-[#EFECE6] p-5 sm:p-7 shadow-sm">
+            <CmsElementWrapper viewKey="checkout" elemId="contactStep" styleCfg={ckCfg.elementStyles?.contactStep} inlineStyle={{ order: getCkOrderIdx('contactStep', 1) }}>
+              <div className="bg-white rounded-3xl border border-[#EFECE6] p-5 sm:p-7 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
                 <div className="flex items-center gap-3">
                   <span className="w-8 h-8 rounded-full bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] border border-[var(--royal-primary)]/40 text-xs font-bold flex items-center justify-center shrink-0">
@@ -579,10 +611,12 @@ export default function CheckoutPage() {
                   />
                 </div>
               </div>
-            </div>
+              </div>
+            </CmsElementWrapper>
 
             {/* Step 2: Shipping Address */}
-            <div className="bg-white rounded-3xl border border-[#EFECE6] p-5 sm:p-7 shadow-sm">
+            <CmsElementWrapper viewKey="checkout" elemId="shippingStep" styleCfg={ckCfg.elementStyles?.shippingStep} inlineStyle={{ order: getCkOrderIdx('shippingStep', 2) }}>
+              <div className="bg-white rounded-3xl border border-[#EFECE6] p-5 sm:p-7 shadow-sm">
               <div className="flex items-center gap-3 mb-6">
                 <span className="w-8 h-8 rounded-full bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] border border-[var(--royal-primary)]/40 text-xs font-bold flex items-center justify-center shrink-0">
                   2
@@ -677,67 +711,75 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               </div>
-            </div>
+              </div>
+            </CmsElementWrapper>
 
             {/* Step 3: Delivery Options (Carrier Calculation vs Showroom Pickup) */}
-            <div className="bg-white rounded-3xl border border-[#EFECE6] p-5 sm:p-7 shadow-sm space-y-5">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-full bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] border border-[var(--royal-primary)]/40 text-xs font-bold flex items-center justify-center shrink-0">
-                    3
-                  </span>
-                  <h2 className="font-sans font-bold tracking-tight text-xl text-[#0C1A14] font-semibold">
-                    {t('checkout.step3')}
-                  </h2>
+            <CmsElementWrapper viewKey="checkout" elemId="fulfillmentStep" styleCfg={ckCfg.elementStyles?.fulfillmentStep} inlineStyle={{ order: getCkOrderIdx('fulfillmentStep', 3) }}>
+              <div className="bg-white rounded-3xl border border-[#EFECE6] p-5 sm:p-7 shadow-sm space-y-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-8 h-8 rounded-full bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] border border-[var(--royal-primary)]/40 text-xs font-bold flex items-center justify-center shrink-0">
+                      3
+                    </span>
+                    <h2 className="font-sans font-bold tracking-tight text-xl text-[#0C1A14] font-semibold">
+                      {t('checkout.step3')}
+                    </h2>
+                  </div>
+                  {loadingDeliveryOptions && (
+                    <span className="text-[11px] font-semibold text-[#9A7414]">Calcul en cours...</span>
+                  )}
                 </div>
-                {loadingDeliveryOptions && (
-                  <span className="text-[11px] font-semibold text-[#9A7414]">Calcul en cours...</span>
+
+                {/* Fulfillment Toggle */}
+                {ckCfg.showFulfillmentToggle !== false && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {allowDelivery && (
+                      <button
+                        type="button"
+                        onClick={() => setFulfillmentType('DELIVERY')}
+                        className={`p-4 rounded-2xl border text-left transition cursor-pointer flex items-start gap-3 ${
+                          fulfillmentType === 'DELIVERY'
+                            ? 'border-[#D4AF37] bg-[#FBF9F5] ring-2 ring-[#D4AF37]/20'
+                            : 'border-[#EFECE6] bg-white hover:border-[#D4AF37]/50'
+                        }`}
+                      >
+                        <Truck className="w-5 h-5 text-[#9A7414] shrink-0 mt-0.5" />
+                        <div>
+                          <div className="font-bold text-sm text-[#0C1A14]">Livraison par Transporteur</div>
+                          <div className="text-[11px] text-[#0C1A14]/60 mt-0.5">
+                            Tarif dynamique selon Distance, Poids ou Forfait
+                          </div>
+                        </div>
+                      </button>
+                    )}
+
+                    {allowShowroom && (
+                      <button
+                        type="button"
+                        onClick={() => setFulfillmentType('SHOWROOM_PICKUP')}
+                        className={`p-4 rounded-2xl border text-left transition cursor-pointer flex items-start gap-3 ${
+                          fulfillmentType === 'SHOWROOM_PICKUP'
+                            ? 'border-[#D4AF37] bg-[#FBF9F5] ring-2 ring-[#D4AF37]/20'
+                            : 'border-[#EFECE6] bg-white hover:border-[#D4AF37]/50'
+                        }`}
+                      >
+                        <Store className="w-5 h-5 text-[#9A7414] shrink-0 mt-0.5" />
+                        <div>
+                          <div className="font-bold text-sm text-[#0C1A14] flex items-center gap-2">
+                            <span>Retrait en Showroom</span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              GRATUIT
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-[#0C1A14]/60 mt-0.5">
+                            Retirez dans un magasin Royal (réassort auto si nécessaire)
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                  </div>
                 )}
-              </div>
-
-              {/* Fulfillment Toggle */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setFulfillmentType('DELIVERY')}
-                  className={`p-4 rounded-2xl border text-left transition cursor-pointer flex items-start gap-3 ${
-                    fulfillmentType === 'DELIVERY'
-                      ? 'border-[#D4AF37] bg-[#FBF9F5] ring-2 ring-[#D4AF37]/20'
-                      : 'border-[#EFECE6] bg-white hover:border-[#D4AF37]/50'
-                  }`}
-                >
-                  <Truck className="w-5 h-5 text-[#9A7414] shrink-0 mt-0.5" />
-                  <div>
-                    <div className="font-bold text-sm text-[#0C1A14]">Livraison par Transporteur</div>
-                    <div className="text-[11px] text-[#0C1A14]/60 mt-0.5">
-                      Tarif dynamique selon Distance, Poids ou Forfait
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setFulfillmentType('SHOWROOM_PICKUP')}
-                  className={`p-4 rounded-2xl border text-left transition cursor-pointer flex items-start gap-3 ${
-                    fulfillmentType === 'SHOWROOM_PICKUP'
-                      ? 'border-[#D4AF37] bg-[#FBF9F5] ring-2 ring-[#D4AF37]/20'
-                      : 'border-[#EFECE6] bg-white hover:border-[#D4AF37]/50'
-                  }`}
-                >
-                  <Store className="w-5 h-5 text-[#9A7414] shrink-0 mt-0.5" />
-                  <div>
-                    <div className="font-bold text-sm text-[#0C1A14] flex items-center gap-2">
-                      <span>Retrait en Showroom</span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        GRATUIT
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-[#0C1A14]/60 mt-0.5">
-                      Retirez dans un magasin Royal (réassort auto si nécessaire)
-                    </div>
-                  </div>
-                </button>
-              </div>
 
               {fulfillmentType === 'DELIVERY' ? (
                 <div className="space-y-3">
@@ -890,38 +932,40 @@ export default function CheckoutPage() {
                   )}
                 </div>
               )}
-            </div>
+              </div>
+            </CmsElementWrapper>
 
             {/* Step 4: Payment Options */}
-            <div className="bg-white rounded-3xl border border-[#EFECE6] p-5 sm:p-7 shadow-sm">
-              <div className="flex items-center gap-3 mb-6">
-                <span className="w-8 h-8 rounded-full bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] border border-[var(--royal-primary)]/40 text-xs font-bold flex items-center justify-center shrink-0">
-                  4
-                </span>
-                <h2 className="font-sans font-bold tracking-tight text-xl text-[#0C1A14] font-semibold">
-                  {t('checkout.step4')}
-                </h2>
-              </div>
+            <CmsElementWrapper viewKey="checkout" elemId="paymentStep" styleCfg={ckCfg.elementStyles?.paymentStep} inlineStyle={{ order: getCkOrderIdx('paymentStep', 4) }}>
+              <div className="bg-white rounded-3xl border border-[#EFECE6] p-5 sm:p-7 shadow-sm">
+                <div className="flex items-center gap-3 mb-6">
+                  <span className="w-8 h-8 rounded-full bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] border border-[var(--royal-primary)]/40 text-xs font-bold flex items-center justify-center shrink-0">
+                    4
+                  </span>
+                  <h2 className="font-sans font-bold tracking-tight text-xl text-[#0C1A14] font-semibold">
+                    {t('checkout.step4')}
+                  </h2>
+                </div>
 
-              <div className="space-y-4">
-                <label className={`p-4 sm:p-5 rounded-2xl border cursor-pointer transition flex items-start gap-3 sm:gap-4 ${selectedGatewayCode === 'CASH_ON_DELIVERY' ? 'border-[#D4AF37] bg-[#FBF9F5]' : 'border-[#EFECE6] bg-white'}`}>
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="CASH_ON_DELIVERY"
-                    checked={selectedGatewayCode === 'CASH_ON_DELIVERY'}
-                    onChange={() => setSelectedGatewayCode('CASH_ON_DELIVERY')}
-                    className="accent-[var(--royal-primary)] mt-1"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Banknote className="w-5 h-5 text-emerald-700 shrink-0" />
-                      <span className="font-semibold text-sm text-[#0C1A14]">
-                        {fulfillmentType === 'SHOWROOM_PICKUP'
-                          ? 'Payer sur place (au showroom)'
-                          : t('checkout.cod')}
-                      </span>
-                    </div>
+                <div className="space-y-4">
+                  <label className={`p-4 sm:p-5 rounded-2xl border cursor-pointer transition flex items-start gap-3 sm:gap-4 ${selectedGatewayCode === 'CASH_ON_DELIVERY' ? 'border-[#D4AF37] bg-[#FBF9F5]' : 'border-[#EFECE6] bg-white'}`}>
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="CASH_ON_DELIVERY"
+                      checked={selectedGatewayCode === 'CASH_ON_DELIVERY'}
+                      onChange={() => setSelectedGatewayCode('CASH_ON_DELIVERY')}
+                      className="accent-[var(--royal-primary)] mt-1"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Banknote className="w-5 h-5 text-emerald-700 shrink-0" />
+                        <span className="font-semibold text-sm text-[#0C1A14]">
+                          {fulfillmentType === 'SHOWROOM_PICKUP'
+                            ? (ckCfg.showroomPayLabel || 'Payer sur place (au showroom)')
+                            : t('checkout.cod')}
+                        </span>
+                      </div>
                     <p className="text-xs text-[#0C1A14]/60 mt-1">
                       {fulfillmentType === 'SHOWROOM_PICKUP'
                         ? 'Réglez directement sur place lors du retrait de votre commande au showroom choisi.'
@@ -1002,27 +1046,32 @@ export default function CheckoutPage() {
                   </label>
                 )}
               </div>
-            </div>
+              </div>
+            </CmsElementWrapper>
 
             {/* Step 5: Customer Notes */}
-            <div className="bg-white rounded-3xl border border-[#EFECE6] p-7 shadow-sm">
-              <label className="block text-xs font-semibold text-[#0C1A14] mb-2 uppercase tracking-wider">
-                {fulfillmentType === 'SHOWROOM_PICKUP'
-                  ? 'Instructions particulières pour le retrait en showroom (Optionnel)'
-                  : 'Instructions particulières pour le livreur (Optionnel)'}
-              </label>
-              <textarea
-                rows={2}
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Ex: Sonner à l'interphone 4B ou appeler 10 min avant votre arrivée..."
-                className="w-full px-4 py-2.5 rounded-xl border border-[#EFECE6] bg-[#FBF9F5] text-sm focus:outline-none focus:border-[#D4AF37]"
-              />
-            </div>
+            {ckCfg.showNotesStep !== false && (
+              <CmsElementWrapper viewKey="checkout" elemId="notesStep" styleCfg={ckCfg.elementStyles?.notesStep} inlineStyle={{ order: getCkOrderIdx('notesStep', 5) }}>
+                <div className="bg-white rounded-3xl border border-[#EFECE6] p-7 shadow-sm">
+                  <label className="block text-xs font-semibold text-[#0C1A14] mb-2 uppercase tracking-wider">
+                    {fulfillmentType === 'SHOWROOM_PICKUP'
+                      ? 'Instructions particulières pour le retrait en showroom (Optionnel)'
+                      : 'Instructions particulières pour le livreur (Optionnel)'}
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    placeholder="Ex: Sonner à l'interphone 4B ou appeler 10 min avant votre arrivée..."
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#EFECE6] bg-[#FBF9F5] text-sm focus:outline-none focus:border-[#D4AF37]"
+                  />
+                </div>
+              </CmsElementWrapper>
+            )}
           </div>
 
           {/* Sidebar Summary */}
-          <div className="lg:col-span-5 space-y-6">
+          <CmsElementWrapper viewKey="checkout" elemId="summary" styleCfg={ckCfg.elementStyles?.summary} className="lg:col-span-5 space-y-6">
             <div className="bg-white rounded-3xl border border-[#EFECE6] p-5 sm:p-7 shadow-sm sticky top-28">
               <h2 className="font-sans font-bold tracking-tight text-xl text-[#0C1A14] font-semibold pb-4 border-b border-[#EFECE6] flex items-center justify-between">
                 <span>{t('cart.summary_title')}</span>
@@ -1063,43 +1112,45 @@ export default function CheckoutPage() {
               )}
 
               {/* Promo code */}
-              <div className="pt-4 pb-4 border-t border-[#EFECE6]">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={couponCodeInput}
-                    onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
-                    placeholder={t('cart.coupon_placeholder')}
-                    className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-[#EFECE6] bg-[#FBF9F5] text-xs font-mono uppercase focus:outline-none focus:border-[#D4AF37]"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleApplyCoupon}
-                    className="px-4 py-2 rounded-xl bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-semibold hover:bg-[var(--royal-primary-hover)] transition shrink-0"
-                  >
-                    {t('auth.validate')}
-                  </button>
-                </div>
-                {appliedCoupon && (
-                  <div className="mt-2 text-xs text-emerald-700 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>
-                      {isFreeShippingCoupon && discount <= 0 ? (
-                        <>
-                          Code promo <strong>{appliedCoupon.code}</strong> (Livraison offerte)
-                        </>
-                      ) : (
-                        <>
-                          {t('cart.discount')} <strong>{appliedCoupon.code}</strong> (-{appliedCoupon.discountAmount.toFixed(3)} {t('common.currency')})
-                        </>
-                      )}
-                    </span>
+              {ckCfg.showCouponBox !== false && (
+                <div className="pt-4 pb-4 border-t border-[#EFECE6]">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponCodeInput}
+                      onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
+                      placeholder={t('cart.coupon_placeholder')}
+                      className="flex-1 min-w-0 px-3 py-2 rounded-xl border border-[#EFECE6] bg-[#FBF9F5] text-xs font-mono uppercase focus:outline-none focus:border-[#D4AF37]"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      className="px-4 py-2 rounded-xl bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-semibold hover:bg-[var(--royal-primary-hover)] transition shrink-0"
+                    >
+                      {t('auth.validate')}
+                    </button>
                   </div>
-                )}
-                {couponError && (
-                  <p className="mt-2 text-xs text-red-600">{couponError}</p>
-                )}
-              </div>
+                  {appliedCoupon && (
+                    <div className="mt-2 text-xs text-emerald-700 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>
+                        {isFreeShippingCoupon && discount <= 0 ? (
+                          <>
+                            Code promo <strong>{appliedCoupon.code}</strong> (Livraison offerte)
+                          </>
+                        ) : (
+                          <>
+                            {t('cart.discount')} <strong>{appliedCoupon.code}</strong> (-{appliedCoupon.discountAmount.toFixed(3)} {t('common.currency')})
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {couponError && (
+                    <p className="mt-2 text-xs text-red-600">{couponError}</p>
+                  )}
+                </div>
+              )}
 
               {/* Financial Calculation */}
               <div className="space-y-2.5 py-4 border-t border-[#EFECE6] text-xs text-[#0C1A14]/70">
@@ -1155,7 +1206,7 @@ export default function CheckoutPage() {
                     <span>{t('checkout.processing')}</span>
                   ) : (
                     <>
-                      <span>{t('checkout.confirm_order')}</span>
+                      <span>{locale === 'ar' ? t('checkout.confirm_order') : (ckCfg.submitButtonText || t('checkout.confirm_order'))}</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
@@ -1170,9 +1221,11 @@ export default function CheckoutPage() {
                 </div>
               </div>
             </div>
-          </div>
+          </CmsElementWrapper>
         </div>
       </form>
+      {Array.isArray(ckCfg.customBlocks) &&
+        ckCfg.customBlocks.map((cb) => <CmsCustomBlockRenderer key={cb.id} block={cb} viewKey="checkout" />)}
     </div>
   );
 }

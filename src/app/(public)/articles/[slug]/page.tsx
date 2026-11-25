@@ -18,6 +18,8 @@ import { ShareProductModal } from '@/components/storefront/ShareProductModal';
 import { trackMarketingEvent } from '@/components/storefront/MarketingPixelsTracker';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
+import { CmsElementWrapper, CmsCustomBlockRenderer, CmsViewCodeInjector } from '@/components/storefront/CmsElementRuntime';
+import { buildCmsInlineStyle } from '@/lib/cms-builder';
 import {
   Star,
   ShieldCheck,
@@ -423,49 +425,66 @@ export default function ArticleDetailPage() {
 
   const renderTrustBadges = (standalone = false) =>
     detailCfg.showTrustBadges !== false ? (
-      <div
-        style={standalone ? { order: trustOrder } : undefined}
-        className={`${standalone ? 'mt-8 ' : ''}pt-6 border-t border-[var(--royal-border)] grid grid-cols-1 sm:grid-cols-3 gap-3 text-center text-xs text-neutral-600`}
+      <CmsElementWrapper
+        viewKey="productDetail"
+        elemId="trustBadges"
+        styleCfg={detailCfg.elementStyles?.trustBadges}
+        inlineStyle={standalone ? { order: trustOrder } : undefined}
       >
-        {trustBadgeItems.map(({ Icon, title, subtitle }, idx) => (
-          <div
-            key={idx}
-            className="p-3.5 rounded-2xl bg-[var(--royal-silver-light)] flex flex-col items-center gap-1.5 border border-[var(--royal-border)]"
-          >
-            <Icon className="w-5 h-5 text-[var(--royal-primary)]" />
-            <span className="font-bold text-[var(--royal-ink)]">{title}</span>
-            <span className="text-[10px] text-neutral-500">{subtitle}</span>
-          </div>
-        ))}
-      </div>
+        <div
+          className={`${standalone ? 'mt-8 ' : ''}pt-6 border-t border-[var(--royal-border)] grid grid-cols-1 sm:grid-cols-3 gap-3 text-center text-xs text-neutral-600`}
+        >
+          {trustBadgeItems.map(({ Icon, title, subtitle }, idx) => (
+            <div
+              key={idx}
+              className="p-3.5 rounded-2xl bg-[var(--royal-silver-light)] flex flex-col items-center gap-1.5 border border-[var(--royal-border)]"
+            >
+              <Icon className="w-5 h-5 text-[var(--royal-primary)]" />
+              <span className="font-bold text-[var(--royal-ink)]">{title}</span>
+              <span className="text-[10px] text-neutral-500">{subtitle}</span>
+            </div>
+          ))}
+        </div>
+      </CmsElementWrapper>
     ) : null;
 
   return (
-    <div className="bg-[var(--royal-bg)] min-h-screen py-8 md:py-12">
+    <div
+      id={detailCfg.viewStyle?.domId?.trim() || 'royal-view-productDetail'}
+      style={buildCmsInlineStyle(detailCfg.viewStyle)}
+      className="bg-[var(--royal-bg)] min-h-screen py-8 md:py-12"
+    >
+      <CmsViewCodeInjector viewKey="productDetail" viewStyle={detailCfg.viewStyle} />
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-24 flex flex-col">
         {/* Breadcrumb */}
         {detailCfg.showBreadcrumb !== false && (
-          <nav
-            style={{ order: breadcrumbOrder }}
-            className="flex items-center gap-2 text-xs text-neutral-400 mb-6 sm:mb-8 overflow-x-auto whitespace-nowrap"
+          <CmsElementWrapper
+            viewKey="productDetail"
+            elemId="breadcrumb"
+            styleCfg={detailCfg.elementStyles?.breadcrumb}
+            inlineStyle={{ order: breadcrumbOrder }}
           >
-            <Link href="/" className="hover:text-neutral-900 transition">{t('nav.home')}</Link>
-            <ChevronRight className="w-3.5 h-3.5 text-neutral-300 shrink-0" />
-            <Link href="/articles" className="hover:text-neutral-900 transition">{t('nav.articles')}</Link>
-            {product.category && (
-              <>
-                <ChevronRight className="w-3.5 h-3.5 text-neutral-300" />
-                <Link
-                  href={`/articles?category=${product.category.slug}`}
-                  className="hover:text-neutral-900 transition"
-                >
-                  {product.category.name}
-                </Link>
-              </>
-            )}
-            <ChevronRight className="w-3.5 h-3.5 text-neutral-300" />
-            <span className="font-semibold text-neutral-900 truncate max-w-xs">{product.name}</span>
-          </nav>
+            <nav
+              className="flex items-center gap-2 text-xs text-neutral-400 mb-6 sm:mb-8 overflow-x-auto whitespace-nowrap"
+            >
+              <Link href="/" className="hover:text-neutral-900 transition">{t('nav.home')}</Link>
+              <ChevronRight className="w-3.5 h-3.5 text-neutral-300 shrink-0" />
+              <Link href="/articles" className="hover:text-neutral-900 transition">{t('nav.articles')}</Link>
+              {product.category && (
+                <>
+                  <ChevronRight className="w-3.5 h-3.5 text-neutral-300" />
+                  <Link
+                    href={`/articles?category=${product.category.slug}`}
+                    className="hover:text-neutral-900 transition"
+                  >
+                    {product.category.name}
+                  </Link>
+                </>
+              )}
+              <ChevronRight className="w-3.5 h-3.5 text-neutral-300" />
+              <span className="font-semibold text-neutral-900 truncate max-w-xs">{product.name}</span>
+            </nav>
+          </CmsElementWrapper>
         )}
 
         <div
@@ -473,7 +492,10 @@ export default function ArticleDetailPage() {
           className="grid grid-cols-1 lg:grid-cols-12 gap-10 xl:gap-16 items-start"
         >
           {/* Interactive Gallery (Left or Right via CMS) */}
-          <div
+          <CmsElementWrapper
+            viewKey="productDetail"
+            elemId="gallery"
+            styleCfg={detailCfg.elementStyles?.gallery}
             className={`w-full ${galleryOnRight ? 'lg:order-2' : 'lg:order-1'} ${
               detailCfg.mediaColumnSpan === 8
                 ? 'lg:col-span-7 xl:col-span-8'
@@ -505,10 +527,13 @@ export default function ArticleDetailPage() {
                 }
               />
             </div>
-          </div>
+          </CmsElementWrapper>
 
           {/* Purchase Panel */}
-          <div
+          <CmsElementWrapper
+            viewKey="productDetail"
+            elemId="purchaseInfo"
+            styleCfg={detailCfg.elementStyles?.purchaseInfo}
             className={`space-y-6 ${galleryOnRight ? 'lg:order-1' : 'lg:order-2'} ${
               detailCfg.mediaColumnSpan === 8
                 ? 'lg:col-span-5 xl:col-span-4'
@@ -779,7 +804,7 @@ export default function ArticleDetailPage() {
             )}
 
             {keepTrustInline && renderTrustBadges(false)}
-          </div>
+          </CmsElementWrapper>
         </div>
 
         {!keepTrustInline && renderTrustBadges(true)}
@@ -789,7 +814,8 @@ export default function ArticleDetailPage() {
           detailCfg.showSpecs !== false ||
           detailCfg.showReviews !== false ||
           detailCfg.showDeliveryTab) && (
-        <div style={{ order: tabsOrder }} className="mt-16 pt-10 border-t border-[var(--royal-border)]">
+        <CmsElementWrapper viewKey="productDetail" elemId="tabs" styleCfg={detailCfg.elementStyles?.tabs} inlineStyle={{ order: tabsOrder }}>
+          <div className="mt-16 pt-10 border-t border-[var(--royal-border)]">
           <div className="flex flex-wrap gap-4 sm:gap-8 border-b border-neutral-200 pb-3">
             {detailCfg.showDescription !== false && (
               <button
@@ -1089,7 +1115,8 @@ export default function ArticleDetailPage() {
               </div>
             )}
           </div>
-        </div>
+          </div>
+        </CmsElementWrapper>
         )}
 
         {/* Recommended / Similar Products Section(s) */}
@@ -1163,7 +1190,7 @@ export default function ArticleDetailPage() {
           if (blocksToRender.length === 0) return null;
 
           return (
-            <div style={{ order: relatedOrder }}>
+            <CmsElementWrapper viewKey="productDetail" elemId="related" styleCfg={detailCfg.elementStyles?.related} inlineStyle={{ order: relatedOrder }}>
               {blocksToRender.map((block) => (
                 <section key={block.id} className="mt-16 pt-12 border-t border-[var(--royal-border)] space-y-6">
                   <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
@@ -1214,9 +1241,15 @@ export default function ArticleDetailPage() {
                   )}
                 </section>
               ))}
-            </div>
+            </CmsElementWrapper>
           );
         })()}
+        {Array.isArray(detailCfg.customBlocks) &&
+          detailCfg.customBlocks.map((cb) => (
+            <div key={cb.id} style={{ order: getDetailOrderIdx(cb.id, 99) }}>
+              <CmsCustomBlockRenderer block={cb} viewKey="productDetail" products={candidateRecommended} />
+            </div>
+          ))}
       </div>
       {product && (
         <>

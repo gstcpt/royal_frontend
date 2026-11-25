@@ -102,7 +102,7 @@ export function EditorialPromoBanner({ highlightProduct }: { highlightProduct?: 
               <div className="space-y-3">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FBF6E8] border border-[#E6D6A6] text-[#9A7414] text-[11px] font-bold uppercase tracking-wider">
                   <Award className="w-3.5 h-3.5 text-[#C59B27]" />
-                  <span>{t('storefront.editorial_badge')}</span>
+                  <span>{locale === 'ar' ? t('storefront.editorial_badge') : (home.editorialBadgeText || t('storefront.editorial_badge'))}</span>
                 </span>
                 <h3 className="font-heading font-extrabold text-xl sm:text-2xl text-[#1D232E] leading-snug">
                   {highlightProduct?.name || t('storefront.discover_full_catalog')}
@@ -132,7 +132,7 @@ export function EditorialPromoBanner({ highlightProduct }: { highlightProduct?: 
                   href={highlightProduct ? `/articles/${highlightProduct.slug}` : '/articles'}
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold uppercase tracking-wider transition shadow-md"
                 >
-                  <span>{t('storefront.editorial_cta')}</span>
+                  <span>{locale === 'ar' ? t('storefront.editorial_cta') : (home.editorialCtaText || t('storefront.editorial_cta'))}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>

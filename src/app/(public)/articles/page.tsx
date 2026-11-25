@@ -8,6 +8,8 @@ import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
 import { getSafeImageUrl } from '@/lib/cart-session';
 import { fetchAllPaginated } from '@/lib/api';
+import { CmsElementWrapper, CmsCustomBlockRenderer, CmsViewCodeInjector } from '@/components/storefront/CmsElementRuntime';
+import { buildCmsInlineStyle } from '@/lib/cms-builder';
 import {
   Filter,
   ArrowUpDown,
@@ -665,12 +667,22 @@ function ArticlesContent() {
   ) : null;
 
   return (
-    <div className="py-10 sm:py-12 w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
+    <div
+      id={articlesCfg.viewStyle?.domId?.trim() || 'royal-view-articles'}
+      style={buildCmsInlineStyle(articlesCfg.viewStyle)}
+      className="py-10 sm:py-12 w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20"
+    >
+      <CmsViewCodeInjector viewKey="articles" viewStyle={articlesCfg.viewStyle} />
       {/* Page Title */}
-      {!headerAfterCatalog && headerBlock}
+      {!headerAfterCatalog && headerBlock && (
+        <CmsElementWrapper viewKey="articles" elemId="header" styleCfg={articlesCfg.elementStyles?.header}>
+          {headerBlock}
+        </CmsElementWrapper>
+      )}
 
       {/* Unified Top Toolbar: [Toggle Sidebar Icon] -> [Article Count] -> [Search Input] -> [Grid/List, 3/4/6, PerPage, Sort] */}
-      <div className="bg-[var(--royal-card)] p-3.5 sm:p-4 rounded-2xl border border-[var(--royal-border)] shadow-sm mb-6 flex flex-wrap items-center gap-3 justify-between">
+      <CmsElementWrapper viewKey="articles" elemId="actions" styleCfg={articlesCfg.elementStyles?.actions}>
+        <div className="bg-[var(--royal-card)] p-3.5 sm:p-4 rounded-2xl border border-[var(--royal-border)] shadow-sm mb-6 flex flex-wrap items-center gap-3 justify-between">
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto sm:flex-1 min-w-0">
           {/* 1. First Position: Sidebar Toggle Icon aligned above Filter Sidebar */}
           {articlesCfg.showFiltersSection !== false && (
@@ -830,7 +842,8 @@ function ArticlesContent() {
             ]}
           />
         </div>
-      </div>
+        </div>
+      </CmsElementWrapper>
 
       {/* Main Content Layout */}
       <div
@@ -840,7 +853,8 @@ function ArticlesContent() {
       >
         {/* Collapsible Filter Sidebar (Left or Right via CMS — Zero Apply Button — Instant Auto-Filter) */}
         {isSidebarOpen && (
-          <aside className="w-full lg:w-72 xl:w-80 shrink-0 space-y-5 bg-[var(--royal-card)] p-5 rounded-[26px] border border-[var(--royal-border)] shadow-sm">
+          <CmsElementWrapper viewKey="articles" elemId="filters" styleCfg={articlesCfg.elementStyles?.filters} className="w-full lg:w-72 xl:w-80 shrink-0">
+            <aside className="w-full space-y-5 bg-[var(--royal-card)] p-5 rounded-[26px] border border-[var(--royal-border)] shadow-sm">
             <div className="flex items-center justify-between pb-3.5 border-b border-neutral-100">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-900">
                 <Filter className="w-4 h-4 text-amber-600" />
@@ -1061,7 +1075,8 @@ function ArticlesContent() {
                 <span>{t('catalog.in_stock_only')}</span>
               </label>
             </div>
-          </aside>
+            </aside>
+          </CmsElementWrapper>
         )}
 
         {/* Right Main Catalog */}
@@ -1131,9 +1146,14 @@ function ArticlesContent() {
           )}
 
           {/* Optional Top Pagination when ordered above Grid in CMS */}
-          {paginationAboveGrid && paginationBlock}
+          {paginationAboveGrid && paginationBlock && (
+            <CmsElementWrapper viewKey="articles" elemId="pagination" styleCfg={articlesCfg.elementStyles?.pagination}>
+              {paginationBlock}
+            </CmsElementWrapper>
+          )}
 
           {/* Articles Grid / List */}
+          <CmsElementWrapper viewKey="articles" elemId="grid" styleCfg={articlesCfg.elementStyles?.grid}>
           {loading ? (
             <div className={`grid gap-6 ${gridClassName}`}>
               {[...Array(8)].map((_, i) => (
@@ -1186,12 +1206,25 @@ function ArticlesContent() {
               ))}
             </div>
           )}
+          </CmsElementWrapper>
 
           {/* Pagination or Load More (CMS Controlled) */}
-          {!paginationAboveGrid && paginationBlock}
+          {!paginationAboveGrid && paginationBlock && (
+            <CmsElementWrapper viewKey="articles" elemId="pagination" styleCfg={articlesCfg.elementStyles?.pagination}>
+              {paginationBlock}
+            </CmsElementWrapper>
+          )}
         </main>
       </div>
-      {headerAfterCatalog && <div className="mt-10">{headerBlock}</div>}
+      {headerAfterCatalog && headerBlock && (
+        <CmsElementWrapper viewKey="articles" elemId="header" styleCfg={articlesCfg.elementStyles?.header} className="mt-10">
+          {headerBlock}
+        </CmsElementWrapper>
+      )}
+      {Array.isArray(articlesCfg.customBlocks) &&
+        articlesCfg.customBlocks.map((cb) => (
+          <CmsCustomBlockRenderer key={cb.id} block={cb} viewKey="articles" categories={categories} products={products} />
+        ))}
     </div>
   );
 }

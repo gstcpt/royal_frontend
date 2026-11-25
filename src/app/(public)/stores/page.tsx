@@ -6,12 +6,13 @@ import { Store, MapPin, Phone, Clock, ArrowRight } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
 import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHeader';
+import { CmsOrderedSections, CmsViewCodeInjector } from '@/components/storefront/CmsElementRuntime';
+import { buildCmsInlineStyle } from '@/lib/cms-builder';
 
 export default function ShowroomsPublicPage() {
   const { config } = useCmsConfig();
   const { locale, t } = useI18nStore();
   const srCfg = config.views.showrooms;
-  const order = Array.isArray(srCfg.sectionOrder) && srCfg.sectionOrder.length > 0 ? srCfg.sectionOrder : ['hero', 'cards', 'map'];
   const showrooms =
     Array.isArray(config.identity.showrooms) && config.identity.showrooms.length > 0
       ? config.identity.showrooms
@@ -133,9 +134,19 @@ export default function ShowroomsPublicPage() {
   };
 
   return (
-    <div className="bg-[var(--royal-bg)] min-h-screen py-10 sm:py-12">
+    <div
+      id={srCfg.viewStyle?.domId?.trim() || 'royal-view-showrooms'}
+      style={buildCmsInlineStyle(srCfg.viewStyle)}
+      className="bg-[var(--royal-bg)] min-h-screen py-10 sm:py-12"
+    >
+      <CmsViewCodeInjector viewKey="showrooms" viewStyle={srCfg.viewStyle} />
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
-        {order.map((sec) => blocks[sec] || null)}
+        <CmsOrderedSections
+          viewKey="showrooms"
+          viewCfg={srCfg}
+          defaultOrder={['hero', 'cards', 'map']}
+          sections={blocks}
+        />
       </div>
     </div>
   );

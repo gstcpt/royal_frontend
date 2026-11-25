@@ -2,11 +2,16 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Search, Package, Truck, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
+import { Search, AlertCircle, ArrowRight } from 'lucide-react';
 import { useI18nStore } from '@/stores/i18n.store';
+import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { CmsOrderedSections, CmsViewCodeInjector } from '@/components/storefront/CmsElementRuntime';
+import { buildCmsInlineStyle } from '@/lib/cms-builder';
 
 export default function TrackOrderPage() {
-  const { t } = useI18nStore();
+  const { locale, t } = useI18nStore();
+  const { config } = useCmsConfig();
+  const trackCfg = config.views.trackOrder || {};
   const [reference, setReference] = useState('');
   const [contact, setContact] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,22 +41,22 @@ export default function TrackOrderPage() {
     }
   };
 
-  return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-      <div className="text-center mb-10">
+  const sections: Record<string, React.ReactNode> = {
+    header: (
+      <div key="header" className="text-center mb-10">
         <span className="text-xs uppercase font-semibold text-[#D4AF37] tracking-widest block mb-2">
-          {t('track_order.eyebrow')}
+          {locale === 'ar' ? t('track_order.eyebrow') : (trackCfg.badgeText || t('track_order.eyebrow'))}
         </span>
-        <h1 className="font-sans font-bold tracking-tight text-3xl sm:text-4xl text-[#0C1A14] font-medium tracking-tight mb-3">
-          {t('track_order.title')}
+        <h1 className="font-sans font-bold tracking-tight text-3xl sm:text-4xl text-[#0C1A14] mb-3">
+          {locale === 'ar' ? t('track_order.title') : (trackCfg.title || t('track_order.title'))}
         </h1>
         <p className="text-sm text-[#0C1A14]/70 max-w-md mx-auto">
-          {t('track_order.subtitle')}
+          {locale === 'ar' ? t('track_order.subtitle') : (trackCfg.subtitle || t('track_order.subtitle'))}
         </p>
       </div>
-
-      {/* Lookup Card */}
-      <div className="bg-white rounded-3xl border border-[#EFECE6] p-6 sm:p-8 shadow-sm mb-10">
+    ),
+    searchForm: (
+      <div key="searchForm" className="bg-white rounded-3xl border border-[#EFECE6] p-6 sm:p-8 shadow-sm mb-10">
         <form onSubmit={handleTrack} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -105,23 +110,49 @@ export default function TrackOrderPage() {
           </button>
         </form>
       </div>
-
-      {/* Order Status Display */}
-      {order && (
-        <div className="bg-white rounded-3xl border border-[#EFECE6] p-6 sm:p-8 shadow-sm space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#EFECE6] pb-4">
-            <div>
-              <span className="text-[11px] text-[#0C1A14]/50 uppercase tracking-widest block">{t('track_order.order_label')}</span>
-              <span className="font-mono text-lg font-bold text-[#0C1A14]">{order.reference}</span>
-            </div>
-            <div>
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                {t('track_order.status_label')} {order.status}
-              </span>
-            </div>
+    ),
+    timelineResult: order ? (
+      <div key="timelineResult" className="bg-white rounded-3xl border border-[#EFECE6] p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#EFECE6] pb-4">
+          <div>
+            <span className="text-[11px] text-[#0C1A14]/50 uppercase tracking-widest block">{t('track_order.order_label')}</span>
+            <span className="font-mono text-lg font-bold text-[#0C1A14]">{order.reference}</span>
           </div>
+          <div>
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+              {t('track_order.status_label')} {order.status}
+            </span>
+          </div>
+        </div>
 
-          {/* Stepper */}
+        {/* Stepper (compact 4-step vs 9-step detailed timeline via CMS) */}
+        {trackCfg.showNineStepTimeline !== false ? (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-center text-[11px]">
+            {[
+              { keys: ['PENDING', 'CONFIRMED', 'PROCESSING', 'PREPARING', 'READY_FOR_PICKUP', 'READY_FOR_SHIPMENT', 'PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: '1. Commande enregistrée' },
+              { keys: ['CONFIRMED', 'PROCESSING', 'PREPARING', 'READY_FOR_PICKUP', 'READY_FOR_SHIPMENT', 'PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: '2. Validée par le service' },
+              { keys: ['PROCESSING', 'PREPARING', 'READY_FOR_PICKUP', 'READY_FOR_SHIPMENT', 'PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: '3. Affectée à un dépôt' },
+              { keys: ['PREPARING', 'READY_FOR_PICKUP', 'READY_FOR_SHIPMENT', 'PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: '4. Préparation colis' },
+              { keys: ['READY_FOR_PICKUP', 'READY_FOR_SHIPMENT', 'PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: '5. Prête pour expédition / retrait' },
+              { keys: ['PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: '6. Prise en charge transporteur' },
+              { keys: ['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: '7. En transit' },
+              { keys: ['OUT_FOR_DELIVERY', 'DELIVERED'], label: '8. En cours de tournée' },
+              { keys: ['DELIVERED'], label: '9. Livrée avec succès' },
+            ].map((st, idx) => {
+              const reached = st.keys.includes(order.status);
+              return (
+                <div
+                  key={idx}
+                  className={`p-2.5 rounded-xl border ${
+                    reached ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-semibold' : 'bg-[#FBF9F5] border-[#EFECE6] opacity-60'
+                  }`}
+                >
+                  {st.label}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">
             <div className={`p-3 rounded-xl border ${order.status ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-semibold' : 'bg-[#FBF9F5] border-[#EFECE6]'}`}>
               {t('track_order.step_1')}
@@ -136,18 +167,34 @@ export default function TrackOrderPage() {
               {t('track_order.step_4')}
             </div>
           </div>
+        )}
 
-          <div className="pt-2 text-center">
-            <Link
-              href={`/order-confirmation/${order.reference}`}
-              className="inline-flex items-center gap-1.5 text-xs text-[#0C1A14] hover:text-[#D4AF37] font-semibold tracking-wider uppercase transition"
-            >
-              <span>{t('track_order.view_summary')}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
+        <div className="pt-2 text-center">
+          <Link
+            href={`/order-confirmation/${order.reference}`}
+            className="inline-flex items-center gap-1.5 text-xs text-[#0C1A14] hover:text-[#D4AF37] font-semibold tracking-wider uppercase transition"
+          >
+            <span>{t('track_order.view_summary')}</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
         </div>
-      )}
+      </div>
+    ) : null,
+  };
+
+  return (
+    <div
+      id={trackCfg.viewStyle?.domId?.trim() || 'royal-view-trackOrder'}
+      style={buildCmsInlineStyle(trackCfg.viewStyle)}
+      className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16"
+    >
+      <CmsViewCodeInjector viewKey="trackOrder" viewStyle={trackCfg.viewStyle} />
+      <CmsOrderedSections
+        viewKey="trackOrder"
+        viewCfg={trackCfg}
+        defaultOrder={['header', 'searchForm', 'timelineResult']}
+        sections={sections}
+      />
     </div>
   );
 }

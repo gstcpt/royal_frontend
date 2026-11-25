@@ -5,12 +5,13 @@ import { ShieldCheck } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
 import { StorefrontPageHeader } from '@/components/storefront/StorefrontPageHeader';
+import { CmsOrderedSections, CmsViewCodeInjector } from '@/components/storefront/CmsElementRuntime';
+import { buildCmsInlineStyle } from '@/lib/cms-builder';
 
 export default function PrivacyPage() {
   const { config } = useCmsConfig();
   const { locale, t } = useI18nStore();
   const privCfg = config.views.privacy || {};
-  const order = Array.isArray(privCfg.sectionOrder) && privCfg.sectionOrder.length > 0 ? privCfg.sectionOrder : ['header', 'document', 'footerNote'];
 
   const [page, setPage] = useState<{ title: string; subtitle?: string; content: string } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,9 +68,19 @@ export default function PrivacyPage() {
   };
 
   return (
-    <div className="bg-[var(--royal-bg)] min-h-screen py-10 sm:py-12">
+    <div
+      id={privCfg.viewStyle?.domId?.trim() || 'royal-view-privacy'}
+      style={buildCmsInlineStyle(privCfg.viewStyle)}
+      className="bg-[var(--royal-bg)] min-h-screen py-10 sm:py-12"
+    >
+      <CmsViewCodeInjector viewKey="privacy" viewStyle={privCfg.viewStyle} />
       <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 2xl:px-20">
-        {order.map((sec) => blocks[sec] || null)}
+        <CmsOrderedSections
+          viewKey="privacy"
+          viewCfg={privCfg}
+          defaultOrder={['header', 'document', 'footerNote']}
+          sections={blocks}
+        />
       </div>
     </div>
   );
