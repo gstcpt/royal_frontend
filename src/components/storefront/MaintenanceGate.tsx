@@ -19,7 +19,7 @@ export function MaintenanceGate({ children }: { children: React.ReactNode }) {
     isAuthenticated &&
     Boolean(
       user?.roles?.some((r) =>
-        ['ROOT', 'SUPER_ADMIN', 'WEBSITE_MANAGER', 'ADMIN'].includes(String(r).toUpperCase()),
+        ['ROOT', 'SUPER_ADMIN', 'WEBSITE_MANAGER'].includes(String(r).toUpperCase()),
       ),
     );
 

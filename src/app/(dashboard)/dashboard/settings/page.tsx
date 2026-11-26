@@ -140,45 +140,37 @@ export default function SettingsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await Promise.all([
-        fetchApi('/storefront-cms/sys-config/generalSettings', {
-          method: 'PUT',
-          body: JSON.stringify({
-            value: {
-              companyName,
-              taxId,
-              rcNumber,
-              phone,
-              email,
-              address,
-              currency,
-              vatStandard,
-              vatReduced,
-              fiscalStamp,
-              freeShippingThreshold,
-              defaultShippingFee,
-              lowStockDefaultAlert,
-              canonicalBaseUrl: canonicalBaseUrl.trim(),
-              forceHttps,
-              maintenanceMode,
-              maintenanceMessage: maintenanceMessage.trim(),
-              deliveryCompaniesEnabled,
-            },
-          }),
-        }),
-        fetchApi('/storefront-cms/cms/identity', {
-          method: 'PATCH',
-          body: JSON.stringify({ companyName, taxId, rcNumber, phone, email, address }),
-        }).catch(() => null),
-        fetchApi('/storefront-cms/shipping-config', {
-          method: 'PATCH',
-          body: JSON.stringify({
+      await fetchApi('/storefront-cms/sys-config/generalSettings', {
+        method: 'PUT',
+        body: JSON.stringify({
+          value: {
+            companyName: companyName.trim(),
+            taxId: taxId.trim(),
+            rcNumber: rcNumber.trim(),
+            phone: phone.trim(),
+            email: email.trim(),
+            address: address.trim(),
+            currency: currency.trim(),
+            vatStandard: Number(vatStandard),
+            vatReduced: Number(vatReduced),
+            fiscalStamp: Number(fiscalStamp),
             freeShippingThreshold: Number(freeShippingThreshold),
-            standardShippingFee: Number(defaultShippingFee),
-          }),
-        }).catch(() => null),
-      ]);
-      setFeedbackMessage('Paramètres généraux sauvegardés en base et propagés aux documents.');
+            defaultShippingFee: Number(defaultShippingFee),
+            lowStockDefaultAlert: Number(lowStockDefaultAlert),
+            canonicalBaseUrl: canonicalBaseUrl.trim(),
+            forceHttps,
+            maintenanceMode,
+            maintenanceMessage: maintenanceMessage.trim(),
+            deliveryCompaniesEnabled,
+          },
+        }),
+      });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('royal-cms-updated'));
+      }
+      setFeedbackMessage(
+        'Paramètres généraux sauvegardés et synchronisés (Identité, TVA, Livraison & SEO).',
+      );
     } catch (err: any) {
       setFeedbackMessage(err?.message || 'Erreur lors de la sauvegarde des paramètres.');
     } finally {

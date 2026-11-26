@@ -39,7 +39,7 @@ export default function TransferDetailPage() {
   const id = String(params?.id || '');
   const { hasAnyRole } = useAuthStore();
 
-  const canDecideTransfer = hasAnyRole(['ROOT', 'SUPER_ADMIN', 'WEBSITE_MANAGER', 'ADMIN']);
+  const canDecideTransfer = hasAnyRole(['ROOT', 'SUPER_ADMIN', 'WEBSITE_MANAGER']);
 
   const [transfer, setTransfer] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);

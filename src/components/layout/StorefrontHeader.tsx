@@ -56,7 +56,7 @@ export function StorefrontHeader() {
 
   const isClientOnly =
     Boolean(user?.roles?.includes('CLIENT')) &&
-    !user?.roles?.some((r) => ['ROOT', 'SUPER_ADMIN', 'ADMIN', 'WEBSITE_MANAGER'].includes(r));
+    !user?.roles?.some((r) => ['ROOT', 'SUPER_ADMIN', 'WEBSITE_MANAGER'].includes(r));
   const accountHref = isAuthenticated ? '/dashboard' : '/login';
 
   useEffect(() => {

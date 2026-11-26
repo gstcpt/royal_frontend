@@ -368,7 +368,7 @@ function PrintTemplatesContent() {
             >
               <option value="">Format papier...</option>
               <option value="A4">Format A4</option>
-              <option value="80MM_POS">Ticket 80mm POS</option>
+              <option value="80mm">Ticket 80mm POS</option>
               <option value="A5">Format A5</option>
             </select>
           </>

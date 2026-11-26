@@ -90,7 +90,7 @@ export default function DashboardPage() {
   const isRoot = userRoles.includes('ROOT') || hasRole(SystemRole.ROOT);
   const isSuperAdmin = userRoles.includes('SUPER_ADMIN') || hasRole(SystemRole.SUPER_ADMIN);
   const isWebsiteManager =
-    userRoles.includes('WEBSITE_MANAGER') || userRoles.includes('ADMIN') || hasRole(SystemRole.ADMIN);
+    userRoles.includes('WEBSITE_MANAGER') || hasRole(SystemRole.WEBSITE_MANAGER);
   const isClient =
     (userRoles.includes('CLIENT') || hasRole(SystemRole.CLIENT)) &&
     !isRoot &&

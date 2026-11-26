@@ -225,19 +225,43 @@ export function PaymentGatewaysPanel({
             />
           </div>
 
-          <Input
-            label="Flouci App Token"
-            type={showSecrets ? 'text' : 'password'}
-            value={config.flouci.appToken}
-            onChange={(e) => setConfig({ ...config, flouci: { ...config.flouci, appToken: e.target.value } })}
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Flouci App Token"
+              type={showSecrets ? 'text' : 'password'}
+              value={config.flouci.appToken}
+              onChange={(e) => setConfig({ ...config, flouci: { ...config.flouci, appToken: e.target.value } })}
+            />
+
+            <Input
+              label="Flouci App Secret"
+              type={showSecrets ? 'text' : 'password'}
+              value={config.flouci.appSecret}
+              onChange={(e) => setConfig({ ...config, flouci: { ...config.flouci, appSecret: e.target.value } })}
+            />
+          </div>
 
           <Input
-            label="Flouci App Secret"
-            type={showSecrets ? 'text' : 'password'}
-            value={config.flouci.appSecret}
-            onChange={(e) => setConfig({ ...config, flouci: { ...config.flouci, appSecret: e.target.value } })}
+            label="Description affichée au Checkout"
+            placeholder="Réglez instantanément par Wallet Flouci ou carte bancaire tunisienne."
+            value={config.flouci.description}
+            onChange={(e) => setConfig({ ...config, flouci: { ...config.flouci, description: e.target.value } })}
           />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="URL Retour Succès"
+              placeholder="/order-confirmation"
+              value={config.flouci.successUrl}
+              onChange={(e) => setConfig({ ...config, flouci: { ...config.flouci, successUrl: e.target.value } })}
+            />
+            <Input
+              label="URL Retour Échec"
+              placeholder="/checkout?paymentError=flouci"
+              value={config.flouci.failUrl}
+              onChange={(e) => setConfig({ ...config, flouci: { ...config.flouci, failUrl: e.target.value } })}
+            />
+          </div>
         </div>
 
         {/* ClicToPay */}
@@ -294,6 +318,22 @@ export function PaymentGatewaysPanel({
               }
             />
           </div>
+
+          <Input
+            label="Libellé affiché au client"
+            placeholder="Carte Bancaire Tunisienne (ClicToPay SMT)"
+            value={config.clictopay.label}
+            onChange={(e) => setConfig({ ...config, clictopay: { ...config.clictopay, label: e.target.value } })}
+          />
+
+          <Input
+            label="Description affichée au Checkout"
+            placeholder="Passerelle officielle monétique tunisienne 3DSecure."
+            value={config.clictopay.description}
+            onChange={(e) =>
+              setConfig({ ...config, clictopay: { ...config.clictopay, description: e.target.value } })
+            }
+          />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input

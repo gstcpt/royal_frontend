@@ -37,7 +37,6 @@ const ROLE_BADGE: Record<string, string> = {
   ROOT: 'bg-[#FBF6E8] text-[#9A7414] border-[#E6D6A6]',
   SUPER_ADMIN: 'bg-amber-100 text-amber-900 border-amber-300',
   WEBSITE_MANAGER: 'bg-blue-50 text-blue-800 border-blue-200',
-  ADMIN: 'bg-blue-50 text-blue-800 border-blue-200',
 };
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
@@ -165,7 +164,7 @@ export default function ClientMessagesPage() {
         <div className="flex-1 p-5 space-y-4 overflow-y-auto max-h-[420px] bg-[#FAFBFB]">
           {activeThread.messages.map((m) => {
             const isOwn = m.senderRole === 'CLIENT' || m.senderId === user?.id;
-            const roleCls = ROLE_BADGE[m.senderRole] || ROLE_BADGE.ADMIN;
+            const roleCls = ROLE_BADGE[m.senderRole] || ROLE_BADGE.WEBSITE_MANAGER;
             return (
               <div
                 key={m.id}

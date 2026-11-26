@@ -8,10 +8,7 @@ export interface DashboardVisibilityContextValue {
   isRouteVisible: (href?: string | null) => boolean;
 }
 
-const ROUTE_ALIASES: Record<string, string> = {
-  '/dashboard/root/payment-gateways': '/dashboard/payment-methods',
-  '/dashboard/root/printers': '/dashboard/root/print-templates',
-};
+const ROUTE_ALIASES: Record<string, string> = {};
 
 /**
  * Resolves whether a route link or quick action should be visible for the current user

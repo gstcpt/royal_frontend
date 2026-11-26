@@ -131,7 +131,6 @@ function DashboardLayoutInner({
     '/dashboard/section/users': 'PRIVATE',
     '/dashboard/users': 'PRIVATE',
     '/dashboard/root/superadmins': 'PRIVATE',
-    '/dashboard/users/admins': 'PRIVATE',
     '/dashboard/users/commercials': 'PUBLIC',
     '/dashboard/users/marketing': 'PRIVATE',
     '/dashboard/users/clients': 'PRIVATE',
@@ -335,9 +334,8 @@ function DashboardLayoutInner({
     const catalogAdminFlag =
       roles.includes('SUPER_ADMIN') ||
       roles.includes(SystemRole.SUPER_ADMIN) ||
-      roles.includes('ADMIN') ||
       roles.includes('WEBSITE_MANAGER') ||
-      roles.includes(SystemRole.ADMIN);
+      roles.includes(SystemRole.WEBSITE_MANAGER);
     const clientFlag =
       roles.includes('CLIENT') || roles.includes(SystemRole.CLIENT);
 
@@ -408,7 +406,7 @@ function DashboardLayoutInner({
           next['sys-crm'] = true;
         }
         if (
-          ['/smtp', '/tva', '/reference-prefixes', '/print-templates', '/delivery-settings', '/payment-methods', '/storage', '/payment-gateways', '/printers', '/visibility'].some((p) =>
+          ['/smtp', '/tva', '/reference-prefixes', '/print-templates', '/delivery-settings', '/payment-methods', '/storage', '/visibility'].some((p) =>
             pathname.includes(p)
           )
         ) {
@@ -500,8 +498,7 @@ function DashboardLayoutInner({
   const isSuperAdmin = userRoles.includes('SUPER_ADMIN') || hasRole(SystemRole.SUPER_ADMIN);
   const isWebsiteManager =
     userRoles.includes('WEBSITE_MANAGER') ||
-    userRoles.includes('ADMIN') ||
-    hasRole(SystemRole.ADMIN);
+    hasRole(SystemRole.WEBSITE_MANAGER);
   const isMagasinier =
     userRoles.includes('STOCK_MANAGER') ||
     userRoles.includes('MAGASINIER') ||
@@ -565,7 +562,6 @@ function DashboardLayoutInner({
         return 'bg-[#1D232E] text-[#E6C86E] border-[#C59B27]/50';
       case 'SUPER_ADMIN':
       case 'WEBSITE_MANAGER':
-      case 'ADMIN':
         return 'bg-[#FBF6E8] text-[#9A7414] border-[#E6D6A6]';
       default:
         return 'bg-[#F4F5F7] text-[#1D232E] border-[#CBD5E1]';
@@ -674,12 +670,6 @@ function DashboardLayoutInner({
           id: 'users-super',
           label: 'Super admin',
           href: '/dashboard/root/superadmins',
-          icon: <ShieldCheck className="h-4 w-4" />,
-        },
-        {
-          id: 'users-admins',
-          label: 'Administrateurs',
-          href: '/dashboard/users/admins',
           icon: <ShieldCheck className="h-4 w-4" />,
         },
         {

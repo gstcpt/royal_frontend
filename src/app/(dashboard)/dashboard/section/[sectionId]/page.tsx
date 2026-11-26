@@ -73,7 +73,6 @@ const SECTION_META: Record<
     links: [
       { label: 'Tous les utilisateurs', href: '/dashboard/users', desc: 'Annuaire complet tous rôles confondus' },
       { label: 'Super admin', href: '/dashboard/root/superadmins', desc: 'Direction Générale' },
-      { label: 'Administrateurs', href: '/dashboard/users/admins', desc: 'Administration Système' },
       { label: 'Website Manager', href: '/dashboard/users/website-managers', desc: 'Gestion Boutique & Catalogue' },
       { label: 'Magasiniers', href: '/dashboard/users/magasiniers', desc: 'Dépôts & Inventaires' },
       { label: 'Caissiers', href: '/dashboard/users/caissiers', desc: 'Points de vente POS' },

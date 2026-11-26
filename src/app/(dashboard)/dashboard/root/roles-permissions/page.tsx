@@ -81,13 +81,11 @@ const EXCEL_ROLE_ORDER = [
   'COMMERCIAL',
   'MARKETING',
   'CLIENT',
-  'ADMIN',
 ];
 
 const ROLE_META: Record<string, { full: string; short: string; group: 'BACKOFFICE' | 'OPERATIONS' }> = {
   ROOT: { full: 'ROOT', short: 'ROOT', group: 'BACKOFFICE' },
   SUPER_ADMIN: { full: 'Super Admin', short: 'S.Adm', group: 'BACKOFFICE' },
-  ADMIN: { full: 'Administrateur', short: 'Admin', group: 'BACKOFFICE' },
   WEBSITE_MANAGER: { full: 'Website Mgr', short: 'Web', group: 'BACKOFFICE' },
   ACCOUNTANT: { full: 'Financiers', short: 'Finan.', group: 'BACKOFFICE' },
   COMMERCIAL: { full: 'Commercial', short: 'Comm.', group: 'BACKOFFICE' },

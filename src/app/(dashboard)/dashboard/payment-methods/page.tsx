@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { DataTable, ColumnDef } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
+import { Toggle } from '@/components/ui';
 import { Modal, DeleteConfirmModal } from '@/components/ui/modal';
 import { Toast } from '@/components/ui/toast';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
@@ -53,6 +54,7 @@ function PaymentMethodsContent() {
   const [feedbackType, setFeedbackType] = useState<'success' | 'error'>('success');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState<PaymentMethodItem | null>(null);
+  const [savingMethod, setSavingMethod] = useState(false);
   const [selectedMethodIds, setSelectedMethodIds] = useState<string[]>([]);
   const [bulkDeleteMethodIds, setBulkDeleteMethodIds] = useState<string[]>([]);
 
@@ -442,54 +444,196 @@ function PaymentMethodsContent() {
       {editingMethod && (
         <Modal
           isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
+          onClose={() => !savingMethod && setIsEditModalOpen(false)}
           size="md"
-          title={`Paramétrage — ${editingMethod.name}`}
+          title={`Paramétrage — ${editingMethod.code}`}
           footer={
             <div className="flex items-center justify-end gap-2 w-full">
-              <Button variant="outline" onClick={() => setIsEditModalOpen(false)} className="text-xs">
+              <Button
+                variant="outline"
+                disabled={savingMethod}
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-xs"
+              >
                 Fermer
               </Button>
               <Button
                 variant="gold"
-                onClick={() => {
-                  setIsEditModalOpen(false);
-                  setFeedbackMessage('Configuration mise à jour avec succès.');
+                disabled={savingMethod}
+                onClick={async () => {
+                  if (!editingMethod || savingMethod) return;
+                  setSavingMethod(true);
+                  try {
+                    const sanitized: PaymentMethodItem = {
+                      ...editingMethod,
+                      name: editingMethod.name.trim() || editingMethod.code,
+                      description: editingMethod.description.trim(),
+                      settlementDelay: editingMethod.settlementDelay.trim() || 'Immédiat',
+                      maxAmountTnd: Math.max(0, Number(editingMethod.maxAmountTnd) || 0),
+                      feePercent: Math.max(0, Number(editingMethod.feePercent) || 0),
+                      channels:
+                        editingMethod.channels.length > 0 ? editingMethod.channels : ['WEB_STORE'],
+                    };
+                    const next = methods.map((m) => (m.id === sanitized.id ? sanitized : m));
+                    await fetchApi('/storefront-cms/sys-config/paymentMethods', {
+                      method: 'PUT',
+                      body: JSON.stringify({ value: next }),
+                    });
+                    setMethods(next);
+                    setIsEditModalOpen(false);
+                    setFeedbackType('success');
+                    setFeedbackMessage(`Modalité « ${sanitized.name} » enregistrée en base.`);
+                  } catch {
+                    setFeedbackType('error');
+                    setFeedbackMessage('Impossible d’enregistrer cette modalité de paiement.');
+                  } finally {
+                    setSavingMethod(false);
+                  }
                 }}
                 className="text-xs px-4 py-2"
               >
-                Enregistrer
+                {savingMethod ? 'Enregistrement...' : 'Enregistrer'}
               </Button>
             </div>
           }
         >
-          <div className="p-5 space-y-4 text-xs">
-            <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-700 space-y-1">
-              <div className="font-bold text-neutral-900">{editingMethod.name}</div>
-              <p className="text-[11px] text-neutral-500">{editingMethod.description}</p>
+          <div className="p-4 sm:p-5 space-y-3.5 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-neutral-700 block mb-1">
+                  Libellé affiché
+                </label>
+                <input
+                  type="text"
+                  value={editingMethod.name}
+                  onChange={(e) => setEditingMethod({ ...editingMethod, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs text-neutral-900 bg-white focus:outline-none focus:border-[#C59B27]"
+                />
+              </div>
+              <div>
+                <label className="font-semibold text-neutral-700 block mb-1">
+                  Délai de Règlement / Encaissement
+                </label>
+                <input
+                  type="text"
+                  value={editingMethod.settlementDelay}
+                  onChange={(e) =>
+                    setEditingMethod({ ...editingMethod, settlementDelay: e.target.value })
+                  }
+                  placeholder="Immédiat / J+1 ouvré"
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs text-neutral-900 bg-white focus:outline-none focus:border-[#C59B27]"
+                />
+              </div>
             </div>
 
             <div>
               <label className="font-semibold text-neutral-700 block mb-1">
-                Plafond Maximum par Transaction (TND)
+                Description commerciale
               </label>
               <input
-                type="number"
-                defaultValue={editingMethod.maxAmountTnd}
-                className="w-full px-3 py-2 rounded-xl border border-neutral-300 font-mono text-xs text-neutral-900"
+                type="text"
+                value={editingMethod.description}
+                onChange={(e) =>
+                  setEditingMethod({ ...editingMethod, description: e.target.value })
+                }
+                className="w-full px-3 py-2 rounded-xl border border-neutral-300 text-xs text-neutral-900 bg-white focus:outline-none focus:border-[#C59B27]"
               />
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold text-neutral-700 block mb-1">
+                  Plafond Maximum (TND)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={editingMethod.maxAmountTnd}
+                  onChange={(e) =>
+                    setEditingMethod({
+                      ...editingMethod,
+                      maxAmountTnd: Math.max(0, Number(e.target.value) || 0),
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-300 font-mono text-xs text-neutral-900 bg-white focus:outline-none focus:border-[#C59B27]"
+                />
+              </div>
+              <div>
+                <label className="font-semibold text-neutral-700 block mb-1">
+                  Frais de Transaction (%)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  value={editingMethod.feePercent}
+                  onChange={(e) =>
+                    setEditingMethod({
+                      ...editingMethod,
+                      feePercent: Math.max(0, Number(e.target.value) || 0),
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-xl border border-neutral-300 font-mono text-xs text-neutral-900 bg-white focus:outline-none focus:border-[#C59B27]"
+                />
+              </div>
+            </div>
+
             <div>
-              <label className="font-semibold text-neutral-700 block mb-1">
-                Frais de Transaction (%)
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                defaultValue={editingMethod.feePercent}
-                className="w-full px-3 py-2 rounded-xl border border-neutral-300 font-mono text-xs text-neutral-900"
-              />
+              <span className="font-semibold text-neutral-700 block mb-1.5">
+                Canaux autorisés
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    { key: 'WEB_STORE', label: 'Boutique Web' },
+                    { key: 'POS_STORE', label: 'Caisse POS Showroom' },
+                    { key: 'PHONE_B2B', label: 'Vente Téléphone / B2B' },
+                  ] as const
+                ).map((ch) => {
+                  const active = editingMethod.channels.includes(ch.key);
+                  return (
+                    <button
+                      key={ch.key}
+                      type="button"
+                      onClick={() => {
+                        const nextChannels = active
+                          ? editingMethod.channels.filter((c) => c !== ch.key)
+                          : [...editingMethod.channels, ch.key];
+                        setEditingMethod({ ...editingMethod, channels: nextChannels });
+                      }}
+                      className={cn(
+                        'px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition cursor-pointer',
+                        active
+                          ? 'bg-[#FBF6E8] text-[#9A7414] border-[#C59B27]'
+                          : 'bg-neutral-50 text-neutral-500 border-neutral-200 hover:bg-neutral-100'
+                      )}
+                    >
+                      {ch.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div className="p-2.5 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold text-[#1D232E]">Validation requise</span>
+                <Toggle
+                  compact
+                  size="sm"
+                  checked={editingMethod.requiresValidation}
+                  onChange={(v) => setEditingMethod({ ...editingMethod, requiresValidation: v })}
+                />
+              </div>
+              <div className="p-2.5 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold text-[#1D232E]">Modalité active</span>
+                <Toggle
+                  compact
+                  size="sm"
+                  checked={editingMethod.isActive}
+                  onChange={(v) => setEditingMethod({ ...editingMethod, isActive: v })}
+                />
+              </div>
             </div>
           </div>
         </Modal>

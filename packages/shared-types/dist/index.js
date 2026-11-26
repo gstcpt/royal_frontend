@@ -9,7 +9,6 @@ var SystemRole;
     SystemRole["ROOT"] = "ROOT";
     SystemRole["SUPER_ADMIN"] = "SUPER_ADMIN";
     SystemRole["WEBSITE_MANAGER"] = "WEBSITE_MANAGER";
-    SystemRole["ADMIN"] = "ADMIN";
     SystemRole["COMMERCIAL"] = "COMMERCIAL";
     SystemRole["MARKETING"] = "MARKETING";
     SystemRole["SALESPERSON"] = "SALESPERSON";

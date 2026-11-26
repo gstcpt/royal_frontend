@@ -40,7 +40,6 @@ const REGISTRY_VIEWS: ViewRouteItem[] = [
   { key: '/dashboard/section/users', label: "Vue d'ensemble — Utilisateurs", section: 'Gestion des utilisateurs', visibility: 'PRIVATE' },
   { key: '/dashboard/users', label: 'Tous les utilisateurs (Annuaire)', section: 'Gestion des utilisateurs', visibility: 'PRIVATE' },
   { key: '/dashboard/root/superadmins', label: 'Super Admin', section: 'Gestion des utilisateurs', visibility: 'PRIVATE' },
-  { key: '/dashboard/users/admins', label: 'Administrateurs', section: 'Gestion des utilisateurs', visibility: 'PRIVATE' },
   { key: '/dashboard/users/website-managers', label: 'Website Manager', section: 'Gestion des utilisateurs', visibility: 'PUBLIC' },
   { key: '/dashboard/users/magasiniers', label: 'Magasiniers', section: 'Gestion des utilisateurs', visibility: 'PUBLIC' },
   { key: '/dashboard/users/caissiers', label: 'Caissiers', section: 'Gestion des utilisateurs', visibility: 'PUBLIC' },

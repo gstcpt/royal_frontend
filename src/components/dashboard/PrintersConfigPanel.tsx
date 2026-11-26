@@ -260,13 +260,42 @@ export function PrintersConfigPanel({
               />
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Adresse IP Réseau (TCP/IP)"
+                placeholder="192.168.1.50"
+                value={prt.networkIp || ''}
+                onChange={(e) => updateField(prt.id, { networkIp: e.target.value })}
+              />
+              <Input
+                label="Port TCP Imprimante (ESC/POS)"
+                type="number"
+                placeholder="9100"
+                value={String(prt.networkPort ?? 9100)}
+                onChange={(e) =>
+                  updateField(prt.id, {
+                    networkPort: Math.max(1, Number.parseInt(e.target.value || '9100', 10) || 9100),
+                  })
+                }
+              />
+            </div>
+
             <Input
               label="Message Pied de Ticket"
               value={prt.headerNote || ''}
               onChange={(e) => updateField(prt.id, { headerNote: e.target.value })}
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div className="p-3 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold text-[#1D232E]">Impression Auto Vente</span>
+                <Toggle
+                  compact
+                  size="sm"
+                  checked={Boolean(prt.autoPrintAfterSale)}
+                  onChange={(v) => updateField(prt.id, { autoPrintAfterSale: v })}
+                />
+              </div>
               <div className="p-3 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] flex items-center justify-between gap-2">
                 <span className="text-[11px] font-bold text-[#1D232E]">Aperçu Obligatoire</span>
                 <Toggle

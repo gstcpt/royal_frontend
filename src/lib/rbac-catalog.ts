@@ -7,7 +7,7 @@ export interface DashboardViewSectionDef {
 
 /**
  * Ordre canonique strict 1..13 aligné sur apps/frontend/src/app/(dashboard)/layout.tsx
- * + Registre complet des 78 vues de apps/frontend/src/app/(dashboard)/dashboard/root/visibility/page.tsx
+ * + Registre complet des 77 vues de apps/frontend/src/app/(dashboard)/dashboard/root/visibility/page.tsx
  */
 export const DASHBOARD_VIEW_SECTIONS: DashboardViewSectionDef[] = [
   {
@@ -36,7 +36,6 @@ export const DASHBOARD_VIEW_SECTIONS: DashboardViewSectionDef[] = [
       { path: '/dashboard/section/users', label: "Vue d'ensemble — Utilisateurs" },
       { path: '/dashboard/users', label: 'Tous les utilisateurs' },
       { path: '/dashboard/root/superadmins', label: 'Super admin' },
-      { path: '/dashboard/users/admins', label: 'Administrateurs' },
       { path: '/dashboard/users/website-managers', label: 'Website Manager' },
       { path: '/dashboard/users/magasiniers', label: 'Magasiniers' },
       { path: '/dashboard/users/caissiers', label: 'Caissiers' },
