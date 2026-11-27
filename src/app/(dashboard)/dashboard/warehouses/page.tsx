@@ -333,6 +333,9 @@ export default function WarehousesDashboardPage() {
         const merged: WarehouseItem[] = rawWh.map((item: any) => {
           const whArts = stockByWh.get(item.id) || [];
           const totalQty = whArts.reduce((sum, a) => sum + a.physicalQty, 0);
+          const surface = Number(item.surfaceM2 || 0);
+          const maxCap = Number(item.maxPallets || 0);
+          const used = maxCap > 0 ? Math.min(maxCap, Math.round(totalQty / 80)) : Math.round(totalQty / 80);
           return {
             id: item.id,
             name: item.name,
@@ -346,10 +349,10 @@ export default function WarehousesDashboardPage() {
             managerName: item.manager
               ? `${item.manager.firstName} ${item.manager.lastName}`
               : 'Gestionnaire Logistique',
-            surfaceM2: item.isDefault ? 2400 : 450,
-            maxPallets: item.isDefault ? 1200 : 300,
-            usedPallets: Math.min(item.isDefault ? 1200 : 300, Math.round(totalQty / 80)),
-            occupancyPercent: Math.min(98, Math.round((whArts.length / 400) * 100) || 65),
+            surfaceM2: surface,
+            maxPallets: maxCap,
+            usedPallets: used,
+            occupancyPercent: maxCap > 0 ? Math.min(100, Math.round((used / maxCap) * 100)) : 0,
             isActive: item.isActive ?? true,
             isDefault: item.isDefault ?? false,
             directArticles: whArts,
@@ -500,7 +503,7 @@ export default function WarehousesDashboardPage() {
         await fetchApi(`/warehouses/${editingWarehouse.id}`, {
           method: 'PATCH',
           body: JSON.stringify(payload),
-        }).catch(() => null);
+        });
 
         setWarehouses((prev) =>
           prev.map((w) =>
@@ -523,22 +526,26 @@ export default function WarehousesDashboardPage() {
         const created = await fetchApi('/warehouses', {
           method: 'POST',
           body: JSON.stringify(payload),
-        }).catch(() => null);
+        });
+        if (!created?.id) {
+          throw new Error('Réponse serveur invalide lors de la création de l’entrepôt.');
+        }
 
         const newWh: WarehouseItem = {
-          id: created?.id || `wh-${Date.now()}`,
+          id: created.id,
           ...payload,
+          ...created,
           type: formType,
-          country: 'TN',
+          country: created.country || 'TN',
           managerName: formManagerName || 'Responsable Logistique',
-          surfaceM2: parseInt(formSurfaceM2, 10) || 1200,
-          maxPallets: parseInt(formMaxPallets, 10) || 600,
+          surfaceM2: Number(created.surfaceM2 ?? (parseInt(formSurfaceM2, 10) || 0)),
+          maxPallets: Number(created.maxPallets ?? (parseInt(formMaxPallets, 10) || 0)),
           usedPallets: 0,
           occupancyPercent: 0,
           aisles: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          createdBy: 'SUPER_ADMIN',
+          createdAt: created.createdAt || new Date().toISOString(),
+          updatedAt: created.updatedAt || new Date().toISOString(),
+          createdBy: created.createdBy || 'SYSTEM',
           isUpdated: false,
           isDeleted: false,
         };
@@ -546,8 +553,8 @@ export default function WarehousesDashboardPage() {
         showToast('success', `Nouvel entrepôt "${payload.name}" créé avec succès.`);
       }
       setIsModalOpen(false);
-    } catch {
-      showToast('error', 'Erreur lors de l’enregistrement de l’entrepôt.');
+    } catch (err: any) {
+      showToast('error', err?.message || 'Erreur lors de l’enregistrement de l’entrepôt.');
     }
   };
 
@@ -562,14 +569,17 @@ export default function WarehousesDashboardPage() {
       await fetchApi(`/warehouses/${w.id}`, {
         method: 'PATCH',
         body: JSON.stringify({ isActive: nextState }),
-      }).catch(() => null);
+      });
 
       showToast(
         'success',
         `L’entrepôt "${w.name}" est désormais ${nextState ? 'actif' : 'suspendu'}.`
       );
-    } catch {
-      showToast('error', 'Erreur lors de la mise à jour du statut.');
+    } catch (err: any) {
+      setWarehouses((prev) =>
+        prev.map((item) => (item.id === w.id ? { ...item, isActive: w.isActive } : item))
+      );
+      showToast('error', err?.message || 'Erreur lors de la mise à jour du statut.');
     }
   };
 
@@ -586,12 +596,12 @@ export default function WarehousesDashboardPage() {
     try {
       await fetchApi(`/warehouses/${warehouseToDelete.id}`, {
         method: 'DELETE',
-      }).catch(() => null);
+      });
 
       setWarehouses((prev) => prev.filter((w) => w.id !== warehouseToDelete.id));
       showToast('success', `Entrepôt "${warehouseToDelete.name}" supprimé.`);
-    } catch {
-      showToast('error', 'Erreur lors de la suppression.');
+    } catch (err: any) {
+      showToast('error', err?.message || 'Erreur lors de la suppression.');
     } finally {
       setWarehouseToDelete(null);
     }

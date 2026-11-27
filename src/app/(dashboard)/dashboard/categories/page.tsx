@@ -725,14 +725,20 @@ export default function DashboardCategoriesPage() {
             <button
               type="button"
               onClick={async () => {
-                await Promise.all(
+                const results = await Promise.allSettled(
                   keys.map((id) =>
                     fetchApi(`/categories/${id}`, {
                       method: 'PATCH',
                       body: JSON.stringify({ isActive: true }),
-                    }).catch(() => null),
+                    }),
                   ),
                 );
+                const failed = results.filter((r) => r.status === 'rejected').length;
+                if (failed > 0) {
+                  showToast('error', `${failed} catégorie(s) n'ont pas pu être activées.`);
+                } else {
+                  showToast('success', `${keys.length} catégorie(s) activée(s).`);
+                }
                 clearSel();
                 await loadData();
               }}
@@ -743,14 +749,20 @@ export default function DashboardCategoriesPage() {
             <button
               type="button"
               onClick={async () => {
-                await Promise.all(
+                const results = await Promise.allSettled(
                   keys.map((id) =>
                     fetchApi(`/categories/${id}`, {
                       method: 'PATCH',
                       body: JSON.stringify({ isActive: false }),
-                    }).catch(() => null),
+                    }),
                   ),
                 );
+                const failed = results.filter((r) => r.status === 'rejected').length;
+                if (failed > 0) {
+                  showToast('error', `${failed} catégorie(s) n'ont pas pu être masquées.`);
+                } else {
+                  showToast('success', `${keys.length} catégorie(s) masquée(s).`);
+                }
                 clearSel();
                 await loadData();
               }}

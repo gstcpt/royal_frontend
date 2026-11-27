@@ -18,7 +18,8 @@ export function StorefrontFooter() {
   const { t, locale } = useI18nStore();
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
-  const [topCategories, setTopCategories] = useState<Array<{ id: string; name: string; slug: string }>>([]);
+  const [subError, setSubError] = useState('');
+  const [topCategories, setTopCategories] = useState<Array<{ id: string; name: string; nameAr?: string | null; slug: string }>>([]);
 
   useEffect(() => {
     fetch('/api/v1/categories?tree=false')
@@ -39,17 +40,22 @@ export function StorefrontFooter() {
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
+    setSubError('');
     try {
-      await fetch('/api/v1/storefront-cms/newsletter', {
+      const res = await fetch('/api/v1/storefront-cms/newsletter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), source: 'footer' }),
       });
-    } catch {
-      // ignore offline error
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        throw new Error(json?.message || t('footer.newsletter_err'));
+      }
+      setSubscribed(true);
+      setEmail('');
+    } catch (err: any) {
+      setSubError(err?.message || t('footer.newsletter_err'));
     }
-    setSubscribed(true);
-    setEmail('');
   };
 
   const footerElRef = React.useRef<HTMLElement | null>(null);
@@ -144,10 +150,13 @@ export function StorefrontFooter() {
                         }}
                         className="absolute end-2 top-2 bottom-2 w-10 rounded-full flex items-center justify-center hover:opacity-95 transition-opacity cursor-pointer shadow-xs"
                       >
-                        <ArrowRight className="w-4 h-4" />
+                        <ArrowRight className="w-4 h-4 rtl:rotate-180" />
                       </button>
                     </form>
                   )}
+                  {subError ? (
+                    <p className="mt-2 text-xs text-rose-600 font-medium">{subError}</p>
+                  ) : null}
                 </div>
               )}
             </div>
@@ -200,7 +209,7 @@ export function StorefrontFooter() {
                 topCategories.map((cat) => (
                   <li key={cat.id}>
                     <Link href={`/articles?category=${cat.slug}`} className="hover:text-[#9A7414] transition">
-                      {cat.name}
+                      {locale === 'ar' && cat.nameAr ? cat.nameAr : cat.name}
                     </Link>
                   </li>
                 ))

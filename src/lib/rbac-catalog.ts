@@ -41,7 +41,7 @@ export const DASHBOARD_VIEW_SECTIONS: DashboardViewSectionDef[] = [
       { path: '/dashboard/users/caissiers', label: 'Caissiers' },
       { path: '/dashboard/users/vendeurs', label: 'Vendeurs' },
       { path: '/dashboard/users/financiers', label: 'Financiers' },
-      { path: '/dashboard/users/commercials', label: 'Commercials' },
+      { path: '/dashboard/users/commercials', label: 'Commerciaux' },
       { path: '/dashboard/users/marketing', label: 'Marketing' },
       { path: '/dashboard/users/clients', label: 'Clients (Comptes)' },
     ],

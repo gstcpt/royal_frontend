@@ -69,6 +69,7 @@ function PurchaseReceiptsContent() {
   const canCreateStockIn = isRouteVisible('/dashboard/stock-in');
   const [receipts, setReceipts] = React.useState<PurchaseReceiptItem[]>([]);
   const [purchaseOrders, setPurchaseOrders] = React.useState<any[]>([]);
+  const [warehouses, setWarehouses] = React.useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
 
@@ -81,26 +82,27 @@ function PurchaseReceiptsContent() {
   const [toast, setToast] = React.useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const [formBcRef, setFormBcRef] = React.useState('');
-  const [formSupplier, setFormSupplier] = React.useState('Comptoir Tunisien de l’Électroménager (CTE)');
-  const [formWarehouse, setFormWarehouse] = React.useState('Dépôt Central Sousse (Quai A)');
+  const [formSupplier, setFormSupplier] = React.useState('');
+  const [formWarehouse, setFormWarehouse] = React.useState('');
   const [formBlNumber, setFormBlNumber] = React.useState('');
   const [formStatus, setFormStatus] = React.useState<PurchaseReceiptItem['status']>('VERIFIED');
   const [formNotes, setFormNotes] = React.useState('');
-  const [formLines, setFormLines] = React.useState<ReceiptLineItem[]>([
-    { id: 'rln-1', sku: 'RYL-APP-01', name: 'Appareil Royal Réceptionné', expectedQty: 10, receivedQty: 10 },
-  ]);
+  const [formLines, setFormLines] = React.useState<ReceiptLineItem[]>([]);
 
   const loadData = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [brRes, bcRes] = await Promise.all([
+      const [brRes, bcRes, whRes] = await Promise.all([
         fetchApi('/storefront-cms/sys-config/purchaseReceipts').catch(() => null),
         fetchApi('/storefront-cms/sys-config/purchaseOrders').catch(() => null),
+        fetchApi('/warehouses').catch(() => []),
       ]);
       const rawBr = brRes?.value ?? brRes?.data?.value ?? brRes?.data ?? brRes;
       const rawBc = bcRes?.value ?? bcRes?.data?.value ?? bcRes?.data ?? bcRes;
+      const rawWh = Array.isArray(whRes) ? whRes : whRes?.data || [];
       setReceipts(Array.isArray(rawBr) ? rawBr : []);
       setPurchaseOrders(Array.isArray(rawBc) ? rawBc : []);
+      setWarehouses(Array.isArray(rawWh) ? rawWh.map((w: any) => ({ id: w.id, name: w.name })) : []);
     } finally {
       setLoading(false);
     }
@@ -117,8 +119,8 @@ function PurchaseReceiptsContent() {
     const match = purchaseOrders.find((bc) => bc.orderNumber === fromBc);
     setEditingReceipt(null);
     setFormBcRef(fromBc);
-    setFormSupplier(match?.supplierName || 'Comptoir Tunisien de l’Électroménager (CTE)');
-    setFormWarehouse('Dépôt Central Sousse (Quai A)');
+    setFormSupplier(match?.supplierName || '');
+    setFormWarehouse(warehouses[0]?.name || '');
     setFormBlNumber(`BL-FOURN-${Date.now().toString().slice(-4)}`);
     setFormStatus('VERIFIED');
     setFormNotes(`Réception générée depuis le Bon de Commande ${fromBc}`);
@@ -134,7 +136,7 @@ function PurchaseReceiptsContent() {
       );
     }
     setIsModalOpen(true);
-  }, [searchParams, purchaseOrders, loading]);
+  }, [searchParams, purchaseOrders, warehouses, loading]);
 
   const persistReceipts = async (next: PurchaseReceiptItem[], msg: string) => {
     setSaving(true);
@@ -175,13 +177,13 @@ function PurchaseReceiptsContent() {
 
   const openCreateModal = () => {
     setEditingReceipt(null);
-    setFormBcRef(purchaseOrders[0]?.orderNumber || 'BC-2026-0045');
-    setFormSupplier(purchaseOrders[0]?.supplierName || 'Comptoir Tunisien de l’Électroménager (CTE)');
-    setFormWarehouse('Dépôt Central Sousse (Quai A)');
+    setFormBcRef(purchaseOrders[0]?.orderNumber || '');
+    setFormSupplier(purchaseOrders[0]?.supplierName || '');
+    setFormWarehouse(warehouses[0]?.name || '');
     setFormBlNumber(`BL-SUP-${Date.now().toString().slice(-4)}`);
     setFormStatus('PENDING_INSPECTION');
     setFormNotes('');
-    setFormLines([{ id: `rln-${Date.now()}`, sku: 'RYL-APP-01', name: 'Lot Marchandise Quai', expectedQty: 12, receivedQty: 12 }]);
+    setFormLines([{ id: `rln-${Date.now()}`, sku: '', name: '', expectedQty: 1, receivedQty: 1 }]);
     setIsModalOpen(true);
   };
 

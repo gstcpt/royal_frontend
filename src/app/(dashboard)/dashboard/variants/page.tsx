@@ -613,17 +613,22 @@ export default function DashboardVariantsPage() {
             <button
               type="button"
               onClick={async () => {
-                await Promise.all(
+                const results = await Promise.allSettled(
                   keys.map((id) =>
                     fetchApi(`/variants/${id}`, {
                       method: 'PATCH',
                       body: JSON.stringify({ isActive: true }),
-                    }).catch(() => null),
+                    }),
                   ),
                 );
+                const failed = results.filter((r) => r.status === 'rejected').length;
                 clearSel();
                 await loadData();
-                showToast('success', `${keys.length} famille(s) activée(s).`);
+                if (failed > 0) {
+                  showToast('error', `${failed} famille(s) n'ont pas pu être activées.`);
+                } else {
+                  showToast('success', `${keys.length} famille(s) activée(s).`);
+                }
               }}
               className="px-2.5 py-1.5 rounded-lg bg-white border border-emerald-200 text-emerald-700 text-xs font-bold hover:bg-emerald-50 cursor-pointer"
             >
@@ -632,17 +637,22 @@ export default function DashboardVariantsPage() {
             <button
               type="button"
               onClick={async () => {
-                await Promise.all(
+                const results = await Promise.allSettled(
                   keys.map((id) =>
                     fetchApi(`/variants/${id}`, {
                       method: 'PATCH',
                       body: JSON.stringify({ isActive: false }),
-                    }).catch(() => null),
+                    }),
                   ),
                 );
+                const failed = results.filter((r) => r.status === 'rejected').length;
                 clearSel();
                 await loadData();
-                showToast('success', `${keys.length} famille(s) désactivée(s).`);
+                if (failed > 0) {
+                  showToast('error', `${failed} famille(s) n'ont pas pu être désactivées.`);
+                } else {
+                  showToast('success', `${keys.length} famille(s) désactivée(s).`);
+                }
               }}
               className="px-2.5 py-1.5 rounded-lg bg-white border border-neutral-200 text-neutral-700 text-xs font-bold hover:bg-neutral-50 cursor-pointer"
             >
@@ -654,17 +664,22 @@ export default function DashboardVariantsPage() {
               onChange={async (e) => {
                 const vType = e.target.value;
                 if (!vType) return;
-                await Promise.all(
+                const results = await Promise.allSettled(
                   keys.map((id) =>
                     fetchApi(`/variants/${id}`, {
                       method: 'PATCH',
                       body: JSON.stringify({ visualType: vType }),
-                    }).catch(() => null),
+                    }),
                   ),
                 );
+                const failed = results.filter((r) => r.status === 'rejected').length;
                 clearSel();
                 await loadData();
-                showToast('success', `Type visuel mis à jour sur ${keys.length} famille(s).`);
+                if (failed > 0) {
+                  showToast('error', `${failed} mise(s) à jour ont échoué.`);
+                } else {
+                  showToast('success', `Type visuel mis à jour sur ${keys.length} famille(s).`);
+                }
                 e.target.value = '';
               }}
               className="px-2.5 py-1.5 rounded-lg bg-white border border-[#E6D6A6] text-xs font-bold text-[#1D232E] cursor-pointer"

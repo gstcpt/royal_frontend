@@ -55,9 +55,12 @@ interface ProductDetailData {
   id: string;
   sku: string;
   name: string;
+  nameAr?: string | null;
   slug: string;
   shortDescription?: string;
+  shortDescAr?: string | null;
   description?: string;
+  descriptionAr?: string | null;
   basePrice?: number;
   sellingPrice: number;
   discountPrice?: number | null;
@@ -65,7 +68,7 @@ interface ProductDetailData {
   weightGrams?: number | null;
   dimensions?: any;
   dimensionsJson?: Record<string, any> | null;
-  category?: { id?: string; name: string; slug: string };
+  category?: { id?: string; name: string; nameAr?: string | null; slug: string };
   brand?: { id?: string; name: string; slug: string; logoUrl?: string };
   images: Array<{ id: string; url: string; alt?: string; isPrimary: boolean }>;
   variants: ProductVariantData[];
@@ -468,21 +471,23 @@ export default function ArticleDetailPage() {
               className="flex items-center gap-2 text-xs text-neutral-400 mb-6 sm:mb-8 overflow-x-auto whitespace-nowrap"
             >
               <Link href="/" className="hover:text-neutral-900 transition">{t('nav.home')}</Link>
-              <ChevronRight className="w-3.5 h-3.5 text-neutral-300 shrink-0" />
+              <ChevronRight className="w-3.5 h-3.5 text-neutral-300 shrink-0 rtl:rotate-180" />
               <Link href="/articles" className="hover:text-neutral-900 transition">{t('nav.articles')}</Link>
               {product.category && (
                 <>
-                  <ChevronRight className="w-3.5 h-3.5 text-neutral-300" />
+                  <ChevronRight className="w-3.5 h-3.5 text-neutral-300 shrink-0 rtl:rotate-180" />
                   <Link
                     href={`/articles?category=${product.category.slug}`}
                     className="hover:text-neutral-900 transition"
                   >
-                    {product.category.name}
+                    {locale === 'ar' && product.category.nameAr ? product.category.nameAr : product.category.name}
                   </Link>
                 </>
               )}
-              <ChevronRight className="w-3.5 h-3.5 text-neutral-300" />
-              <span className="font-semibold text-neutral-900 truncate max-w-xs">{product.name}</span>
+              <ChevronRight className="w-3.5 h-3.5 text-neutral-300 shrink-0 rtl:rotate-180" />
+              <span className="font-semibold text-neutral-900 truncate max-w-xs">
+                {locale === 'ar' && product.nameAr ? product.nameAr : product.name}
+              </span>
             </nav>
           </CmsElementWrapper>
         )}
@@ -509,7 +514,7 @@ export default function ArticleDetailPage() {
             <div className="w-full">
               <ProductMediaViewer
                 images={(product.images || []).map((im) => im.url)}
-                alt={product.name}
+                alt={locale === 'ar' && product.nameAr ? product.nameAr : product.name}
                 heightClassName="h-[340px] sm:h-[500px] lg:h-[580px]"
                 desktopHeightPx={detailCfg.galleryHeightPx}
                 roundedClassName="rounded-[24px] sm:rounded-[32px]"
@@ -520,7 +525,7 @@ export default function ArticleDetailPage() {
                 objectFit={detailCfg.imageObjectFit || 'cover'}
                 badgeOverlay={
                   hasPromo ? (
-                    <div className="absolute top-4 left-4 sm:top-5 sm:left-5 z-20 px-3.5 py-1 rounded-full bg-rose-600 text-white text-[11px] font-extrabold uppercase tracking-widest shadow-md">
+                    <div className="absolute top-4 start-4 sm:top-5 sm:start-5 z-20 px-3.5 py-1 rounded-full bg-rose-600 text-white text-[11px] font-extrabold uppercase tracking-widest shadow-md">
                       {t('product.promo_badge')}
                     </div>
                   ) : null
@@ -553,7 +558,7 @@ export default function ArticleDetailPage() {
               </div>
 
               <h1 className="font-heading text-2xl sm:text-3xl xl:text-4xl font-black text-[var(--royal-ink)] tracking-tight leading-tight">
-                {product.name}
+                {locale === 'ar' && product.nameAr ? product.nameAr : product.name}
               </h1>
 
               {detailCfg.showRatings !== false && (
@@ -601,9 +606,9 @@ export default function ArticleDetailPage() {
               </span>
             </div>
 
-            {product.shortDescription && (
+            {(locale === 'ar' ? (product.shortDescAr || product.shortDescription) : product.shortDescription) && (
               <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed font-normal">
-                {product.shortDescription}
+                {locale === 'ar' ? (product.shortDescAr || product.shortDescription) : product.shortDescription}
               </p>
             )}
 
@@ -875,7 +880,9 @@ export default function ArticleDetailPage() {
             {activeTab === 'desc' && (
               <div className="space-y-4">
                 <p className="whitespace-pre-line">
-                  {product.description || product.shortDescription || 'Aucune description détaillée renseignée pour cet article.'}
+                  {(locale === 'ar'
+                    ? product.descriptionAr || product.shortDescAr || product.description || product.shortDescription
+                    : product.description || product.shortDescription) || t('product.no_description')}
                 </p>
               </div>
             )}
@@ -883,11 +890,11 @@ export default function ArticleDetailPage() {
             {activeTab === 'specs' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div className="p-4 rounded-2xl bg-[#F8F9FA] border border-neutral-200">
-                  <span className="text-neutral-400 block mb-1">Marque :</span>
-                  <span className="font-bold text-neutral-900">{product.brand?.name || 'Officiel'}</span>
+                  <span className="text-neutral-400 block mb-1">{t('product.brand_label')}</span>
+                  <span className="font-bold text-neutral-900">{product.brand?.name || 'Royal'}</span>
                 </div>
                 <div className="p-4 rounded-2xl bg-[#F8F9FA] border border-neutral-200">
-                  <span className="text-neutral-400 block mb-1">Référence SKU :</span>
+                  <span className="text-neutral-400 block mb-1">{t('product.sku_label')}</span>
                   <span className="font-mono font-bold text-neutral-900">{product.sku}</span>
                 </div>
                 {product.dimensionsJson &&

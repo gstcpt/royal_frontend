@@ -18,6 +18,7 @@ import {
 import { useAuthStore } from '@/stores/auth.store';
 import { Breadcrumb, Button, Input } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
+import { useI18nStore } from '@/stores/i18n.store';
 
 interface AddressFormState {
   firstName: string;
@@ -88,6 +89,7 @@ function resizeImageToDataUrl(file: File, maxSize = 256): Promise<string> {
 
 export default function AccountProfilePage() {
   const { user, fetchMe, verifyEmail, resendVerification } = useAuthStore();
+  const { t } = useI18nStore();
   const [firstName, setFirstName] = React.useState(user?.firstName || '');
   const [lastName, setLastName] = React.useState(user?.lastName || '');
   const [email, setEmail] = React.useState(user?.email || '');
@@ -174,7 +176,7 @@ export default function AccountProfilePage() {
       const dataUrl = await resizeImageToDataUrl(file, 256);
       setAvatar(dataUrl);
     } catch {
-      setStatusMsg({ type: 'error', text: "Impossible de lire l'image sélectionnée." });
+      setStatusMsg({ type: 'error', text: t('account.img_read_err') });
     }
   };
 
@@ -212,13 +214,13 @@ export default function AccountProfilePage() {
       await fetchMe();
       setStatusMsg({
         type: 'success',
-        text: 'Profil, avatar et adresses enregistrés avec succès.',
+        text: t('account.save_profile_ok'),
       });
       setTimeout(() => setStatusMsg(null), 4000);
     } catch (err: any) {
       setStatusMsg({
         type: 'error',
-        text: err?.message || 'Erreur lors de la mise à jour du profil.',
+        text: err?.message || t('account.save_profile_err'),
       });
     } finally {
       setSaving(false);
@@ -229,8 +231,8 @@ export default function AccountProfilePage() {
     <div className="space-y-6 w-full max-w-[1600px] mx-auto">
       <Breadcrumb
         items={[
-          { label: 'Mon Espace Client', href: '/dashboard' },
-          { label: 'Mon Profil' },
+          { label: t('account.breadcrumb_home'), href: '/dashboard' },
+          { label: t('account.profile_crumb') },
         ]}
       />
 
@@ -242,10 +244,10 @@ export default function AccountProfilePage() {
           </div>
           <div>
             <h1 className="text-xl font-heading font-black text-neutral-900 tracking-tight">
-              Mon Profil
+              {t('account.profile_crumb')}
             </h1>
             <p className="text-xs text-neutral-500">
-              Personnalisez votre photo de profil, vos informations personnelles et vos adresses de livraison et de facturation.
+              {t('account.profile_subtitle')}
             </p>
           </div>
         </div>
@@ -270,7 +272,7 @@ export default function AccountProfilePage() {
 
       {loadingProfile ? (
         <div className="bg-white p-12 rounded-2xl border border-neutral-200 text-center text-xs text-neutral-500">
-          Chargement de vos informations...
+          {t('account.loading_profile')}
         </div>
       ) : (
         <form onSubmit={handleSave} className="space-y-6">
@@ -293,8 +295,8 @@ export default function AccountProfilePage() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  title="Changer de photo"
-                  className="absolute -bottom-2 -right-2 w-9 h-9 rounded-full bg-amber-500 text-white border-2 border-white flex items-center justify-center shadow-sm hover:bg-amber-600 transition cursor-pointer"
+                  title={t('account.change_photo')}
+                  className="absolute -bottom-2 -end-2 w-9 h-9 rounded-full bg-amber-500 text-white border-2 border-white flex items-center justify-center shadow-sm hover:bg-amber-600 transition cursor-pointer"
                 >
                   <Camera className="w-4 h-4" />
                 </button>
@@ -312,11 +314,11 @@ export default function AccountProfilePage() {
                 <div className="text-sm font-black text-neutral-900">
                   {firstName || user?.firstName} {lastName || user?.lastName}
                 </div>
-                <div className="text-xs text-neutral-500">{email}</div>
+                <div className="text-xs text-neutral-500" dir="ltr">{email}</div>
                 {age !== null && (
                   <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold mt-1">
                     <Calendar className="w-3 h-3" />
-                    <span>{age} ans</span>
+                    <span>{age} {t('account.years_old')}</span>
                   </div>
                 )}
               </div>
@@ -329,8 +331,8 @@ export default function AccountProfilePage() {
                   onClick={() => fileInputRef.current?.click()}
                   className="text-xs"
                 >
-                  <Camera className="w-3.5 h-3.5 mr-1.5" />
-                  Importer une photo
+                  <Camera className="w-3.5 h-3.5 me-1.5" />
+                  {t('account.import_photo')}
                 </Button>
                 {avatar && (
                   <Button
@@ -340,8 +342,8 @@ export default function AccountProfilePage() {
                     onClick={() => setAvatar('')}
                     className="text-xs text-rose-600 hover:bg-rose-50"
                   >
-                    <Trash2 className="w-3.5 h-3.5 mr-1" />
-                    Initiales
+                    <Trash2 className="w-3.5 h-3.5 me-1" />
+                    {t('account.initials_btn')}
                   </Button>
                 )}
               </div>
@@ -350,44 +352,44 @@ export default function AccountProfilePage() {
             {/* Identity & Bio Card */}
             <div className="lg:col-span-2 bg-white p-6 sm:p-8 rounded-2xl border border-neutral-200/80 shadow-sm space-y-5">
               <h2 className="text-sm font-bold text-neutral-900 uppercase tracking-wider border-b border-neutral-100 pb-3">
-                Identité &amp; Informations de Contact
+                {t('account.identity_section')}
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
-                  label="Prénom *"
+                  label={t('account.first_name_req')}
                   required
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                 />
                 <Input
-                  label="Nom *"
+                  label={t('account.last_name_req')}
                   required
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                 />
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="text-xs font-bold text-neutral-700">Adresse Email</span>
+                    <span className="text-xs font-bold text-neutral-700">{t('account.email_label')}</span>
                     {isEmailVerified ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
                         <ShieldCheck className="w-3 h-3" />
-                        <span>Vérifié</span>
+                        <span>{t('account.verified_badge')}</span>
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold">
                         <AlertCircle className="w-3 h-3" />
-                        <span>Non vérifié</span>
+                        <span>{t('account.unverified_badge')}</span>
                       </span>
                     )}
                   </div>
-                  <Input type="email" value={email} disabled />
+                  <Input type="email" value={email} disabled dir="ltr" />
                   {!isEmailVerified && (
                     <div className="mt-2 p-3 rounded-xl bg-[#FBF6E8] border border-[#E6D6A6] space-y-2">
                       <div className="flex items-center justify-between gap-2 text-[11px]">
                         <span className="font-bold text-[#9A7414] flex items-center gap-1">
                           <KeyRound className="w-3.5 h-3.5" />
-                          <span>Confirmer cette adresse par code OTP</span>
+                          <span>{t('account.otp_prompt')}</span>
                         </span>
                         <button
                           type="button"
@@ -397,9 +399,12 @@ export default function AccountProfilePage() {
                             setStatusMsg(null);
                             try {
                               const r = await resendVerification(email);
-                              setStatusMsg({ type: 'success', text: r?.message || `Code envoyé à ${email}.` });
+                              setStatusMsg({
+                                type: 'success',
+                                text: r?.message || t('account.otp_sent').replace('{email}', email),
+                              });
                             } catch (err: any) {
-                              setStatusMsg({ type: 'error', text: err?.message || "Échec d'envoi du code." });
+                              setStatusMsg({ type: 'error', text: err?.message || t('account.otp_send_err') });
                             } finally {
                               setSendingOtp(false);
                             }
@@ -407,7 +412,7 @@ export default function AccountProfilePage() {
                           className="inline-flex items-center gap-1 font-bold text-[#1D232E] hover:underline cursor-pointer disabled:opacity-50"
                         >
                           <RefreshCw className={`w-3 h-3 ${sendingOtp ? 'animate-spin' : ''}`} />
-                          <span>Envoyer le code</span>
+                          <span>{t('account.send_code')}</span>
                         </button>
                       </div>
                       <div className="flex gap-2">
@@ -415,10 +420,11 @@ export default function AccountProfilePage() {
                           type="text"
                           inputMode="numeric"
                           maxLength={6}
-                          placeholder="Code 6 chiffres"
+                          placeholder={t('account.otp_ph')}
                           value={otpCode}
                           onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                           className="flex-1 min-w-0 px-3 py-1.5 rounded-lg border border-[#E6D6A6] bg-white font-mono text-xs text-center tracking-widest"
+                          dir="ltr"
                         />
                         <button
                           type="button"
@@ -431,43 +437,43 @@ export default function AccountProfilePage() {
                               setIsEmailVerified(true);
                               setOtpCode('');
                               await fetchMe();
-                              setStatusMsg({ type: 'success', text: 'Adresse e-mail vérifiée avec succès.' });
+                              setStatusMsg({ type: 'success', text: t('account.otp_ok') });
                             } catch (err: any) {
-                              setStatusMsg({ type: 'error', text: err?.message || 'Code invalide ou expiré.' });
+                              setStatusMsg({ type: 'error', text: err?.message || t('account.otp_err') });
                             } finally {
                               setVerifyingOtp(false);
                             }
                           }}
-                          className="px-3 py-1.5 rounded-lg bg-[var(--royal-primary)] text-white text-xs font-bold cursor-pointer disabled:opacity-50"
+                          className="px-3 py-1.5 rounded-lg bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-bold cursor-pointer disabled:opacity-50"
                         >
-                          {verifyingOtp ? '...' : 'Valider'}
+                          {verifyingOtp ? '...' : t('account.validate_btn')}
                         </button>
                       </div>
                     </div>
                   )}
                 </div>
                 <Input
-                  label="Téléphone Mobile"
+                  label={t('account.mobile_phone')}
                   placeholder="+216 XX XXX XXX"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                 />
                 <div>
                   <Input
-                    label="Date de naissance"
+                    label={t('account.birth_date')}
                     type="date"
                     value={birthDate}
                     onChange={(e) => setBirthDate(e.target.value)}
                   />
                   {age !== null && (
                     <p className="text-[11px] text-amber-700 font-semibold mt-1">
-                      Âge calculé automatiquement : {age} ans
+                      {t('account.auto_age')} {age} {t('account.years_old')}
                     </p>
                   )}
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-neutral-700 mb-1.5">
-                    Genre / Civilité
+                    {t('account.gender_label')}
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     {GENDER_OPTIONS.map((opt) => (
@@ -481,7 +487,7 @@ export default function AccountProfilePage() {
                             : 'bg-[#F8F9FA] text-neutral-700 border-neutral-200 hover:border-[#C59B27]'
                         }`}
                       >
-                        {opt.label}
+                        {t(`account.gender_${opt.value}`, opt.label)}
                       </button>
                     ))}
                   </div>
@@ -497,27 +503,27 @@ export default function AccountProfilePage() {
               <div className="flex items-center gap-2 border-b border-neutral-100 pb-3">
                 <MapPin className="w-4 h-4 text-amber-600" />
                 <h2 className="text-sm font-bold text-neutral-900 uppercase tracking-wider">
-                  Adresse de Livraison Principale
+                  {t('account.shipping_addr_section')}
                 </h2>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
-                  label="Prénom destinataire"
+                  label={t('account.dest_first_name')}
                   value={shippingAddress.firstName}
                   onChange={(e) =>
                     setShippingAddress({ ...shippingAddress, firstName: e.target.value })
                   }
                 />
                 <Input
-                  label="Nom destinataire"
+                  label={t('account.dest_last_name')}
                   value={shippingAddress.lastName}
                   onChange={(e) =>
                     setShippingAddress({ ...shippingAddress, lastName: e.target.value })
                   }
                 />
                 <Input
-                  label="Téléphone livraison"
+                  label={t('account.shipping_phone')}
                   placeholder="+216 XX XXX XXX"
                   value={shippingAddress.phone}
                   onChange={(e) =>
@@ -525,8 +531,8 @@ export default function AccountProfilePage() {
                   }
                 />
                 <Input
-                  label="Gouvernorat"
-                  placeholder="Ex: Tunis, Ariana, Sousse..."
+                  label={t('account.governorate')}
+                  placeholder={t('account.governorate_ph')}
                   value={shippingAddress.state}
                   onChange={(e) =>
                     setShippingAddress({ ...shippingAddress, state: e.target.value })
@@ -534,8 +540,8 @@ export default function AccountProfilePage() {
                 />
                 <div className="sm:col-span-2">
                   <Input
-                    label="Adresse / Rue & Numéro"
-                    placeholder="Ex: 18 Avenue Habib Bourguiba"
+                    label={t('account.street_addr')}
+                    placeholder={t('account.street_addr_ph')}
                     value={shippingAddress.street}
                     onChange={(e) =>
                       setShippingAddress({ ...shippingAddress, street: e.target.value })
@@ -544,7 +550,7 @@ export default function AccountProfilePage() {
                 </div>
                 <div className="sm:col-span-2">
                   <Input
-                    label="Complément d'adresse (Appartement, étage...)"
+                    label={t('account.addr_complement')}
                     value={shippingAddress.street2}
                     onChange={(e) =>
                       setShippingAddress({ ...shippingAddress, street2: e.target.value })
@@ -552,15 +558,15 @@ export default function AccountProfilePage() {
                   />
                 </div>
                 <Input
-                  label="Ville / Délégation"
-                  placeholder="Ex: Tunis"
+                  label={t('account.city_delegation')}
+                  placeholder={t('account.city_ph')}
                   value={shippingAddress.city}
                   onChange={(e) =>
                     setShippingAddress({ ...shippingAddress, city: e.target.value })
                   }
                 />
                 <Input
-                  label="Code Postal"
+                  label={t('account.postal_code')}
                   placeholder="Ex: 1000"
                   value={shippingAddress.postalCode}
                   onChange={(e) =>
@@ -576,7 +582,7 @@ export default function AccountProfilePage() {
                 <div className="flex items-center gap-2">
                   <Receipt className="w-4 h-4 text-amber-600" />
                   <h2 className="text-sm font-bold text-neutral-900 uppercase tracking-wider">
-                    Adresse de Facturation
+                    {t('account.billing_addr_section')}
                   </h2>
                 </div>
                 <label className="inline-flex items-center gap-2 text-xs font-semibold text-neutral-700 cursor-pointer">
@@ -586,13 +592,13 @@ export default function AccountProfilePage() {
                     onChange={(e) => setSameAsShipping(e.target.checked)}
                     className="rounded border-neutral-300 text-neutral-950 focus:ring-amber-500"
                   />
-                  <span>Identique à la livraison</span>
+                  <span>{t('account.same_as_shipping')}</span>
                 </label>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
-                  label="Prénom facturation"
+                  label={t('account.billing_first_name')}
                   disabled={sameAsShipping}
                   value={effectiveBilling.firstName}
                   onChange={(e) =>
@@ -600,7 +606,7 @@ export default function AccountProfilePage() {
                   }
                 />
                 <Input
-                  label="Nom facturation"
+                  label={t('account.billing_last_name')}
                   disabled={sameAsShipping}
                   value={effectiveBilling.lastName}
                   onChange={(e) =>
@@ -608,7 +614,7 @@ export default function AccountProfilePage() {
                   }
                 />
                 <Input
-                  label="Téléphone"
+                  label={t('account.phone_short')}
                   disabled={sameAsShipping}
                   value={effectiveBilling.phone}
                   onChange={(e) =>
@@ -616,7 +622,7 @@ export default function AccountProfilePage() {
                   }
                 />
                 <Input
-                  label="Gouvernorat"
+                  label={t('account.governorate')}
                   disabled={sameAsShipping}
                   value={effectiveBilling.state}
                   onChange={(e) =>
@@ -625,7 +631,7 @@ export default function AccountProfilePage() {
                 />
                 <div className="sm:col-span-2">
                   <Input
-                    label="Adresse / Rue & Numéro"
+                    label={t('account.street_addr')}
                     disabled={sameAsShipping}
                     value={effectiveBilling.street}
                     onChange={(e) =>
@@ -635,7 +641,7 @@ export default function AccountProfilePage() {
                 </div>
                 <div className="sm:col-span-2">
                   <Input
-                    label="Complément d'adresse"
+                    label={t('account.addr_complement_short')}
                     disabled={sameAsShipping}
                     value={effectiveBilling.street2}
                     onChange={(e) =>
@@ -644,7 +650,7 @@ export default function AccountProfilePage() {
                   />
                 </div>
                 <Input
-                  label="Ville"
+                  label={t('account.city_short')}
                   disabled={sameAsShipping}
                   value={effectiveBilling.city}
                   onChange={(e) =>
@@ -652,7 +658,7 @@ export default function AccountProfilePage() {
                   }
                 />
                 <Input
-                  label="Code Postal"
+                  label={t('account.postal_code')}
                   disabled={sameAsShipping}
                   value={effectiveBilling.postalCode}
                   onChange={(e) =>
@@ -665,8 +671,8 @@ export default function AccountProfilePage() {
 
           <div className="flex justify-end">
             <Button type="submit" disabled={saving} className="text-xs px-8">
-              <Save className="h-3.5 w-3.5 mr-2" />
-              {saving ? 'Enregistrement en cours...' : 'Enregistrer toutes mes modifications'}
+              <Save className="h-3.5 w-3.5 me-2" />
+              {saving ? t('account.saving_in_progress') : t('account.save_all_changes')}
             </Button>
           </div>
         </form>

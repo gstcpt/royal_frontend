@@ -42,7 +42,7 @@ export function StorefrontHeader() {
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const categoryMenuRef = React.useRef<HTMLDivElement>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [dynamicCategories, setDynamicCategories] = useState<Array<{ id: string; name: string; slug: string; productsCount?: number }>>([]);
+  const [dynamicCategories, setDynamicCategories] = useState<Array<{ id: string; name: string; nameAr?: string | null; slug: string; productsCount?: number }>>([]);
   const [freeThreshold, setFreeThreshold] = useState<number>(150);
 
   const compareCount = useCompareStore((state) => state.items.length);
@@ -294,7 +294,7 @@ export function StorefrontHeader() {
                           onClick={() => setCategoryMenuOpen(false)}
                           className="block px-4 py-2.5 text-xs font-semibold hover:bg-neutral-50 text-neutral-800"
                         >
-                          {cat.name}
+                          {locale === 'ar' && cat.nameAr ? cat.nameAr : cat.name}
                         </Link>
                       ))}
                       <div className="border-t border-neutral-100 my-1" />
@@ -341,14 +341,14 @@ export function StorefrontHeader() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t('header.search_placeholder')}
-                className={`w-full pl-8 pr-3 py-1.5 text-xs rounded-full border transition-all focus:outline-none ${
+                className={`w-full ps-8 pe-3 py-1.5 text-xs rounded-full border transition-all focus:outline-none ${
                   isTransparent
                     ? 'bg-white/10 border-white/20 text-white placeholder-white/60 focus:bg-white focus:text-neutral-900 focus:placeholder-neutral-400'
                     : 'bg-white border-[var(--royal-border)] text-[var(--royal-ink)] placeholder-neutral-400 focus:border-[var(--royal-primary)]'
                 }`}
               />
               <Search
-                className={`absolute left-2.5 top-2 w-3.5 h-3.5 transition-colors ${
+                className={`absolute start-2.5 top-2 w-3.5 h-3.5 transition-colors ${
                   isTransparent ? 'text-white/60' : 'text-[var(--royal-primary)]'
                 }`}
               />
@@ -367,7 +367,7 @@ export function StorefrontHeader() {
             >
               <Layers className="w-5 h-5" />
               {compareCount > 0 && (
-                <span className="absolute top-0 right-0 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center bg-[var(--royal-primary)] text-[var(--royal-primary-text)] shadow-sm">
+                <span className="absolute top-0 end-0 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center bg-[var(--royal-primary)] text-[var(--royal-primary-text)] shadow-sm">
                   {compareCount}
                 </span>
               )}
@@ -386,7 +386,7 @@ export function StorefrontHeader() {
             >
               <Heart className="w-5 h-5" />
               {wishlistCount > 0 && (
-                <span className="absolute top-0 right-0 w-4 h-4 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">
+                <span className="absolute top-0 end-0 w-4 h-4 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">
                   {wishlistCount}
                 </span>
               )}
@@ -405,7 +405,7 @@ export function StorefrontHeader() {
             >
               <ShoppingBag className="w-5 h-5" />
               {cartItemsCount > 0 && (
-                <span className="absolute top-0 right-0 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center bg-[var(--royal-primary)] text-[var(--royal-primary-text)] shadow-sm">
+                <span className="absolute top-0 end-0 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center bg-[var(--royal-primary)] text-[var(--royal-primary-text)] shadow-sm">
                   {cartItemsCount}
                 </span>
               )}
@@ -414,7 +414,7 @@ export function StorefrontHeader() {
 
           {config.header.showAccountButton !== false && isAuthenticated ? (
             <div
-              className="relative hidden sm:block ml-1"
+              className="relative hidden sm:block ms-1"
               onMouseEnter={() => setUserMenuOpen(true)}
               onMouseLeave={() => setUserMenuOpen(false)}
             >
@@ -511,13 +511,13 @@ export function StorefrontHeader() {
               }}
               className="relative"
             >
-              <Search className="w-4 h-4 text-[var(--royal-primary)] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-4 h-4 text-[var(--royal-primary)] absolute start-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t('header.search_placeholder')}
-                className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-[var(--royal-border)] bg-[var(--royal-bg)] text-[var(--royal-ink)] focus:outline-none focus:border-[var(--royal-primary)]"
+                className="w-full ps-10 pe-4 py-2.5 text-xs rounded-xl border border-[var(--royal-border)] bg-[var(--royal-bg)] text-[var(--royal-ink)] focus:outline-none focus:border-[var(--royal-primary)]"
               />
             </form>
           )}
@@ -536,7 +536,7 @@ export function StorefrontHeader() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="py-1 text-neutral-600 ps-3"
               >
-                • {cat.name}
+                • {locale === 'ar' && cat.nameAr ? cat.nameAr : cat.name}
               </Link>
             ))}
             {config.header.showCompare !== false && (

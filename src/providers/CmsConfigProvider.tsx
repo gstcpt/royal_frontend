@@ -902,12 +902,32 @@ function applyDynamicCssTokens(cfg: CmsConfig) {
     !window.location.pathname.startsWith('/dashboard') &&
     !(window as any).__royalPixelsConfig?.seoTitle?.trim()
   ) {
-    document.title = `${cfg.appName} — Electro de Maison | E-Commerce & Électroménager Tunisie`;
+    const activeLocale = useI18nStore.getState().locale;
+    document.title =
+      activeLocale === 'ar'
+        ? `${cfg.appName} — أرقى الأجهزة الكهرومنزلية | المتجر الإلكتروني تونس`
+        : `${cfg.appName} — Electro de Maison | E-Commerce & Électroménager Tunisie`;
   }
 }
 
 export function CmsConfigProvider({ children }: { children: React.ReactNode }) {
   const [config, setConfig] = useState<CmsConfig>(DEFAULT_CONFIG);
+  const { locale } = useI18nStore();
+
+  useEffect(() => {
+    const appName = config?.identity?.appName || config?.appName;
+    if (
+      typeof window !== 'undefined' &&
+      appName &&
+      !window.location.pathname.startsWith('/dashboard') &&
+      !(window as any).__royalPixelsConfig?.seoTitle?.trim()
+    ) {
+      document.title =
+        locale === 'ar'
+          ? `${appName} — أرقى الأجهزة الكهرومنزلية | المتجر الإلكتروني تونس`
+          : `${appName} — Electro de Maison | E-Commerce & Électroménager Tunisie`;
+    }
+  }, [locale, config?.identity?.appName, config?.appName]);
 
   const loadConfig = useCallback(async () => {
     try {

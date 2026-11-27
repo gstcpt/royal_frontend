@@ -17,8 +17,10 @@ import { fetchAllPaginated } from '@/lib/api';
 import { formatTndCurrency } from '@/lib/utils';
 import { Button, Breadcrumb, DataTable, ColumnDef } from '@/components/ui';
 import { NINE_ORDER_STATUSES, ORDER_STATUS_LABEL_MAP } from '@/components/common/PrintableOrderSheet';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export default function AccountOrdersPage() {
+  const { t, locale } = useI18nStore();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterTab, setFilterTab] = useState<'ALL' | 'ACTIVE' | 'PAST'>('ALL');
@@ -52,13 +54,17 @@ export default function AccountOrdersPage() {
 
   const activeCount = orders.filter((o) => !['DELIVERED', 'CANCELLED', 'REFUNDED'].includes(o.status)).length;
   const pastCount = orders.filter((o) => ['DELIVERED', 'CANCELLED', 'REFUNDED'].includes(o.status)).length;
+  const dateLoc = locale === 'ar' ? 'ar-TN' : 'fr-FR';
+  const getStatusText = (status: string) =>
+    t(`order_status.${status}`, ORDER_STATUS_LABEL_MAP[status] || status);
 
   const renderStatus = (status: string) => {
+    const label = getStatusText(status);
     switch (status) {
       case 'DELIVERED':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <CheckCircle2 className="w-3 h-3" /> {ORDER_STATUS_LABEL_MAP[status] || status}
+            <CheckCircle2 className="w-3 h-3" /> {label}
           </span>
         );
       case 'SHIPPED':
@@ -66,19 +72,19 @@ export default function AccountOrdersPage() {
       case 'READY_FOR_SHIPMENT':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-            <Truck className="w-3 h-3" /> {ORDER_STATUS_LABEL_MAP[status] || status}
+            <Truck className="w-3 h-3" /> {label}
           </span>
         );
       case 'CANCELLED':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-            <XCircle className="w-3 h-3" /> {ORDER_STATUS_LABEL_MAP[status] || status}
+            <XCircle className="w-3 h-3" /> {label}
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-neutral-100 text-neutral-700 border border-neutral-200">
-            <Clock className="w-3 h-3" /> {ORDER_STATUS_LABEL_MAP[status] || status}
+            <Clock className="w-3 h-3" /> {label}
           </span>
         );
     }
@@ -88,11 +94,17 @@ export default function AccountOrdersPage() {
     const sel = filteredOrders.filter((o) => selectedOrderIds.includes(o.id));
     if (sel.length === 0) return;
     const csv = [
-      ['Référence', 'Date', 'Statut', 'Articles', 'Total TND'],
+      [
+        t('account.col_reference'),
+        t('account.csv_col_date'),
+        t('account.col_status'),
+        t('account.col_articles'),
+        t('account.col_total_ttc'),
+      ],
       ...sel.map((o) => [
         o.reference,
-        new Date(o.createdAt).toLocaleString('fr-FR'),
-        ORDER_STATUS_LABEL_MAP[o.status] || o.status,
+        new Date(o.createdAt).toLocaleString(dateLoc),
+        getStatusText(o.status),
         (o.items || []).length,
         Number(o.totalAmount || 0).toFixed(3),
       ]),
@@ -111,14 +123,14 @@ export default function AccountOrdersPage() {
   const columns: ColumnDef<any>[] = [
     {
       key: 'reference',
-      header: 'Référence',
+      header: t('account.col_reference'),
       sortable: true,
       sortValue: (o) => o.reference,
       render: (o) => (
         <div>
-          <div className="font-mono font-black text-xs text-neutral-900">{o.reference}</div>
+          <div className="font-mono font-black text-xs text-neutral-900" dir="ltr">{o.reference}</div>
           <div className="text-[11px] text-neutral-500">
-            {new Date(o.createdAt).toLocaleString('fr-FR')}
+            {new Date(o.createdAt).toLocaleString(dateLoc)}
           </div>
         </div>
       ),
@@ -126,28 +138,28 @@ export default function AccountOrdersPage() {
     },
     {
       key: 'items',
-      header: 'Articles',
+      header: t('account.col_articles'),
       render: (o) => (
         <span className="text-xs font-semibold text-neutral-700">
-          {(o.items || []).length} article(s)
+          {(o.items || []).length} {t('account.articles_count_unit')}
         </span>
       ),
       printRender: (o) => `${(o.items || []).length}`,
     },
     {
       key: 'status',
-      header: 'Statut',
+      header: t('account.col_status'),
       sortable: true,
       sortValue: (o) => o.status,
       render: (o) => renderStatus(o.status),
-      printRender: (o) => ORDER_STATUS_LABEL_MAP[o.status] || o.status,
+      printRender: (o) => getStatusText(o.status),
     },
     {
       key: 'totalAmount',
-      header: 'Montant TTC',
+      header: t('account.col_total_ttc'),
       sortable: true,
       sortValue: (o) => Number(o.totalAmount || 0),
-      className: 'text-right',
+      className: 'text-end',
       render: (o) => (
         <span className="font-mono font-black text-xs text-neutral-900">
           {formatTndCurrency(Number(o.totalAmount || 0))}
@@ -157,15 +169,15 @@ export default function AccountOrdersPage() {
     },
     {
       key: 'actions',
-      header: 'Actions',
-      className: 'text-right no-print',
+      header: t('account.col_actions'),
+      className: 'text-end no-print',
       render: (o) => (
         <Link
           href={`/order-confirmation/${o.reference}`}
-          title="Bon & Détails"
+          title={t('account.slip_details')}
           className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-bold hover:bg-[var(--royal-primary-hover)] transition shadow-xs"
         >
-          <span>Bon</span>
+          <span>{t('account.slip_short')}</span>
           <ExternalLink className="w-3 h-3" />
         </Link>
       ),
@@ -174,7 +186,7 @@ export default function AccountOrdersPage() {
 
   return (
     <div className="space-y-6 w-full max-w-[1600px] mx-auto">
-      <Breadcrumb items={[{ label: 'Mon Espace Client', href: '/dashboard' }, { label: 'Mes Commandes' }]} />
+      <Breadcrumb items={[{ label: t('account.breadcrumb_home'), href: '/dashboard' }, { label: t('account.my_orders') }]} />
 
       <div className="bg-white p-6 rounded-2xl border border-neutral-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -183,24 +195,24 @@ export default function AccountOrdersPage() {
           </div>
           <div>
             <h1 className="text-xl font-heading font-black text-neutral-900 tracking-tight">
-              Mes Commandes
+              {t('account.my_orders')}
             </h1>
             <p className="text-xs text-neutral-500">
-              Suivez l&apos;avancement de vos commandes en direct et imprimez vos bons Royal.
+              {t('account.orders_page_subtitle')}
             </p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={loadOrders} className="text-xs shrink-0">
-          <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
-          Actualiser
+          <RefreshCw className={`h-3.5 w-3.5 me-1.5 ${loading ? 'animate-spin' : ''}`} />
+          {t('account.refresh')}
         </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-2xl border border-neutral-200 w-fit">
         {[
-          { key: 'ALL', label: `Toutes (${orders.length})` },
-          { key: 'ACTIVE', label: `En cours (${activeCount})` },
-          { key: 'PAST', label: `Historique terminé (${pastCount})` },
+          { key: 'ALL', label: `${t('account.tab_all')} (${orders.length})` },
+          { key: 'ACTIVE', label: `${t('account.tab_active')} (${activeCount})` },
+          { key: 'PAST', label: `${t('account.tab_past')} (${pastCount})` },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -221,13 +233,13 @@ export default function AccountOrdersPage() {
         <div className="bg-white p-12 rounded-2xl border border-neutral-200 text-center space-y-4">
           <ShoppingBag className="h-10 w-10 text-neutral-300 mx-auto" />
           <div className="text-sm font-bold text-neutral-900">
-            Aucune commande dans cette catégorie.
+            {t('account.orders_empty')}
           </div>
           <Link
             href="/articles"
             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-bold shadow-xs"
           >
-            Découvrir les articles
+            {t('account.discover_articles')}
           </Link>
         </div>
       ) : (
@@ -237,7 +249,7 @@ export default function AccountOrdersPage() {
           keyExtractor={(o) => o.id}
           isLoading={loading}
           onRefresh={loadOrders}
-          searchPlaceholder="Rechercher par référence ou statut..."
+          searchPlaceholder={t('account.orders_search_ph')}
           searchKeys={['reference', 'status']}
           supportedModes={['list', 'table', 'matrix']}
           defaultMode="list"
@@ -248,8 +260,8 @@ export default function AccountOrdersPage() {
           onSelectionChange={setSelectedOrderIds}
           renderBulkActions={() => (
             <Button variant="outline" size="sm" onClick={handleExportSelectedCsv}>
-              <Download className="w-3.5 h-3.5 mr-1.5" />
-              <span>Exporter CSV ({selectedOrderIds.length})</span>
+              <Download className="w-3.5 h-3.5 me-1.5" />
+              <span>{t('account.export_csv_count')} ({selectedOrderIds.length})</span>
             </Button>
           )}
           renderListItem={(order) => {
@@ -259,9 +271,9 @@ export default function AccountOrdersPage() {
               <div className="bg-white p-5 rounded-2xl border border-neutral-200/80 shadow-xs space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-neutral-100">
                   <div className="space-y-0.5">
-                    <div className="font-mono font-black text-sm text-neutral-900">{order.reference}</div>
+                    <div className="font-mono font-black text-sm text-neutral-900" dir="ltr">{order.reference}</div>
                     <div className="text-[11px] text-neutral-500">
-                      Passée le {new Date(order.createdAt).toLocaleString('fr-FR')}
+                      {t('account.placed_on')} {new Date(order.createdAt).toLocaleString(dateLoc)}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -273,7 +285,7 @@ export default function AccountOrdersPage() {
                       href={`/order-confirmation/${order.reference}`}
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-bold hover:bg-[var(--royal-primary-hover)] transition shadow-xs"
                     >
-                      <span>Bon &amp; Détails</span>
+                      <span>{t('account.slip_details')}</span>
                       <ExternalLink className="w-3 h-3" />
                     </Link>
                   </div>
@@ -302,7 +314,7 @@ export default function AccountOrdersPage() {
                                 }`}
                               />
                             )}
-                            <span className="truncate">{st.step}. {st.label}</span>
+                            <span className="truncate">{st.step}. {t(`order_status.${st.key}`, st.label)}</span>
                           </div>
                         </div>
                       );
@@ -313,7 +325,7 @@ export default function AccountOrdersPage() {
             );
           }}
           exportFileName="mes_commandes_royal"
-          printTitle="Mes Commandes — Royal"
+          printTitle={t('account.print_orders_title')}
         />
       )}
     </div>

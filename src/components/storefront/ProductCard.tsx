@@ -48,16 +48,19 @@ export interface StorefrontProduct {
   id: string;
   sku: string;
   name: string;
+  nameAr?: string | null;
   slug: string;
   shortDescription?: string | null;
+  shortDescAr?: string | null;
   description?: string | null;
+  descriptionAr?: string | null;
   sellingPrice: number;
   discountPrice?: number | null;
   discountPercent?: number | null;
   discountPercentage?: number | null;
   primaryImage: string;
   images?: string[];
-  category?: { name: string; slug?: string } | null;
+  category?: { name: string; nameAr?: string | null; slug?: string } | null;
   brand?: { name: string; slug?: string } | null;
   variants?: StorefrontVariant[];
   dimensionsJson?: Record<string, any> | null;
@@ -91,7 +94,11 @@ export function ProductCard({
   cardContext = 'articles',
 }: ProductCardProps) {
   const { config } = useCmsConfig();
-  const { t } = useI18nStore();
+  const { locale, t } = useI18nStore();
+  const displayProductName = locale === 'ar' && product.nameAr ? product.nameAr : product.name;
+  const displayShortDesc = locale === 'ar' && product.shortDescAr ? product.shortDescAr : product.shortDescription;
+  const displayCategoryName =
+    locale === 'ar' && product.category?.nameAr ? product.category.nameAr : product.category?.name;
   const articleFlags = config.views.articles;
   const resolvedImageHeightPx = Math.min(
     460,
@@ -308,18 +315,18 @@ export function ProductCard({
       {addedBanner && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="fixed bottom-6 right-6 z-[9999] bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] px-5 py-3.5 rounded-2xl shadow-2xl border border-[var(--royal-primary)]/40 flex items-center gap-3 text-xs animate-in fade-in slide-in-from-bottom-4"
+          className="fixed bottom-6 end-6 z-[9999] bg-[var(--royal-gold-light)] text-[var(--royal-gold-dark)] px-5 py-3.5 rounded-2xl shadow-2xl border border-[var(--royal-primary)]/40 flex items-center gap-3 text-xs animate-in fade-in slide-in-from-bottom-4"
         >
           <span className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
             <Check className="w-3.5 h-3.5" />
           </span>
           <div className="max-w-[220px]">
             <p className="font-bold text-[var(--royal-ink)] line-clamp-1">{t('actions.added_to_cart_qty')} ({quantity})</p>
-            <p className="text-[11px] text-slate-600 line-clamp-1">{product.name}</p>
+            <p className="text-[11px] text-slate-600 line-clamp-1">{displayProductName}</p>
           </div>
           <Link
             href="/cart"
-            className="ml-2 px-3 py-1.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] font-bold hover:bg-[var(--royal-primary-hover)] transition shrink-0"
+            className="ms-2 px-3 py-1.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] font-bold hover:bg-[var(--royal-primary-hover)] transition shrink-0"
           >
             {t('actions.view_cart_short')}
           </Link>
@@ -330,10 +337,10 @@ export function ProductCard({
       {copiedSku && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="fixed bottom-6 left-6 z-[9999] bg-[var(--royal-card)] text-[var(--royal-ink)] px-4 py-2.5 rounded-xl shadow-xl border border-[var(--royal-primary)] flex items-center gap-2 text-xs font-bold animate-in fade-in slide-in-from-bottom-3"
+          className="fixed bottom-6 start-6 z-[9999] bg-[var(--royal-card)] text-[var(--royal-ink)] px-4 py-2.5 rounded-xl shadow-xl border border-[var(--royal-primary)] flex items-center gap-2 text-xs font-bold animate-in fade-in slide-in-from-bottom-3"
         >
           <Check className="w-4 h-4 text-[var(--royal-primary)] shrink-0" />
-          <span>Code SKU copié : <span className="font-mono text-[var(--royal-primary)]">{product.sku}</span></span>
+          <span>{t('product.copied')} <span className="font-mono text-[var(--royal-primary)]">{product.sku}</span></span>
         </div>
       )}
 
@@ -350,7 +357,7 @@ export function ProductCard({
         onClose={() => setIsReviewOpen(false)}
         product={{
           id: product.id,
-          name: product.name,
+          name: displayProductName,
           sku: product.sku,
           brandName: product.brand?.name,
           rating: product.rating,
@@ -360,7 +367,7 @@ export function ProductCard({
 
       {/* Compare Feedback Toast */}
       {compareNotice && (
-        <div className="fixed bottom-6 left-6 z-[9999] bg-white text-neutral-900 px-4 py-2.5 rounded-xl shadow-xl border border-neutral-200 flex items-center gap-2 text-xs font-bold">
+        <div className="fixed bottom-6 start-6 z-[9999] bg-white text-neutral-900 px-4 py-2.5 rounded-xl shadow-xl border border-neutral-200 flex items-center gap-2 text-xs font-bold">
           <Layers className="w-4 h-4 text-amber-500" />
           <span>{compareNotice}</span>
         </div>
@@ -370,7 +377,7 @@ export function ProductCard({
       {authPromptProductId === product.id && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="fixed bottom-6 left-6 right-6 sm:right-auto max-w-sm z-[9999] bg-white text-neutral-900 px-4 py-3 rounded-2xl shadow-2xl border border-amber-300 flex items-center gap-3 text-xs"
+          className="fixed bottom-6 start-6 end-6 sm:end-auto max-w-sm z-[9999] bg-white text-neutral-900 px-4 py-3 rounded-2xl shadow-2xl border border-amber-300 flex items-center gap-3 text-xs"
         >
           <ThumbsUp className="w-4 h-4 text-amber-600 shrink-0" />
           <span className="font-semibold">{t('storefront.login_to_react')}</span>
@@ -415,7 +422,7 @@ export function ProductCard({
             <div className="w-16 h-16 rounded-2xl bg-white border border-neutral-200 overflow-hidden shrink-0">
               <img
                 src={getSafeImageUrl(product.primaryImage)}
-                alt={product.name}
+                alt={displayProductName}
                 className="w-full h-full object-contain"
               />
             </div>
@@ -424,7 +431,7 @@ export function ProductCard({
                 {product.brand?.name || 'Royal'} • {product.sku}
               </span>
               <h4 className="font-heading font-bold text-sm text-neutral-950 line-clamp-2">
-                {product.name}
+                {displayProductName}
               </h4>
               <div className="flex items-baseline gap-2 mt-1">
                 <span className="font-extrabold text-sm text-neutral-950">
@@ -453,7 +460,7 @@ export function ProductCard({
                       key={v.id}
                       type="button"
                       onClick={() => setSelectedVariantId(v.id)}
-                      className={`p-2.5 rounded-xl border text-left text-xs flex items-center gap-2 transition cursor-pointer ${
+                      className={`p-2.5 rounded-xl border text-start text-xs flex items-center gap-2 transition cursor-pointer ${
                         isSel
                           ? 'border-[var(--royal-primary)] bg-[var(--royal-primary)] text-[var(--royal-primary-text)] font-bold'
                           : 'border-neutral-200 bg-[#F8F9FA] text-neutral-800 hover:border-[var(--royal-primary)]/50'
@@ -504,7 +511,7 @@ export function ProductCard({
       <Modal
         isOpen={isQuickViewOpen}
         onClose={() => setIsQuickViewOpen(false)}
-        title={product.name}
+        title={displayProductName}
         subtitle={`${product.brand?.name || 'Royal'} • SKU ${product.sku}`}
         type="details"
         size="4xl"
@@ -530,7 +537,7 @@ export function ProductCard({
           {/* Interactive Gallery: Autoplay 3s, Pause on Hover, Zoom & Fullscreen */}
           <ProductMediaViewer
             images={gallery}
-            alt={product.name}
+            alt={displayProductName}
             heightClassName="h-72 sm:h-80"
             roundedClassName="rounded-2xl"
             enableZoomOnHover={true}
@@ -558,9 +565,9 @@ export function ProductCard({
                 )}
               </div>
 
-              {product.shortDescription && (
+              {displayShortDesc && (
                 <p className="text-xs text-neutral-600 line-clamp-3 leading-relaxed">
-                  {product.shortDescription}
+                  {displayShortDesc}
                 </p>
               )}
 
@@ -702,7 +709,7 @@ export function ProductCard({
               className="w-full h-full object-cover object-center scale-[1.06] group-hover:scale-110 transition-transform duration-500"
             />
             {hasPromo && (
-              <span className="absolute top-2 left-2 px-2.5 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-bold uppercase">
+              <span className="absolute top-2 start-2 px-2.5 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-bold uppercase">
                 {discountPct ? `-${discountPct}%` : 'PROMO'}
               </span>
             )}
@@ -710,12 +717,12 @@ export function ProductCard({
               <button
                 type="button"
                 onClick={handleCopySku}
-                title={`Cliquer pour copier le SKU (${product.sku})`}
-                aria-label={`Copier le code SKU ${product.sku}`}
-                className="absolute bottom-2 left-2 px-2.5 py-0.5 rounded-full bg-white/25 backdrop-blur-sm hover:bg-white border-[1.5px] border-[var(--royal-primary)] text-[10px] font-mono font-bold text-[var(--royal-primary)] hover:text-[var(--royal-ink)] shadow-sm transition-all cursor-pointer max-w-[82%] truncate inline-flex items-center gap-1"
+                title={`${t('product.copy_sku')} (${product.sku})`}
+                aria-label={`${t('product.copy_sku')} ${product.sku}`}
+                className="absolute bottom-2 start-2 px-2.5 py-0.5 rounded-full bg-white/25 backdrop-blur-sm hover:bg-white border-[1.5px] border-[var(--royal-primary)] text-[10px] font-mono font-bold text-[var(--royal-primary)] hover:text-[var(--royal-ink)] shadow-sm transition-all cursor-pointer max-w-[82%] truncate inline-flex items-center gap-1"
               >
                 {copiedSku ? <Check className="w-3 h-3 shrink-0" /> : <Copy className="w-2.5 h-2.5 shrink-0" />}
-                <span className="truncate">{copiedSku ? 'Copié' : product.sku}</span>
+                <span className="truncate">{copiedSku ? t('product.copied') : product.sku}</span>
               </button>
             )}
           </Link>
@@ -723,20 +730,20 @@ export function ProductCard({
           <div className="flex-1 min-w-0 space-y-2">
             <div className="flex items-center gap-2 text-[11px] font-bold text-[var(--royal-primary)] uppercase tracking-wider">
               <span>{product.brand?.name || 'Royal'}</span>
-              {product.category?.name && (
+              {displayCategoryName && (
                 <>
                   <span className="text-slate-300">•</span>
-                  <span className="text-slate-500">{product.category.name}</span>
+                  <span className="text-slate-500">{displayCategoryName}</span>
                 </>
               )}
             </div>
             <Link href={`/articles/${product.slug}`}>
               <h3 className="font-heading font-bold text-base text-[var(--royal-ink)] group-hover:text-[var(--royal-primary)] transition-colors">
-                {product.name}
+                {displayProductName}
               </h3>
             </Link>
-            {product.shortDescription && (
-              <p className="text-xs text-slate-500 line-clamp-2">{product.shortDescription}</p>
+            {displayShortDesc && (
+              <p className="text-xs text-slate-500 line-clamp-2">{displayShortDesc}</p>
             )}
             <div className="flex items-center gap-3 pt-1">
               <div className="flex">
@@ -758,7 +765,7 @@ export function ProductCard({
           </div>
 
           <div className="flex flex-col sm:items-end justify-between w-full sm:w-auto gap-2.5 sm:gap-3 shrink-0 min-w-0">
-            <div className="flex items-baseline gap-2 justify-between sm:justify-end w-full sm:w-auto text-left sm:text-right">
+            <div className="flex items-baseline gap-2 justify-between sm:justify-end w-full sm:w-auto text-start sm:text-end">
               <div className="text-lg font-black text-[var(--royal-primary)] font-mono">
                 {formatTndCurrency(currentPrice)}
               </div>
@@ -1025,25 +1032,25 @@ export function ProductCard({
             >
               <img
                 src={getSafeImageUrl(product.primaryImage)}
-                alt={product.name}
+                alt={displayProductName}
                 className="w-full h-full object-cover object-center scale-[1.08] group-hover:scale-115 transition-transform duration-500"
               />
             </Link>
 
-            {/* Bottom-Left Click-to-Copy SKU Badge styled symmetrically to top-right controls */}
+            {/* Bottom-Start Click-to-Copy SKU Badge styled symmetrically to top-end controls */}
             {product.sku && (
-              <div className="absolute bottom-2.5 left-2.5 z-20 max-w-[78%]">
+              <div className="absolute bottom-2.5 start-2.5 z-20 max-w-[78%]">
                 <button
                   type="button"
                   onClick={handleCopySku}
-                  title={`Cliquer pour copier le SKU (${product.sku})`}
-                  aria-label={`Copier le code SKU ${product.sku}`}
+                  title={`${t('product.copy_sku')} (${product.sku})`}
+                  aria-label={`${t('product.copy_sku')} ${product.sku}`}
                   className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/75 backdrop-blur-sm hover:bg-white border-[1.5px] border-[var(--royal-primary)] text-[10px] font-mono font-bold text-[var(--royal-primary)] hover:text-[var(--royal-ink)] shadow-sm transition-all cursor-pointer truncate max-w-full"
                 >
                   {copiedSku ? (
                     <>
                       <Check className="w-3 h-3 shrink-0" />
-                      <span>Copié !</span>
+                      <span>{t('product.copied')}</span>
                     </>
                   ) : (
                     <>
@@ -1061,7 +1068,7 @@ export function ProductCard({
             <div className="space-y-1.5">
               <Link href={`/articles/${product.slug}`}>
                 <h3 className="font-heading font-semibold text-sm text-[var(--royal-ink)] line-clamp-1 group-hover:text-[var(--royal-primary)] transition-colors">
-                  {product.name}
+                  {displayProductName}
                 </h3>
               </Link>
 

@@ -53,7 +53,7 @@ import {
   MultiSelect,
 } from '@/components/ui';
 import { ModalArticlesTable, RelatedArticlesModal } from '@/components/dashboard';
-import { fetchApi, fetchAllPaginated } from '@/lib/api';
+import { fetchApi, fetchAllPaginated, API_BASE_URL } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth.store';
 
 export type CharacteristicType =
@@ -190,6 +190,29 @@ export default function DashboardCharacteristicsPage() {
   const showToast = (type: 'success' | 'error', text: string) => {
     setFeedbackMessage({ type, text });
     setTimeout(() => setFeedbackMessage(null), 3500);
+  };
+
+  const handleUploadCharIcon = async (file: File) => {
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('royal_token') : null;
+      const res = await fetch(`${API_BASE_URL}/storefront-cms/cms/upload-image`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+        credentials: 'include',
+      });
+      const json = await res.json().catch(() => null);
+      const url = json?.data?.url || json?.url;
+      if (!res.ok || !url) {
+        throw new Error(json?.message || "Échec d'envoi de l'icône.");
+      }
+      setFormIconUrl(url);
+      showToast('success', 'Icône importée et sauvegardée.');
+    } catch (err: any) {
+      showToast('error', err?.message || "Impossible d'importer l'icône.");
+    }
   };
 
   const loadData = React.useCallback(async () => {
@@ -843,17 +866,22 @@ export default function DashboardCharacteristicsPage() {
             <button
               type="button"
               onClick={async () => {
-                await Promise.all(
+                const results = await Promise.allSettled(
                   keys.map((id) =>
                     fetchApi(`/characteristics/${id}`, {
                       method: 'PATCH',
                       body: JSON.stringify({ isRequired: true }),
-                    }).catch(() => null),
+                    }),
                   ),
                 );
+                const failed = results.filter((r) => r.status === 'rejected').length;
                 clearSel();
                 await loadData();
-                showToast('success', `${keys.length} caractéristique(s) marquée(s) obligatoires.`);
+                if (failed > 0) {
+                  showToast('error', `${failed} mise(s) à jour ont échoué.`);
+                } else {
+                  showToast('success', `${keys.length} caractéristique(s) marquée(s) obligatoires.`);
+                }
               }}
               className="px-2.5 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-700 text-xs font-bold hover:bg-rose-50 cursor-pointer"
             >
@@ -862,17 +890,22 @@ export default function DashboardCharacteristicsPage() {
             <button
               type="button"
               onClick={async () => {
-                await Promise.all(
+                const results = await Promise.allSettled(
                   keys.map((id) =>
                     fetchApi(`/characteristics/${id}`, {
                       method: 'PATCH',
                       body: JSON.stringify({ isRequired: false }),
-                    }).catch(() => null),
+                    }),
                   ),
                 );
+                const failed = results.filter((r) => r.status === 'rejected').length;
                 clearSel();
                 await loadData();
-                showToast('success', `${keys.length} caractéristique(s) marquée(s) optionnelles.`);
+                if (failed > 0) {
+                  showToast('error', `${failed} mise(s) à jour ont échoué.`);
+                } else {
+                  showToast('success', `${keys.length} caractéristique(s) marquée(s) optionnelles.`);
+                }
               }}
               className="px-2.5 py-1.5 rounded-lg bg-white border border-neutral-200 text-neutral-700 text-xs font-bold hover:bg-neutral-50 cursor-pointer"
             >
@@ -881,17 +914,22 @@ export default function DashboardCharacteristicsPage() {
             <button
               type="button"
               onClick={async () => {
-                await Promise.all(
+                const results = await Promise.allSettled(
                   keys.map((id) =>
                     fetchApi(`/characteristics/${id}`, {
                       method: 'PATCH',
                       body: JSON.stringify({ isFilterable: true }),
-                    }).catch(() => null),
+                    }),
                   ),
                 );
+                const failed = results.filter((r) => r.status === 'rejected').length;
                 clearSel();
                 await loadData();
-                showToast('success', `${keys.length} caractéristique(s) activée(s) en filtre.`);
+                if (failed > 0) {
+                  showToast('error', `${failed} mise(s) à jour ont échoué.`);
+                } else {
+                  showToast('success', `${keys.length} caractéristique(s) activée(s) en filtre.`);
+                }
               }}
               className="px-2.5 py-1.5 rounded-lg bg-white border border-emerald-200 text-emerald-700 text-xs font-bold hover:bg-emerald-50 cursor-pointer"
             >
@@ -903,17 +941,22 @@ export default function DashboardCharacteristicsPage() {
               onChange={async (e) => {
                 const typeVal = e.target.value;
                 if (!typeVal) return;
-                await Promise.all(
+                const results = await Promise.allSettled(
                   keys.map((id) =>
                     fetchApi(`/characteristics/${id}`, {
                       method: 'PATCH',
                       body: JSON.stringify({ type: typeVal }),
-                    }).catch(() => null),
+                    }),
                   ),
                 );
+                const failed = results.filter((r) => r.status === 'rejected').length;
                 clearSel();
                 await loadData();
-                showToast('success', `Type mis à jour vers ${typeVal} sur ${keys.length} caractéristique(s).`);
+                if (failed > 0) {
+                  showToast('error', `${failed} changement(s) de type ont échoué.`);
+                } else {
+                  showToast('success', `Type mis à jour vers ${typeVal} sur ${keys.length} caractéristique(s).`);
+                }
                 e.target.value = '';
               }}
               className="px-2.5 py-1.5 rounded-lg bg-white border border-[#E6D6A6] text-xs font-bold text-[#1D232E] cursor-pointer"
@@ -1157,7 +1200,7 @@ export default function DashboardCharacteristicsPage() {
                 setIsDraggingIcon(false);
                 const file = e.dataTransfer.files?.[0];
                 if (file) {
-                  setFormIconUrl(URL.createObjectURL(file));
+                  void handleUploadCharIcon(file);
                 }
               }}
               className={cn(
@@ -1196,7 +1239,7 @@ export default function DashboardCharacteristicsPage() {
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      setFormIconUrl(URL.createObjectURL(file));
+                      void handleUploadCharIcon(file);
                     }
                   }}
                 />

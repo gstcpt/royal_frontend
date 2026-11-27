@@ -12,6 +12,7 @@ import { useI18nStore } from '@/stores/i18n.store';
 interface CategoryItem {
   id: string;
   name: string;
+  nameAr?: string | null;
   slug: string;
   imageUrl?: string | null;
   rawImageUrl?: string | null;
@@ -133,23 +134,23 @@ export function CategoriesCarousel({ categories }: CategoriesCarouselProps) {
                   >
                     <img
                       src={imgUrl}
-                      alt={cat.name}
+                      alt={locale === 'ar' && cat.nameAr ? cat.nameAr : cat.name}
                       className="w-full h-full object-cover object-center scale-[1.08] group-hover:scale-115 transition-transform duration-500 ease-out"
                     />
                   </div>
 
                   <div className="p-4 flex items-center justify-between border-t border-[var(--royal-border)] bg-[var(--royal-card)]">
-                    <div className="min-w-0 pr-2">
+                    <div className="min-w-0 pe-2">
                       <h3 className="font-heading font-bold text-sm text-[var(--royal-ink)] group-hover:text-[var(--royal-primary)] transition-colors truncate">
-                        {cat.name}
+                        {locale === 'ar' && cat.nameAr ? cat.nameAr : cat.name}
                       </h3>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        {count} article{count > 1 ? 's' : ''}
+                        {locale === 'ar' ? `${count} منتج` : `${count} article${count > 1 ? 's' : ''}`}
                       </p>
                     </div>
 
                     <div className="w-8 h-8 rounded-full bg-[var(--royal-bg)] border border-[var(--royal-border)] flex items-center justify-center text-[var(--royal-ink)] group-hover:bg-[var(--royal-primary)] group-hover:text-[var(--royal-primary-text)] group-hover:border-[var(--royal-primary)] transition-all shadow-sm shrink-0">
-                      <ArrowUpRight className="w-3.5 h-3.5" />
+                      <ArrowUpRight className="w-3.5 h-3.5 rtl:-rotate-90" />
                     </div>
                   </div>
                 </Link>

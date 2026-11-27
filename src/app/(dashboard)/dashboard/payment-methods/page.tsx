@@ -84,22 +84,31 @@ function PaymentMethodsContent() {
     const total = methods.length;
     const active = methods.filter((m) => m.isActive).length;
     const online = methods.filter((m) => m.type === 'CARD_ONLINE').length;
+    const cashOrCod = methods.filter(
+      (m) => m.type === 'CASH' || m.code?.includes('COD') || m.code?.includes('CASH')
+    ).length;
     const installments = methods.filter((m) => m.type === 'INSTALLMENT').length;
-    return { total, active, online, installments };
+    return { total, active, online, cashOrCod, installments };
   }, [methods]);
 
   const toggleActive = async (id: string) => {
+    const previous = methods;
     const next = methods.map((m) => (m.id === id ? { ...m, isActive: !m.isActive } : m));
     setMethods(next);
     const changed = next.find((m) => m.id === id);
-    await fetchApi('/storefront-cms/sys-config/paymentMethods', {
-      method: 'PUT',
-      body: JSON.stringify({ value: next }),
-    }).catch(() => null);
-    if (changed) {
-      setFeedbackMessage(
-        `Modalité "${changed.name}" ${changed.isActive ? 'activée' : 'désactivée'} en base.`
-      );
+    try {
+      await fetchApi('/storefront-cms/sys-config/paymentMethods', {
+        method: 'PUT',
+        body: JSON.stringify({ value: next }),
+      });
+      if (changed) {
+        handlePanelFeedback(
+          `Modalité "${changed.name}" ${changed.isActive ? 'activée' : 'désactivée'} en base.`
+        );
+      }
+    } catch (err: any) {
+      setMethods(previous);
+      handlePanelFeedback(err?.message || 'Erreur lors de la mise à jour.', 'error');
     }
   };
 
@@ -108,29 +117,41 @@ function PaymentMethodsContent() {
     label: string
   ) => {
     if (selectedMethodIds.length === 0) return;
+    const previous = methods;
     const idSet = new Set(selectedMethodIds);
     const next = methods.map((m) => (idSet.has(m.id) ? { ...m, ...patch } : m));
     setMethods(next);
-    await fetchApi('/storefront-cms/sys-config/paymentMethods', {
-      method: 'PUT',
-      body: JSON.stringify({ value: next }),
-    }).catch(() => null);
-    setFeedbackMessage(`${selectedMethodIds.length} modalité(s) ${label}.`);
-    setSelectedMethodIds([]);
+    try {
+      await fetchApi('/storefront-cms/sys-config/paymentMethods', {
+        method: 'PUT',
+        body: JSON.stringify({ value: next }),
+      });
+      handlePanelFeedback(`${selectedMethodIds.length} modalité(s) ${label}.`);
+      setSelectedMethodIds([]);
+    } catch (err: any) {
+      setMethods(previous);
+      handlePanelFeedback(err?.message || 'Erreur lors de la mise à jour groupée.', 'error');
+    }
   };
 
   const confirmBulkDeleteMethods = async () => {
     if (bulkDeleteMethodIds.length === 0) return;
+    const previous = methods;
     const idSet = new Set(bulkDeleteMethodIds);
     const next = methods.filter((m) => !idSet.has(m.id));
     setMethods(next);
-    await fetchApi('/storefront-cms/sys-config/paymentMethods', {
-      method: 'PUT',
-      body: JSON.stringify({ value: next }),
-    }).catch(() => null);
-    setFeedbackMessage(`${bulkDeleteMethodIds.length} modalité(s) supprimée(s).`);
-    setBulkDeleteMethodIds([]);
-    setSelectedMethodIds([]);
+    try {
+      await fetchApi('/storefront-cms/sys-config/paymentMethods', {
+        method: 'PUT',
+        body: JSON.stringify({ value: next }),
+      });
+      handlePanelFeedback(`${bulkDeleteMethodIds.length} modalité(s) supprimée(s).`);
+      setBulkDeleteMethodIds([]);
+      setSelectedMethodIds([]);
+    } catch (err: any) {
+      setMethods(previous);
+      handlePanelFeedback(err?.message || 'Erreur lors de la suppression.', 'error');
+    }
   };
 
   const columns: ColumnDef<PaymentMethodItem>[] = [
@@ -369,13 +390,13 @@ function PaymentMethodsContent() {
 
         <div className="p-4 rounded-2xl bg-white border border-neutral-200/90 shadow-xs space-y-1">
           <div className="flex items-center justify-between text-xs font-semibold text-neutral-500">
-            <span>Comptant & Caisse</span>
+            <span>Comptant &amp; COD</span>
             <Banknote className="w-4 h-4 text-neutral-400" />
           </div>
           <div className="text-2xl font-black text-neutral-900 font-heading">
-            Espèces & COD
+            {stats.cashOrCod}
           </div>
-          <div className="text-[11px] text-neutral-500">Règlement à la livraison</div>
+          <div className="text-[11px] text-neutral-500">Règlement à la livraison / caisse</div>
         </div>
 
         <div className="p-4 rounded-2xl bg-white border border-neutral-200/90 shadow-xs space-y-1">
@@ -384,9 +405,9 @@ function PaymentMethodsContent() {
             <Calendar className="w-4 h-4 text-neutral-400" />
           </div>
           <div className="text-2xl font-black text-neutral-900 font-heading">
-            3x Sans Frais
+            {stats.installments}
           </div>
-          <div className="text-[11px] text-neutral-500">Dossiers de crédit client</div>
+          <div className="text-[11px] text-neutral-500">Dossiers échelonnés configurés</div>
         </div>
       </div>
 

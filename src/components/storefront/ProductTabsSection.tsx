@@ -90,10 +90,10 @@ export function IsolatedProductCarousel({
             {showViewAll !== false && (
               <Link
                 href={viewAllHref}
-                className="text-xs font-bold text-[var(--royal-gold-dark)] hover:text-[var(--royal-ink)] hover:underline inline-flex items-center gap-1 mr-2"
+                className="text-xs font-bold text-[var(--royal-gold-dark)] hover:text-[var(--royal-ink)] hover:underline inline-flex items-center gap-1 me-2"
               >
                 <span>{viewAllText || t('common.view_all')}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
               </Link>
             )}
             {displayMode !== 'grid' && (

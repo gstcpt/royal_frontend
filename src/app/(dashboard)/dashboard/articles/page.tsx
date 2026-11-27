@@ -792,7 +792,7 @@ export default function DashboardArticlesPage() {
       sellingPrice: Number(formData.sellingPrice),
       discountPrice: Number(formData.discountPrice) > 0 ? Number(formData.discountPrice) : undefined,
       taxRate: Number(formData.taxRate) || 0.19,
-      initialStock: Number(formData.stockQuantity) > 0 ? Number(formData.stockQuantity) : 20,
+      initialStock: Number(formData.stockQuantity) > 0 ? Number(formData.stockQuantity) : 0,
       dimensionsJson: {
         ...formData.characteristics,
         stockQuantity: formData.stockQuantity,
@@ -881,11 +881,18 @@ export default function DashboardArticlesPage() {
     if (selectedProductIds.length === 0) return;
     setIsBulkDeleting(true);
     try {
-      await Promise.all(
+      const results = await Promise.allSettled(
         selectedProductIds.map((id) =>
-          fetchApi(`/products/${id}`, { method: 'DELETE' }).catch(() => null)
+          fetchApi(`/products/${id}`, { method: 'DELETE' })
         )
       );
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      if (failed > 0) {
+        setFeedbackMessage({
+          type: 'error',
+          text: `${failed} article(s) n'ont pas pu être supprimés.`,
+        });
+      }
       setSelectedProductIds([]);
       setIsBulkDeleteModalOpen(false);
       await loadData();

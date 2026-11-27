@@ -213,21 +213,29 @@ export default function SupportMessagesPage() {
     status?: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED',
   ) => {
     if (selectedThreadIds.length === 0) return;
-    await fetchApi('/storefront-cms/support/admin/threads/bulk-action', {
-      method: 'POST',
-      body: JSON.stringify({ ids: selectedThreadIds, action, status }),
-    }).catch(() => null);
-    setSelectedThreadIds([]);
-    setBulkDeleteOpen(false);
-    setMobileModalThreadId(null);
-    await loadThreads();
-    setToast({
-      text:
-        action === 'DELETE'
-          ? 'Fils de discussion supprimés.'
-          : 'Statut mis à jour sur les fils sélectionnés.',
-      type: 'success',
-    });
+    try {
+      await fetchApi('/storefront-cms/support/admin/threads/bulk-action', {
+        method: 'POST',
+        body: JSON.stringify({ ids: selectedThreadIds, action, status }),
+      });
+      setSelectedThreadIds([]);
+      setBulkDeleteOpen(false);
+      setMobileModalThreadId(null);
+      await loadThreads();
+      setToast({
+        text:
+          action === 'DELETE'
+            ? 'Fils de discussion supprimés.'
+            : 'Statut mis à jour sur les fils sélectionnés.',
+        type: 'success',
+      });
+    } catch (err: any) {
+      setBulkDeleteOpen(false);
+      setToast({
+        text: err?.message || 'Action groupée impossible sur les discussions.',
+        type: 'error',
+      });
+    }
   };
 
   const handleReplySubmit = async (e: React.FormEvent) => {

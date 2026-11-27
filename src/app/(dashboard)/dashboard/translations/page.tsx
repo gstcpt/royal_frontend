@@ -149,13 +149,17 @@ export default function TranslationsManagerPage() {
   const handleSaveAll = async () => {
     const newFr = unflattenObject(editableFr);
     const newAr = unflattenObject(editableAr);
-    updateTranslations('fr', newFr);
-    updateTranslations('ar', newAr);
-    await fetchApi('/storefront-cms/sys-config/translations', {
-      method: 'PUT',
-      body: JSON.stringify({ value: { fr: newFr, ar: newAr } }),
-    }).catch(() => null);
-    showToast('success', 'Toutes les traductions ont été synchronisées en base.');
+    try {
+      await fetchApi('/storefront-cms/sys-config/translations', {
+        method: 'PUT',
+        body: JSON.stringify({ value: { fr: newFr, ar: newAr } }),
+      });
+      updateTranslations('fr', newFr);
+      updateTranslations('ar', newAr);
+      showToast('success', 'Toutes les traductions ont été synchronisées en base.');
+    } catch (err: any) {
+      showToast('error', err?.message || 'Erreur lors de la sauvegarde des traductions.');
+    }
   };
 
   const copyToClipboard = (text: string, keyName: string) => {
@@ -177,20 +181,22 @@ export default function TranslationsManagerPage() {
     if (!editModalItem) return;
     const newFr = { ...editableFr, [editModalItem.key]: modalFr };
     const newAr = { ...editableAr, [editModalItem.key]: modalAr };
-    setEditableFr(newFr);
-    setEditableAr(newAr);
-
     const fullFr = unflattenObject(newFr);
     const fullAr = unflattenObject(newAr);
-    updateTranslations('fr', fullFr);
-    updateTranslations('ar', fullAr);
-    await fetchApi('/storefront-cms/sys-config/translations', {
-      method: 'PUT',
-      body: JSON.stringify({ value: { fr: fullFr, ar: fullAr } }),
-    }).catch(() => null);
-
-    showToast('success', `Clé "${editModalItem.key}" sauvegardée en base avec succès.`);
-    setEditModalItem(null);
+    try {
+      await fetchApi('/storefront-cms/sys-config/translations', {
+        method: 'PUT',
+        body: JSON.stringify({ value: { fr: fullFr, ar: fullAr } }),
+      });
+      setEditableFr(newFr);
+      setEditableAr(newAr);
+      updateTranslations('fr', fullFr);
+      updateTranslations('ar', fullAr);
+      showToast('success', `Clé "${editModalItem.key}" sauvegardée en base avec succès.`);
+      setEditModalItem(null);
+    } catch (err: any) {
+      showToast('error', err?.message || "Impossible d'enregistrer cette traduction.");
+    }
   };
 
   // Security gate

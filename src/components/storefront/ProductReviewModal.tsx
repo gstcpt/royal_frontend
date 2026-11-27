@@ -5,6 +5,7 @@ import { Star, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Modal } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth.store';
 import { useReviewStore } from '@/stores/review.store';
+import { useI18nStore } from '@/stores/i18n.store';
 
 interface ProductReviewModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export function ProductReviewModal({
 }: ProductReviewModalProps) {
   const { isAuthenticated, user } = useAuthStore();
   const { reviews, submitReview } = useReviewStore();
+  const { locale, t } = useI18nStore();
   const existing = reviews[product.id];
 
   const [rating, setRating] = useState<number>(existing?.rating || 5);
@@ -52,7 +54,7 @@ export function ProductReviewModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!body.trim()) {
-      setFeedback({ type: 'error', text: 'Veuillez saisir votre commentaire sur cet article.' });
+      setFeedback({ type: 'error', text: t('review_modal.err_empty') });
       return;
     }
     setSubmitting(true);
@@ -65,7 +67,7 @@ export function ProductReviewModal({
         body: body.trim(),
         ...(!isAuthenticated
           ? {
-              authorName: authorName.trim() || 'Client Royal',
+              authorName: authorName.trim() || t('review_modal.guest_name'),
               authorEmail: authorEmail.trim() || undefined,
             }
           : {}),
@@ -79,23 +81,25 @@ export function ProductReviewModal({
       setFeedback({
         type: 'success',
         text: res.isEdit
-          ? 'Votre avis a été mis à jour avec succès.'
-          : 'Merci ! Votre avis a été publié avec succès.',
+          ? t('review_modal.ok_updated')
+          : t('review_modal.ok_created'),
       });
       setTimeout(() => {
         onClose();
       }, 900);
     } else {
-      setFeedback({ type: 'error', text: res.error || "Impossible d'envoyer l'avis." });
+      setFeedback({ type: 'error', text: res.error || t('review_modal.err_failed') });
     }
   };
+
+  const displayName = locale === 'ar' && (product as any).nameAr ? (product as any).nameAr : product.name;
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={existing ? 'Modifier mon avis' : 'Noter & commenter cet article'}
-      subtitle={`${product.brandName || 'Royal'} • ${product.name}${product.sku ? ` (${product.sku})` : ''}`}
+      title={existing ? t('review_modal.edit_title') : t('review_modal.add_title')}
+      subtitle={`${product.brandName || 'Royal'} • ${displayName}${product.sku ? ` (${product.sku})` : ''}`}
       size="md"
     >
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
@@ -118,7 +122,7 @@ export function ProductReviewModal({
 
         <div>
           <label className="block text-xs font-bold text-[#1D232E] mb-2">
-            Votre note ({activeStar}/5) *
+            {t('review_modal.your_rating')} ({activeStar}/5) *
           </label>
           <div className="flex items-center gap-2">
             {[1, 2, 3, 4, 5].map((star) => (
@@ -128,7 +132,7 @@ export function ProductReviewModal({
                 onMouseEnter={() => setHoverRating(star)}
                 onMouseLeave={() => setHoverRating(0)}
                 onClick={() => setRating(star)}
-                aria-label={`${star} étoiles`}
+                aria-label={`${star} ${t('review_modal.stars_label')}`}
                 className="p-1.5 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] hover:border-amber-400 transition cursor-pointer"
               >
                 <Star
@@ -147,59 +151,59 @@ export function ProductReviewModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Votre nom *
+                {t('review_modal.your_name')}
               </label>
               <input
                 type="text"
                 required
                 value={authorName}
                 onChange={(e) => setAuthorName(e.target.value)}
-                placeholder="Ex: Amira Ben Salah"
+                placeholder={t('review_modal.name_placeholder')}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D6] bg-white text-xs text-[#1D232E] focus:outline-none focus:border-[var(--royal-primary)]"
               />
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Adresse email (optionnel)
+                {t('review_modal.email_optional')}
               </label>
               <input
                 type="email"
                 value={authorEmail}
                 onChange={(e) => setAuthorEmail(e.target.value)}
-                placeholder="client@exemple.tn"
+                placeholder={t('auth.email_placeholder')}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D6] bg-white text-xs text-[#1D232E] focus:outline-none focus:border-[var(--royal-primary)]"
               />
             </div>
           </div>
         ) : (
           <div className="px-3.5 py-2.5 rounded-xl bg-[#FBF9F4] border border-[#E6E1D6] text-xs text-slate-600">
-            Publication en tant que <strong className="text-[#1D232E]">{user?.firstName} {user?.lastName}</strong>
+            {t('review_modal.publishing_as')} <strong className="text-[#1D232E]">{user?.firstName} {user?.lastName}</strong>
           </div>
         )}
 
         <div>
           <label className="block text-xs font-bold text-slate-700 mb-1">
-            Titre de votre avis (optionnel)
+            {t('review_modal.review_title')}
           </label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Ex: Excellent rapport qualité/prix"
+            placeholder={t('review_modal.title_placeholder')}
             className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D6] bg-white text-xs text-[#1D232E] focus:outline-none focus:border-[var(--royal-primary)]"
           />
         </div>
 
         <div>
           <label className="block text-xs font-bold text-slate-700 mb-1">
-            Commentaire *
+            {t('review_modal.comment_label')}
           </label>
           <textarea
             required
             rows={4}
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="Partagez votre expérience avec ce produit..."
+            placeholder={t('review_modal.comment_placeholder')}
             className="w-full px-3.5 py-2.5 rounded-xl border border-[#E6E1D6] bg-white text-xs text-[#1D232E] focus:outline-none focus:border-[var(--royal-primary)]"
           />
         </div>
@@ -210,14 +214,18 @@ export function ProductReviewModal({
             onClick={onClose}
             className="px-4 py-2 rounded-full border border-neutral-200 text-neutral-700 hover:bg-neutral-50 text-xs font-semibold cursor-pointer"
           >
-            Annuler
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
             disabled={submitting}
             className="px-6 py-2.5 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold uppercase tracking-wider shadow-sm transition disabled:opacity-50 cursor-pointer"
           >
-            {submitting ? 'Publication...' : existing ? 'Mettre à jour' : 'Publier mon avis'}
+            {submitting
+              ? t('review_modal.publishing')
+              : existing
+              ? t('review_modal.update_btn')
+              : t('review_modal.publish_btn')}
           </button>
         </div>
       </form>

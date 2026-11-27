@@ -225,21 +225,23 @@ export default function NotificationsPage() {
     if (selectedIds.length === 0) return;
     const toUpdate = [...selectedIds];
     const markRead = action === 'MARK_READ';
-    setNotifications((prev) =>
-      prev.map((n) => (toUpdate.includes(n.id) ? { ...n, isRead: markRead } : n)),
-    );
-    setSelectedIds([]);
-    await fetchApi('/storefront-cms/notifications/bulk-action', {
-      method: 'POST',
-      body: JSON.stringify({ ids: toUpdate, action }),
-    }).catch(() => null);
-    await loadNotifications();
-    setToastType('success');
-    setToastMessage(
-      markRead
-        ? `${toUpdate.length} notification(s) marquée(s) comme lue(s).`
-        : `${toUpdate.length} notification(s) marquée(s) comme non lue(s).`,
-    );
+    try {
+      await fetchApi('/storefront-cms/notifications/bulk-action', {
+        method: 'POST',
+        body: JSON.stringify({ ids: toUpdate, action }),
+      });
+      setSelectedIds([]);
+      await loadNotifications();
+      setToastType('success');
+      setToastMessage(
+        markRead
+          ? `${toUpdate.length} notification(s) marquée(s) comme lue(s).`
+          : `${toUpdate.length} notification(s) marquée(s) comme non lue(s).`,
+      );
+    } catch (err: any) {
+      setToastType('error');
+      setToastMessage(err?.message || 'Action groupée impossible.');
+    }
   };
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -259,35 +261,39 @@ export default function NotificationsPage() {
   const handleDeleteSelected = async () => {
     if (selectedIds.length === 0) return;
     const toDelete = [...selectedIds];
-    setNotifications((prev) => prev.filter((n) => !toDelete.includes(n.id)));
-    setSelectedIds([]);
     setDeleteConfirmOpen(false);
-    await fetchApi('/storefront-cms/notifications/bulk-action', {
-      method: 'POST',
-      body: JSON.stringify({ ids: toDelete, action: 'DELETE' }),
-    }).catch(async () => {
-      await Promise.all(
-        toDelete.map((id) =>
-          fetchApi(`/storefront-cms/notifications/${id}`, { method: 'DELETE' }).catch(() => null),
-        ),
-      );
-    });
-    await loadNotifications();
-    setToastType('info');
-    setToastMessage('Les notifications sélectionnées ont été supprimées.');
+    try {
+      await fetchApi('/storefront-cms/notifications/bulk-action', {
+        method: 'POST',
+        body: JSON.stringify({ ids: toDelete, action: 'DELETE' }),
+      });
+      setSelectedIds([]);
+      await loadNotifications();
+      setToastType('info');
+      setToastMessage('Les notifications sélectionnées ont été supprimées.');
+    } catch (err: any) {
+      setToastType('error');
+      setToastMessage(err?.message || 'Impossible de supprimer la sélection.');
+      await loadNotifications();
+    }
   };
 
   const handleConfirmSingleDelete = async () => {
     if (!singleDeleteId) return;
     const id = singleDeleteId;
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-    setSelectedIds((prev) => prev.filter((item) => item !== id));
     setSingleDeleteId(null);
-    await fetchApi(`/storefront-cms/notifications/${id}`, { method: 'DELETE' }).catch(() => null);
-    setTotalFiltered((c) => Math.max(0, c - 1));
-    setTotalAll((c) => Math.max(0, c - 1));
-    setToastType('info');
-    setToastMessage('La notification a été supprimée.');
+    try {
+      await fetchApi(`/storefront-cms/notifications/${id}`, { method: 'DELETE' });
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      setSelectedIds((prev) => prev.filter((item) => item !== id));
+      setTotalFiltered((c) => Math.max(0, c - 1));
+      setTotalAll((c) => Math.max(0, c - 1));
+      setToastType('info');
+      setToastMessage('La notification a été supprimée.');
+    } catch (err: any) {
+      setToastType('error');
+      setToastMessage(err?.message || 'Impossible de supprimer cette notification.');
+    }
   };
 
   const filteredNotifications = notifications;

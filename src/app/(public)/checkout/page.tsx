@@ -350,10 +350,10 @@ export default function CheckoutPage() {
         });
         setFormData((prev) => ({ ...prev, couponCode: data.data.coupon.code }));
       } else {
-        setCouponError(data.message || 'Code promo invalide.');
+        setCouponError(data.message || t('checkout.err_invalid_coupon'));
       }
     } catch {
-      setCouponError('Erreur de validation.');
+      setCouponError(t('checkout.err_validation'));
     }
   };
 
@@ -363,15 +363,15 @@ export default function CheckoutPage() {
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) {
-      setSubmitError('Votre panier est vide. Ajoutez au moins un article avant de valider.');
+      setSubmitError(t('checkout.err_empty_cart'));
       return;
     }
     if (fulfillmentType === 'DELIVERY' && selectedQuote && !selectedQuote.available) {
-      setSubmitError('Ce transporteur ne couvre pas votre zone/poids. Veuillez en choisir un autre ou sélectionner le retrait en showroom.');
+      setSubmitError(t('checkout.err_carrier_unavailable'));
       return;
     }
     if (fulfillmentType === 'SHOWROOM_PICKUP' && showrooms.length > 0 && !selectedShowroomId) {
-      setSubmitError('Veuillez sélectionner le showroom pour votre retrait en magasin.');
+      setSubmitError(t('checkout.err_choose_showroom'));
       return;
     }
     setSubmitting(true);
@@ -434,6 +434,14 @@ export default function CheckoutPage() {
 
       const data = await res.json();
       if (res.ok && data.data?.reference) {
+        const proofToken = data.data?.confirmationToken || '';
+        if (proofToken && typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem(`royal_order_token_${data.data.reference}`, proofToken);
+          } catch {
+            // ignore storage errors
+          }
+        }
         const orderTotal = items.reduce((sum, it) => sum + it.lineTotal, 0);
         trackMarketingEvent('Purchase', {
           value: orderTotal,
@@ -462,7 +470,8 @@ export default function CheckoutPage() {
             // Fallback cleanly to confirmation page if Flouci portal unreachable
           }
         }
-        router.push(`/order-confirmation/${data.data.reference}`);
+        const confirmQuery = proofToken ? `?token=${encodeURIComponent(proofToken)}` : '';
+        router.push(`/order-confirmation/${data.data.reference}${confirmQuery}`);
       } else {
         setSubmitError(data.message || 'Échec de la validation de commande. Veuillez vérifier vos données.');
       }
@@ -629,13 +638,13 @@ export default function CheckoutPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-[#0C1A14]/80 mb-1">
-                    Complément d&apos;adresse (étage, résidence, repère — Optionnel)
+                    {t('checkout.address_complement')}
                   </label>
                   <input
                     type="text"
                     value={formData.street2}
                     onChange={(e) => setFormData({ ...formData, street2: e.target.value })}
-                    placeholder="Ex: Résidence Les Palmiers, Bloc B, Apt 12"
+                    placeholder={t('checkout.address_complement_ph')}
                     className="w-full px-4 py-2.5 rounded-xl border border-[#EFECE6] bg-[#FBF9F5] text-sm focus:outline-none focus:border-[#D4AF37]"
                   />
                 </div>
@@ -643,7 +652,7 @@ export default function CheckoutPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-[#0C1A14]/80 mb-1">
-                      Pays *
+                      {t('checkout.country')}
                     </label>
                     <select
                       required
@@ -661,17 +670,17 @@ export default function CheckoutPage() {
                     >
                       {(geoCountries.length > 0
                         ? geoCountries
-                        : [{ code: 'TN', nameFr: 'Tunisie', states: [] }]
+                        : [{ code: 'TN', nameFr: 'Tunisie', nameAr: 'تونس', states: [] }]
                       ).map((c) => (
                         <option key={c.code} value={c.code}>
-                          {c.nameFr}
+                          {locale === 'ar' && (c as any).nameAr ? (c as any).nameAr : c.nameFr}
                         </option>
                       ))}
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#0C1A14]/80 mb-1">
-                      Gouvernorat / État *
+                      {t('checkout.governorate_state')}
                     </label>
                     <select
                       required
@@ -686,7 +695,7 @@ export default function CheckoutPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#0C1A14]/80 mb-1">
-                      Ville / Municipalité *
+                      {t('checkout.city_label')}
                     </label>
                     <input
                       type="text"
@@ -699,7 +708,7 @@ export default function CheckoutPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-[#0C1A14]/80 mb-1">
-                      Code Postal (Optionnel)
+                      {t('checkout.postal_opt')}
                     </label>
                     <input
                       type="text"
@@ -727,7 +736,7 @@ export default function CheckoutPage() {
                     </h2>
                   </div>
                   {loadingDeliveryOptions && (
-                    <span className="text-[11px] font-semibold text-[#9A7414]">Calcul en cours...</span>
+                    <span className="text-[11px] font-semibold text-[#9A7414]">{t('checkout.calculating_delivery')}</span>
                   )}
                 </div>
 
@@ -738,7 +747,7 @@ export default function CheckoutPage() {
                       <button
                         type="button"
                         onClick={() => setFulfillmentType('DELIVERY')}
-                        className={`p-4 rounded-2xl border text-left transition cursor-pointer flex items-start gap-3 ${
+                        className={`p-4 rounded-2xl border text-start transition cursor-pointer flex items-start gap-3 ${
                           fulfillmentType === 'DELIVERY'
                             ? 'border-[#D4AF37] bg-[#FBF9F5] ring-2 ring-[#D4AF37]/20'
                             : 'border-[#EFECE6] bg-white hover:border-[#D4AF37]/50'
@@ -746,9 +755,9 @@ export default function CheckoutPage() {
                       >
                         <Truck className="w-5 h-5 text-[#9A7414] shrink-0 mt-0.5" />
                         <div>
-                          <div className="font-bold text-sm text-[#0C1A14]">Livraison par Transporteur</div>
+                          <div className="font-bold text-sm text-[#0C1A14]">{t('checkout.carrier_delivery')}</div>
                           <div className="text-[11px] text-[#0C1A14]/60 mt-0.5">
-                            Tarif dynamique selon Distance, Poids ou Forfait
+                            {t('checkout.carrier_delivery_sub')}
                           </div>
                         </div>
                       </button>
@@ -758,7 +767,7 @@ export default function CheckoutPage() {
                       <button
                         type="button"
                         onClick={() => setFulfillmentType('SHOWROOM_PICKUP')}
-                        className={`p-4 rounded-2xl border text-left transition cursor-pointer flex items-start gap-3 ${
+                        className={`p-4 rounded-2xl border text-start transition cursor-pointer flex items-start gap-3 ${
                           fulfillmentType === 'SHOWROOM_PICKUP'
                             ? 'border-[#D4AF37] bg-[#FBF9F5] ring-2 ring-[#D4AF37]/20'
                             : 'border-[#EFECE6] bg-white hover:border-[#D4AF37]/50'
@@ -767,13 +776,13 @@ export default function CheckoutPage() {
                         <Store className="w-5 h-5 text-[#9A7414] shrink-0 mt-0.5" />
                         <div>
                           <div className="font-bold text-sm text-[#0C1A14] flex items-center gap-2">
-                            <span>Retrait en Showroom</span>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              GRATUIT
+                            <span>{t('checkout.showroom_pickup')}</span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                              {t('cart.free')}
                             </span>
                           </div>
                           <div className="text-[11px] text-[#0C1A14]/60 mt-0.5">
-                            Retirez dans un magasin Royal (réassort auto si nécessaire)
+                            {t('checkout.showroom_pickup_sub')}
                           </div>
                         </div>
                       </button>
@@ -789,12 +798,14 @@ export default function CheckoutPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <Truck className="w-5 h-5 text-[#0C1A14]" />
-                            <span className="font-semibold text-sm text-[#0C1A14]">Livraison Standard</span>
+                            <span className="font-semibold text-sm text-[#0C1A14]">{t('checkout.standard_delivery')}</span>
                           </div>
-                          <p className="text-xs text-[#0C1A14]/60 mt-1">Délai estimé 24h à 48h partout en Tunisie</p>
+                          <p className="text-xs text-[#0C1A14]/60 mt-1">{t('checkout.standard_delivery_sub')}</p>
                         </div>
                         <span className="text-xs font-bold text-[#0C1A14]">
-                          {subtotalAfterDiscount >= shippingThreshold ? 'GRATUIT' : `${standardShippingFee.toFixed(3)} TND`}
+                          {subtotalAfterDiscount >= shippingThreshold
+                            ? t('cart.free')
+                            : `${standardShippingFee.toFixed(3)} ${t('common.currency')}`}
                         </span>
                       </div>
                     </label>
@@ -827,10 +838,10 @@ export default function CheckoutPage() {
                                 <span className="font-bold text-sm text-[#0C1A14]">{q.name}</span>
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-[#E6D6A6] text-[#9A7414]">
                                   {q.method === 'DISTANCE'
-                                    ? `Distance ${q.distanceKm} km`
+                                    ? `${t('checkout.distance_prefix')} ${q.distanceKm} km`
                                     : q.method === 'WEIGHT'
-                                      ? `Poids ${q.totalWeightKg} kg`
-                                      : 'Tarif Fixe'}
+                                      ? `${t('checkout.weight_prefix')} ${q.totalWeightKg} kg`
+                                      : t('checkout.fixed_rate')}
                                 </span>
                                 {q.estimatedDays && (
                                   <span className="text-[11px] text-[#0C1A14]/60">({q.estimatedDays})</span>
@@ -839,7 +850,9 @@ export default function CheckoutPage() {
                               <div className="text-[11px] text-[#0C1A14]/60 flex items-center gap-1.5 flex-wrap">
                                 <MapPin className="w-3 h-3 text-[#C59B27]" />
                                 <span>
-                                  Expédition {q.originState} ➔ {formData.state}
+                                  {t('checkout.ship_from_to')
+                                    .replace('{from}', q.originState || '')
+                                    .replace('{to}', formData.state || '')}
                                 </span>
                                 <span>•</span>
                                 <span>{q.matchedBracketLabel}</span>
@@ -847,24 +860,24 @@ export default function CheckoutPage() {
                             </div>
                           </div>
 
-                          <div className="text-right shrink-0">
+                          <div className="text-end shrink-0">
                             {!q.available ? (
                               <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-700">
                                 <AlertTriangle className="w-3.5 h-3.5" />
-                                Hors plage
+                                {t('checkout.out_of_range')}
                               </span>
                             ) : q.feeTnd === 0 ? (
                               <div className="flex flex-col items-end">
                                 {Number(q.originalFeeTnd || 0) > 0 && (
                                   <span className="text-[11px] font-mono line-through text-[#0C1A14]/40">
-                                    {Number(q.originalFeeTnd).toFixed(3)} TND
+                                    {Number(q.originalFeeTnd).toFixed(3)} {t('common.currency')}
                                   </span>
                                 )}
-                                <span className="text-sm font-black text-emerald-700 uppercase">Gratuit</span>
+                                <span className="text-sm font-black text-emerald-700 uppercase">{t('cart.free')}</span>
                               </div>
                             ) : (
                               <span className="text-sm font-black font-mono text-[#0C1A14]">
-                                {Number(q.feeTnd).toFixed(3)} TND
+                                {Number(q.feeTnd).toFixed(3)} {t('common.currency')}
                               </span>
                             )}
                           </div>
@@ -877,7 +890,7 @@ export default function CheckoutPage() {
                 <div className="space-y-3">
                   {showrooms.length === 0 ? (
                     <div className="p-4 rounded-2xl border border-amber-200 bg-amber-50/50 text-xs text-amber-900">
-                      Aucun showroom actif trouvé. Choisissez la livraison par transporteur ou contactez le support.
+                      {t('checkout.no_showroom_found')}
                     </div>
                   ) : (
                     showrooms.map((sh) => {
@@ -905,11 +918,11 @@ export default function CheckoutPage() {
                                 <span className="font-bold text-sm text-[#0C1A14]">{sh.name}</span>
                                 {sh.inShowroomStock ? (
                                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                    En Stock Immédiat
+                                    {t('checkout.in_stock_now')}
                                   </span>
                                 ) : (
                                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                                    Transfert Inter-Dépôts Automatique (DTR)
+                                    {t('checkout.auto_dtr_badge')}
                                   </span>
                                 )}
                               </div>
@@ -918,13 +931,13 @@ export default function CheckoutPage() {
                               </div>
                               {!sh.inShowroomStock && sh.requiresTransferRequest && (
                                 <p className="text-[11px] text-amber-800 font-medium">
-                                  Votre commande est enregistrée immédiatement et déclenche une demande de transfert vers ce showroom.
+                                  {t('checkout.auto_dtr_desc')}
                                 </p>
                               )}
                             </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <span className="text-xs font-black text-emerald-700 uppercase">0.000 TND</span>
+                          <div className="text-end shrink-0">
+                            <span className="text-xs font-black text-emerald-700 uppercase">0.000 {t('common.currency')}</span>
                           </div>
                         </label>
                       );
@@ -962,13 +975,13 @@ export default function CheckoutPage() {
                         <Banknote className="w-5 h-5 text-emerald-700 shrink-0" />
                         <span className="font-semibold text-sm text-[#0C1A14]">
                           {fulfillmentType === 'SHOWROOM_PICKUP'
-                            ? (ckCfg.showroomPayLabel || 'Payer sur place (au showroom)')
+                            ? (locale === 'ar' ? t('checkout.pay_at_showroom') : (ckCfg.showroomPayLabel || t('checkout.pay_at_showroom')))
                             : t('checkout.cod')}
                         </span>
                       </div>
                     <p className="text-xs text-[#0C1A14]/60 mt-1">
                       {fulfillmentType === 'SHOWROOM_PICKUP'
-                        ? 'Réglez directement sur place lors du retrait de votre commande au showroom choisi.'
+                        ? t('checkout.pay_at_showroom_note')
                         : t('cart.cod_note')}
                     </p>
                   </div>
@@ -1036,11 +1049,13 @@ export default function CheckoutPage() {
                       <div className="flex items-center gap-2">
                         <Building2 className="w-5 h-5 text-slate-700" />
                         <span className="font-semibold text-sm text-[#0C1A14]">
-                          Virement Bancaire (RIB Société)
+                          {t('checkout.bank_transfer')}
                         </span>
                       </div>
                       <p className="text-xs text-[#0C1A14]/60 mt-1">
-                        {publicGateways.bankRib ? `RIB : ${publicGateways.bankRib}` : 'Les coordonnées bancaires sont transmises sur votre bon de commande.'}
+                        {publicGateways.bankRib
+                          ? `${t('checkout.bank_transfer_rib_prefix')} ${publicGateways.bankRib}`
+                          : t('checkout.bank_transfer_note')}
                       </p>
                     </div>
                   </label>
@@ -1055,14 +1070,14 @@ export default function CheckoutPage() {
                 <div className="bg-white rounded-3xl border border-[#EFECE6] p-7 shadow-sm">
                   <label className="block text-xs font-semibold text-[#0C1A14] mb-2 uppercase tracking-wider">
                     {fulfillmentType === 'SHOWROOM_PICKUP'
-                      ? 'Instructions particulières pour le retrait en showroom (Optionnel)'
-                      : 'Instructions particulières pour le livreur (Optionnel)'}
+                      ? t('checkout.notes_showroom')
+                      : t('checkout.notes_delivery')}
                   </label>
                   <textarea
                     rows={2}
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Ex: Sonner à l'interphone 4B ou appeler 10 min avant votre arrivée..."
+                    placeholder={t('checkout.notes_ph')}
                     className="w-full px-4 py-2.5 rounded-xl border border-[#EFECE6] bg-[#FBF9F5] text-sm focus:outline-none focus:border-[#D4AF37]"
                   />
                 </div>
@@ -1136,7 +1151,7 @@ export default function CheckoutPage() {
                       <span>
                         {isFreeShippingCoupon && discount <= 0 ? (
                           <>
-                            Code promo <strong>{appliedCoupon.code}</strong> (Livraison offerte)
+                            <strong>{appliedCoupon.code}</strong> ({t('checkout.free_shipping_badge')})
                           </>
                         ) : (
                           <>
@@ -1160,10 +1175,10 @@ export default function CheckoutPage() {
                 </div>
                 {appliedCoupon && (
                   <div className="flex justify-between text-emerald-700 font-medium">
-                    <span>{isFreeShippingCoupon && discount <= 0 ? 'Avantage Livraison' : t('cart.discount')}</span>
+                    <span>{isFreeShippingCoupon && discount <= 0 ? t('checkout.shipping_advantage') : t('cart.discount')}</span>
                     <span>
                       {isFreeShippingCoupon && discount <= 0
-                        ? 'Livraison offerte'
+                        ? t('checkout.free_shipping_badge')
                         : `-${discount.toFixed(3)} ${t('common.currency')}`}
                     </span>
                   </div>
@@ -1207,16 +1222,16 @@ export default function CheckoutPage() {
                   ) : (
                     <>
                       <span>{locale === 'ar' ? t('checkout.confirm_order') : (ckCfg.submitButtonText || t('checkout.confirm_order'))}</span>
-                      <ArrowRight className="w-4 h-4" />
+                      <ArrowRight className="w-4 h-4 rtl:rotate-180" />
                     </>
                   )}
                 </button>
 
                 <div className="text-[11px] text-center text-[#0C1A14]/50 leading-relaxed space-y-1">
-                  <p>En confirmant, vous acceptez les conditions générales de vente Maison Royal.</p>
+                  <p>{t('checkout.terms_notice')}</p>
                   <p className="flex items-center justify-center gap-1.5 text-emerald-800 font-medium pt-1">
                     <ShieldCheck className="w-4 h-4" />
-                    <span>Paiement garanti et protection acheteur intégrée</span>
+                    <span>{t('checkout.buyer_protection')}</span>
                   </p>
                 </div>
               </div>

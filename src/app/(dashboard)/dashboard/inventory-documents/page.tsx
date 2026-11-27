@@ -20,7 +20,7 @@ import { Modal, DeleteConfirmModal } from '@/components/ui/modal';
 import { Toast } from '@/components/ui/toast';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Select } from '@/components/ui/select';
-import { fetchApi } from '@/lib/api';
+import { fetchApi, fetchAllPaginated } from '@/lib/api';
 import { cn, formatTndCurrency } from '@/lib/utils';
 import { useSystemDocumentConfig } from '@/hooks/useSystemDocumentConfig';
 import { DocumentPrintHeader, DocumentPrintFooter } from '@/components/dashboard/DocumentPrintLayout';
@@ -28,6 +28,7 @@ import { DocumentPrintHeader, DocumentPrintFooter } from '@/components/dashboard
 export interface InventoryLineItem {
   id: string;
   articleId: string;
+  variantId?: string;
   sku: string;
   name: string;
   categoryName: string;
@@ -62,8 +63,9 @@ export default function InventoryDocumentsPage() {
   const sysDoc = useSystemDocumentConfig();
   const [inventories, setInventories] = useState<InventoryDocumentItem[]>([]);
   const [warehouses, setWarehouses] = useState<Array<{ id: string; name: string }>>([]);
+  const [stockRows, setStockRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const [selectedInventory, setSelectedInventory] = useState<InventoryDocumentItem | null>(null);
   const [editableLines, setEditableLines] = useState<InventoryLineItem[]>([]);
@@ -81,14 +83,16 @@ export default function InventoryDocumentsPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [docRes, whRes] = await Promise.all([
+      const [docRes, whRes, stockRes] = await Promise.all([
         fetchApi('/storefront-cms/sys-config/inventoryDocuments').catch(() => null),
         fetchApi('/warehouses').catch(() => []),
+        fetchAllPaginated<any>('/inventory/stock', 200).then((r) => r.items).catch(() => []),
       ]);
       const docs = docRes?.value || docRes?.data?.value || [];
       setInventories(Array.isArray(docs) ? docs : []);
       const whList = Array.isArray(whRes) ? whRes : whRes?.data || [];
       setWarehouses(whList);
+      setStockRows(Array.isArray(stockRes) ? stockRes : []);
       if (whList.length > 0) setNewWarehouse((prev) => prev || whList[0].id);
     } finally {
       setLoading(false);
@@ -99,13 +103,24 @@ export default function InventoryDocumentsPage() {
     loadData();
   }, [loadData]);
 
-  const persistDocs = async (next: InventoryDocumentItem[], msg: string) => {
+  const persistDocs = async (next: InventoryDocumentItem[], msg: string): Promise<boolean> => {
+    const previous = inventories;
     setInventories(next);
-    await fetchApi('/storefront-cms/sys-config/inventoryDocuments', {
-      method: 'PUT',
-      body: JSON.stringify({ value: next }),
-    }).catch(() => null);
-    setFeedbackMessage(msg);
+    try {
+      await fetchApi('/storefront-cms/sys-config/inventoryDocuments', {
+        method: 'PUT',
+        body: JSON.stringify({ value: next }),
+      });
+      setFeedbackMessage({ text: msg, type: 'success' });
+      return true;
+    } catch (err: any) {
+      setInventories(previous);
+      setFeedbackMessage({
+        text: err?.message || "Erreur lors de l'enregistrement des inventaires.",
+        type: 'error',
+      });
+      return false;
+    }
   };
 
   const stats = useMemo(() => {
@@ -164,19 +179,44 @@ export default function InventoryDocumentsPage() {
 
   const confirmCloseInventory = async () => {
     if (!selectedInventory) return;
-    const updatedInv: InventoryDocumentItem = {
-      ...selectedInventory,
-      status: 'COMPLETED',
-      closedAt: new Date().toISOString(),
-    };
-
-    const next = inventories.map((i) => (i.id === updatedInv.id ? updatedInv : i));
-    setSelectedInventory(updatedInv);
-    setIsCloseConfirmOpen(false);
-    await persistDocs(
-      next,
-      `Session ${updatedInv.reference} clôturée en base avec préfixe INV.`
+    const adjustTargets = (editableLines.length > 0 ? editableLines : selectedInventory.lines).filter(
+      (l) => l.variantId && l.countedQty !== null && l.countedQty !== l.theoreticalQty
     );
+    try {
+      for (const line of adjustTargets) {
+        await fetchApi('/inventory/adjust', {
+          method: 'POST',
+          body: JSON.stringify({
+            variantId: line.variantId,
+            warehouseId: selectedInventory.warehouseId,
+            newPhysicalQty: line.countedQty,
+            type: 'COUNTING_CORRECTION',
+            reason: `Clôture inventaire ${selectedInventory.reference}`,
+          }),
+        });
+      }
+      const updatedInv: InventoryDocumentItem = {
+        ...selectedInventory,
+        status: 'COMPLETED',
+        closedAt: new Date().toISOString(),
+      };
+      const next = inventories.map((i) => (i.id === updatedInv.id ? updatedInv : i));
+      const ok = await persistDocs(
+        next,
+        `Session ${updatedInv.reference} clôturée en base${adjustTargets.length > 0 ? ` (${adjustTargets.length} ajustement(s) stock appliqué(s))` : ''}.`
+      );
+      if (ok) {
+        setSelectedInventory(updatedInv);
+        setIsCloseConfirmOpen(false);
+        await loadData();
+      }
+    } catch (err: any) {
+      setIsCloseConfirmOpen(false);
+      setFeedbackMessage({
+        text: err?.message || 'Impossible de clôturer la session / ajuster le stock.',
+        type: 'error',
+      });
+    }
   };
 
   const handleBulkInvPatch = async (
@@ -201,54 +241,61 @@ export default function InventoryDocumentsPage() {
     setSelectedInvIds([]);
   };
 
-  const handleCreateSession = (e: React.FormEvent) => {
+  const handleCreateSession = async (e: React.FormEvent) => {
     e.preventDefault();
-    const countRef = sysDoc.generateNextRef('INV', inventories.length + 1);
     const matchedWh = warehouses.find((w) => w.id === newWarehouse);
+    if (!matchedWh) {
+      setFeedbackMessage({ text: 'Veuillez sélectionner un entrepôt valide.', type: 'error' });
+      return;
+    }
+    const whStock = stockRows.filter((s: any) => (s.warehouseId || s.warehouse?.id) === matchedWh.id);
+    if (whStock.length === 0) {
+      setFeedbackMessage({
+        text: "Aucun article en stock trouvé pour cet entrepôt dans la base.",
+        type: 'error',
+      });
+      return;
+    }
+    const countRef = sysDoc.generateNextRef('INV', inventories.length + 1);
+    const sessionLines: InventoryLineItem[] = whStock.slice(0, 60).map((s: any, idx: number) => {
+      const prod = s.variant?.product;
+      const sku = s.variant?.sku || prod?.sku || `SKU-${idx + 1}`;
+      return {
+        id: `line-${Date.now()}-${idx}`,
+        articleId: prod?.id || s.variantId || sku,
+        variantId: s.variantId || s.variant?.id,
+        sku,
+        name: `${prod?.name || 'Article'}${s.variant?.name && s.variant.name !== 'Standard' ? ` (${s.variant.name})` : ''}`,
+        categoryName: prod?.category?.name || 'Catalogue',
+        locationCode: `${matchedWh.name.slice(0, 10).toUpperCase()}/STD`,
+        unitCostTnd: Number(prod?.basePrice || s.variant?.sellingPrice || prod?.sellingPrice || 0),
+        theoreticalQty: Number(s.physicalQty || 0),
+        countedQty: null,
+      };
+    });
 
     const newDoc: InventoryDocumentItem = {
       id: `inv-${Date.now()}`,
       reference: countRef,
-      warehouseId: newWarehouse,
-      warehouseName: matchedWh?.name || 'Entrepôt Central Principal',
+      warehouseId: matchedWh.id,
+      warehouseName: matchedWh.name,
       inventoryType: newType,
       scopeType: newScope,
       scopeTarget: newTarget || (newScope === 'FULL_WAREHOUSE' ? 'Entrepôt Intégral' : 'Zone Spécifique'),
       status: 'DRAFT',
       managerName: newManager,
-      totalLines: 2,
+      totalLines: sessionLines.length,
       totalCountedLines: 0,
       netDeltaQty: 0,
       financialImpactTnd: 0,
       createdAt: new Date().toISOString(),
-      lines: [
-        {
-          id: `line-${Date.now()}-1`,
-          articleId: 'SVC-201OR-STD',
-          sku: 'SVC-201OR-STD',
-          name: 'Aspirateur Balai Florence 2000W - Orange',
-          categoryName: 'Électroménager',
-          locationCode: 'WH-CENTRAL/A1',
-          unitCostTnd: 165,
-          theoreticalQty: 120,
-          countedQty: null,
-        },
-        {
-          id: `line-${Date.now()}-2`,
-          articleId: 'HK490-STD',
-          sku: 'HK490-STD',
-          name: 'Friteuse Electrique Florence 2,5L - 1200W',
-          categoryName: 'Cuisine',
-          locationCode: 'WH-CENTRAL/B3',
-          unitCostTnd: 140,
-          theoreticalQty: 130,
-          countedQty: null,
-        },
-      ],
+      lines: sessionLines,
     };
 
-    setIsCreateModalOpen(false);
-    persistDocs([newDoc, ...inventories], `Session d'inventaire ${countRef} créée en base.`);
+    const ok = await persistDocs([newDoc, ...inventories], `Session d'inventaire ${countRef} créée en base (${sessionLines.length} ligne(s)).`);
+    if (ok) {
+      setIsCreateModalOpen(false);
+    }
   };
 
   const columns: ColumnDef<InventoryDocumentItem>[] = [
@@ -448,8 +495,8 @@ export default function InventoryDocumentsPage() {
     <div className="space-y-6 max-w-[1720px] mx-auto">
       <Toast
         isOpen={!!feedbackMessage}
-        message={feedbackMessage || ''}
-        type="success"
+        message={feedbackMessage?.text || ''}
+        type={feedbackMessage?.type || 'success'}
         onClose={() => setFeedbackMessage(null)}
       />
 
@@ -882,11 +929,7 @@ export default function InventoryDocumentsPage() {
                 label="Entrepôt / Dépôt Cible"
                 value={newWarehouse}
                 onChange={(e) => setNewWarehouse(e.target.value)}
-                options={
-                  warehouses.length > 0
-                    ? warehouses.map((w) => ({ label: w.name, value: w.id }))
-                    : [{ label: 'Entrepôt Central Principal', value: 'wh-central' }]
-                }
+                options={warehouses.map((w) => ({ label: w.name, value: w.id }))}
               />
             </div>
 

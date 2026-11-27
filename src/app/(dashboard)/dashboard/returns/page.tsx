@@ -30,6 +30,7 @@ import {
   Select,
   Textarea,
   Breadcrumb,
+  Toast,
 } from '@/components/ui';
 
 interface ReturnOrderItem {
@@ -55,6 +56,7 @@ export default function ReturnsPage() {
   const [deleteItem, setDeleteItem] = React.useState<ReturnOrderItem | null>(null);
   const [selectedReturnIds, setSelectedReturnIds] = React.useState<string[]>([]);
   const [bulkDeleteIds, setBulkDeleteIds] = React.useState<string[]>([]);
+  const [toast, setToast] = React.useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   // New Return form
   const [newDeliveryRef, setNewDeliveryRef] = React.useState('');
@@ -81,12 +83,21 @@ export default function ReturnsPage() {
     loadReturns();
   }, [loadReturns]);
 
-  const persistReturns = async (next: ReturnOrderItem[]) => {
+  const persistReturns = async (next: ReturnOrderItem[], successMsg?: string): Promise<boolean> => {
+    const previous = returns;
     setReturns(next);
-    await fetchApi('/storefront-cms/sys-config/customerReturns', {
-      method: 'PUT',
-      body: JSON.stringify({ value: next }),
-    }).catch(() => null);
+    try {
+      await fetchApi('/storefront-cms/sys-config/customerReturns', {
+        method: 'PUT',
+        body: JSON.stringify({ value: next }),
+      });
+      if (successMsg) setToast({ msg: successMsg, type: 'success' });
+      return true;
+    } catch (err: any) {
+      setReturns(previous);
+      setToast({ msg: err?.message || 'Erreur lors de la sauvegarde des retours.', type: 'error' });
+      return false;
+    }
   };
 
   const handleCreate = async () => {
@@ -104,25 +115,37 @@ export default function ReturnsPage() {
       status: 'PENDING_APPROVAL',
       createdAt: new Date().toISOString(),
     };
-    await persistReturns([item, ...returns]);
-    setIsModalOpen(false);
-    setNewCustomer('');
-    setNewAmount('');
+    const ok = await persistReturns([item, ...returns], `Bon de retour ${item.returnNumber} enregistré.`);
+    if (ok) {
+      setIsModalOpen(false);
+      setNewCustomer('');
+      setNewAmount('');
+    }
   };
 
   const handleRestockReturn = async (ret: any) => {
-    await fetchApi('/storefront-cms/stock-lifecycle/apply', {
-      method: 'POST',
-      body: JSON.stringify({
-        docType: 'RET',
-        docReference: ret.returnNumber,
-        restore: false,
-        items: Array.isArray(ret.items) && ret.items.length > 0 ? ret.items : [{ sku: 'SVC-201OR-STD', quantity: 1 }],
-      }),
-    }).catch(() => null);
-    const updated = { ...ret, status: 'RESTOCKED' as const, stockRestored: true };
-    await persistReturns(returns.map((r) => (r.id === ret.id ? updated : r)));
-    setSelectedReturn(updated);
+    try {
+      const retItems = Array.isArray(ret.items) ? ret.items.filter((it: any) => it?.sku || it?.productId) : [];
+      if (retItems.length > 0) {
+        await fetchApi('/storefront-cms/stock-lifecycle/apply', {
+          method: 'POST',
+          body: JSON.stringify({
+            docType: 'RET',
+            docReference: ret.returnNumber,
+            restore: false,
+            items: retItems,
+          }),
+        });
+      }
+      const updated = { ...ret, status: 'RESTOCKED' as const, stockRestored: true };
+      const ok = await persistReturns(
+        returns.map((r) => (r.id === ret.id ? updated : r)),
+        `Retour ${ret.returnNumber} réintégré en stock.`
+      );
+      if (ok) setSelectedReturn(updated);
+    } catch (err: any) {
+      setToast({ msg: err?.message || 'Impossible de réintégrer ce retour en stock.', type: 'error' });
+    }
   };
 
   const handleBulkReturnStatus = async (status: ReturnOrderItem['status']) => {
@@ -534,6 +557,12 @@ export default function ReturnsPage() {
           message={`Confirmez-vous la suppression des ${bulkDeleteIds.length} bon(s) de retour sélectionné(s) ?`}
         />
       )}
+      <Toast
+        isOpen={!!toast}
+        message={toast?.msg || ''}
+        type={toast?.type === 'error' ? 'error' : 'success'}
+        onClose={() => setToast(null)}
+      />
     </div>
   );
 }

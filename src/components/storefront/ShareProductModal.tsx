@@ -13,10 +13,12 @@ import {
 import { Modal } from '@/components/ui/modal';
 import { getSafeImageUrl } from '@/lib/cart-session';
 import { formatTndCurrency } from '@/lib/utils';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export interface ShareProductInfo {
   id: string;
   name: string;
+  nameAr?: string | null;
   slug: string;
   sku?: string;
   sellingPrice: number;
@@ -34,6 +36,7 @@ export function ShareProductModal({
   onClose: () => void;
   product: ShareProductInfo | null;
 }) {
+  const { locale, t } = useI18nStore();
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedMessengerNotice, setCopiedMessengerNotice] = useState(false);
 
@@ -55,7 +58,8 @@ export function ShareProductModal({
       ? Number(product.discountPrice)
       : Number(product.sellingPrice);
 
-  const shareText = `${product.name}${product.sku ? ` (SKU: ${product.sku})` : ''} — ${formatTndCurrency(activePrice)}`;
+  const displayName = locale === 'ar' && product.nameAr ? product.nameAr : product.name;
+  const shareText = `${displayName}${product.sku ? ` (SKU: ${product.sku})` : ''} — ${formatTndCurrency(activePrice)}`;
   const encodedUrl = encodeURIComponent(shareUrl);
   const encodedText = encodeURIComponent(`${shareText}\n${shareUrl}`);
 
@@ -116,7 +120,7 @@ export function ShareProductModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Partager cet article"
+      title={t('share_modal.title')}
       subtitle={product.sku ? `SKU ${product.sku}` : undefined}
       icon={<Share2 className="w-5 h-5" />}
       size="md"
@@ -129,7 +133,7 @@ export function ShareProductModal({
               className="px-4 py-2 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition"
             >
               <Share2 className="w-3.5 h-3.5" />
-              <span>Partage appareil</span>
+              <span>{t('share_modal.device_share')}</span>
             </button>
           ) : (
             <span />
@@ -139,7 +143,7 @@ export function ShareProductModal({
             onClick={onClose}
             className="px-4 py-2 rounded-full border border-[var(--royal-border)] bg-[var(--royal-card)] text-xs font-semibold text-[var(--royal-ink)] hover:bg-[var(--royal-silver-light)] cursor-pointer transition"
           >
-            Fermer
+            {t('share_modal.close')}
           </button>
         </div>
       }
@@ -150,7 +154,7 @@ export function ShareProductModal({
           <div className="w-16 h-16 rounded-xl bg-[var(--royal-card)] border border-[var(--royal-border)] overflow-hidden shrink-0">
             <img
               src={getSafeImageUrl(product.primaryImage)}
-              alt={product.name}
+              alt={displayName}
               className="w-full h-full object-contain"
             />
           </div>
@@ -160,7 +164,7 @@ export function ShareProductModal({
               {product.sku && <span className="font-mono">• {product.sku}</span>}
             </div>
             <h4 className="font-heading font-bold text-sm text-[var(--royal-ink)] line-clamp-2 mt-0.5">
-              {product.name}
+              {displayName}
             </h4>
             <div className="text-sm font-black font-mono text-[var(--royal-primary)] mt-1">
               {formatTndCurrency(activePrice)}
@@ -171,7 +175,7 @@ export function ShareProductModal({
         {/* Direct Link Copy Bar */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
-            Lien direct de l&apos;article
+            {t('share_modal.direct_link')}
           </label>
           <div className="flex items-center gap-2 p-1.5 rounded-xl bg-[var(--royal-bg)] border border-[var(--royal-border)]">
             <input
@@ -187,7 +191,7 @@ export function ShareProductModal({
               className="px-3.5 py-2 rounded-lg bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold inline-flex items-center gap-1.5 shrink-0 transition cursor-pointer"
             >
               {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copiedLink ? 'Copié !' : 'Copier'}</span>
+              <span>{copiedLink ? t('share_modal.copied') : t('share_modal.copy')}</span>
             </button>
           </div>
         </div>
@@ -195,7 +199,7 @@ export function ShareProductModal({
         {/* Social Channels */}
         <div className="space-y-2">
           <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            Partager via
+            {t('share_modal.share_via')}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
             <a
@@ -242,7 +246,7 @@ export function ShareProductModal({
               className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-[var(--royal-border)] bg-[var(--royal-card)] hover:bg-[var(--royal-gold-light)] text-[var(--royal-ink)] text-xs font-bold transition"
             >
               <Mail className="w-4 h-4 text-[var(--royal-primary)] shrink-0" />
-              <span>E-mail</span>
+              <span>{t('share_modal.email_label')}</span>
             </a>
 
             <button
@@ -251,12 +255,12 @@ export function ShareProductModal({
               className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-[var(--royal-primary)]/40 bg-[var(--royal-gold-light)] hover:bg-[var(--royal-primary)] hover:text-[var(--royal-primary-text)] text-[var(--royal-gold-dark)] text-xs font-bold transition cursor-pointer"
             >
               {copiedLink ? <Check className="w-4 h-4 shrink-0" /> : <Copy className="w-4 h-4 shrink-0" />}
-              <span>{copiedLink ? 'Copié' : 'Copier lien'}</span>
+              <span>{copiedLink ? t('share_modal.copied') : t('share_modal.copy_link')}</span>
             </button>
           </div>
           {copiedMessengerNotice && (
             <p className="text-[11px] text-blue-700 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 font-medium">
-              Lien copié dans le presse-papiers — collez-le directement dans Messenger si la fenêtre ne pré-remplit pas votre conversation.
+              {t('share_modal.messenger_note')}
             </p>
           )}
         </div>

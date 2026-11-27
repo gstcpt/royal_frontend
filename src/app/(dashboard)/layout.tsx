@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useI18nStore } from '@/stores/i18n.store';
 import { SystemRole } from '@royal/shared-types';
+import { fetchApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { HeaderInboxPopovers } from '@/components/dashboard/HeaderInboxPopovers';
 import {
@@ -119,9 +120,8 @@ function DashboardLayoutInner({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = new URLSearchParams(queryString);
-  const { user, isAuthenticated, isLoading, isInitialized, fetchMe, login, logout, hasRole } =
+  const { user, isAuthenticated, isLoading, isInitialized, fetchMe, logout, hasRole } =
     useAuthStore();
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -266,15 +266,9 @@ function DashboardLayoutInner({
           setRoleViewsMap(null);
           return;
         }
-        const res = await fetch('/api/v1/storefront-cms/role-views-config', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const json = await res.json();
-          const raw = json?.data?.value ?? json?.value ?? json?.data ?? json;
-          if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-            setRoleViewsMap(raw as Record<string, string[]>);
-          }
+        const raw = await fetchApi<any>('/storefront-cms/role-views-config');
+        if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+          setRoleViewsMap(raw as Record<string, string[]>);
         }
       } catch {
         // Ignore network transient
@@ -456,37 +450,12 @@ function DashboardLayoutInner({
               Vous n&apos;êtes pas encore connecté à la console Royal.
             </p>
           </div>
-          <button
-            type="button"
-            disabled={isLoggingIn}
-            onClick={async () => {
-              setIsLoggingIn(true);
-              try {
-                await login({ email: 'root@royal.com.tn', password: 'RootAdmin2026!' });
-              } catch {
-                router.push(`/login?redirect=${encodeURIComponent(pathname || '/dashboard')}`);
-              } finally {
-                setIsLoggingIn(false);
-              }
-            }}
-            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#C59B27] to-[#A67C1E] hover:opacity-95 text-white text-xs font-bold uppercase tracking-wider transition shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          <Link
+            href={`/login?redirect=${encodeURIComponent(pathname || '/dashboard')}`}
+            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#C59B27] to-[#A67C1E] hover:opacity-95 text-white text-xs font-bold uppercase tracking-wider transition shadow-sm flex items-center justify-center gap-2 cursor-pointer"
           >
-            {isLoggingIn ? (
-              <span>Connexion en cours...</span>
-            ) : (
-              <span>Connexion Instantanée (Root Admin)</span>
-            )}
-          </button>
-          <div className="text-[11px] text-slate-400">
-            Ou accédez à la{' '}
-            <Link
-              href={`/login?redirect=${encodeURIComponent(pathname || '/dashboard')}`}
-              className="text-[#9A7414] font-semibold underline"
-            >
-              page de connexion standard
-            </Link>
-            .
-          </div>
+            Se connecter à la Console
+          </Link>
         </div>
       </div>
     );
@@ -883,16 +852,16 @@ function DashboardLayoutInner({
     // R56-R62: Espace client (Visibilité pilotée par ROOT)
     {
       id: 'client',
-      title: 'Espace client',
+      title: t('dashboard.client_space_title'),
       icon: <UserCheck className="h-4 w-4" />,
       visible: true,
       items: [
-        { id: 'cl-home', label: 'Accueil', href: '/account/home', icon: <LayoutDashboard className="h-4 w-4" /> },
-        { id: 'cl-orders', label: 'Suivi des commandes', href: '/account/orders', icon: <ShoppingBag className="h-4 w-4" /> },
-        { id: 'cl-wish', label: 'Liste de souhaits', href: '/account/favorites', icon: <Heart className="h-4 w-4" /> },
-        { id: 'cl-profile', label: 'Mon profil', href: '/account/profile', icon: <User className="h-4 w-4" /> },
-        { id: 'cl-loyalty', label: 'Mes points de fidélité', href: '/account/loyalty', icon: <Award className="h-4 w-4" /> },
-        { id: 'cl-coupons', label: 'Mes codes privilèges', href: '/account/coupons', icon: <Ticket className="h-4 w-4" /> },
+        { id: 'cl-home', label: t('dashboard.client_home'), href: '/account/home', icon: <LayoutDashboard className="h-4 w-4" /> },
+        { id: 'cl-orders', label: t('dashboard.client_orders'), href: '/account/orders', icon: <ShoppingBag className="h-4 w-4" /> },
+        { id: 'cl-wish', label: t('dashboard.client_wishlist'), href: '/account/favorites', icon: <Heart className="h-4 w-4" /> },
+        { id: 'cl-profile', label: t('dashboard.client_profile'), href: '/account/profile', icon: <User className="h-4 w-4" /> },
+        { id: 'cl-loyalty', label: t('dashboard.client_loyalty'), href: '/account/loyalty', icon: <Award className="h-4 w-4" /> },
+        { id: 'cl-coupons', label: t('dashboard.client_coupons'), href: '/account/coupons', icon: <Ticket className="h-4 w-4" /> },
       ],
     },
 
@@ -1091,19 +1060,19 @@ function DashboardLayoutInner({
             >
               <div className="flex items-center gap-2 min-w-0">
                 {node.icon && <span className="shrink-0 text-[var(--royal-primary)]">{node.icon}</span>}
-                <span className="relative inline-flex items-start pr-2.5 min-w-0">
+                <span className="relative inline-flex items-start pe-2.5 min-w-0">
                   <span className="truncate">{node.label}</span>
-                  {isDev && <span className="absolute top-0 right-0">{renderDevTag(false)}</span>}
+                  {isDev && <span className="absolute top-0 end-0">{renderDevTag(false)}</span>}
                 </span>
               </div>
               {isGroupOpen ? (
                 <ChevronDown className="w-3.5 h-3.5 shrink-0 text-[var(--royal-primary)]" />
               ) : (
-                <ChevronRight className="w-3.5 h-3.5 shrink-0 text-[var(--royal-primary)]" />
+                <ChevronRight className="w-3.5 h-3.5 shrink-0 text-[var(--royal-primary)] rtl:rotate-180" />
               )}
             </button>
             {isGroupOpen && (
-              <div className="ml-2.5 pl-2.5 border-l border-[var(--royal-border)] space-y-0.5 pt-0.5">
+              <div className="ms-2.5 ps-2.5 border-s border-[var(--royal-border)] space-y-0.5 pt-0.5">
                 {renderTreeNodes(node.children!, depth + 1, sectionRootOnly || isDev)}
               </div>
             )}
@@ -1142,9 +1111,9 @@ function DashboardLayoutInner({
                 {node.icon}
               </span>
             )}
-            <span className="relative inline-flex items-start pr-2.5 min-w-0">
+            <span className="relative inline-flex items-start pe-2.5 min-w-0">
               <span className="truncate">{node.label}</span>
-              {isDev && <span className="absolute top-0 right-0">{renderDevTag(active)}</span>}
+              {isDev && <span className="absolute top-0 end-0">{renderDevTag(active)}</span>}
             </span>
           </div>
           {node.badge && (
@@ -1177,7 +1146,7 @@ function DashboardLayoutInner({
               {isDev && renderDevTag(false)}
               <span>{node.label}</span>
             </div>
-            <div className="pl-2 space-y-0.5 border-l border-[var(--royal-border)] ml-2">
+            <div className="ps-2 space-y-0.5 border-s border-[var(--royal-border)] ms-2">
               {renderFlyoutNodes(node.children!, sectionRootOnly || isDev)}
             </div>
           </div>
@@ -1243,10 +1212,10 @@ function DashboardLayoutInner({
       {/* Light Luxury Gold & Silver Sidebar */}
       <aside
         className={cn(
-          'bg-white text-slate-700 flex flex-col flex-shrink-0 border-r border-[#E6E1D6] no-print print:hidden transition-all duration-300',
+          'bg-white text-slate-700 flex flex-col flex-shrink-0 border-e border-[#E6E1D6] no-print print:hidden transition-all duration-300',
           isCollapsed
             ? 'w-[68px] sm:w-[88px] shadow-sm z-20'
-            : 'fixed inset-y-0 left-0 z-50 w-72 shadow-2xl lg:static lg:z-20 lg:shadow-sm'
+            : 'fixed inset-y-0 start-0 z-50 w-72 shadow-2xl lg:static lg:z-20 lg:shadow-sm'
         )}
       >
         {/* Brand Header (Collapse toggle moved to top header navbar) */}
@@ -1266,7 +1235,11 @@ function DashboardLayoutInner({
                   {config.appName || 'ROYAL'}
                 </span>
                 <span className="block text-[9px] uppercase tracking-wider text-[var(--royal-primary)] font-bold mt-0.5 truncate">
-                  {isRoot ? 'Console Master ROOT' : isClient ? 'Espace Client' : 'Gestion Royal'}
+                  {isRoot
+                    ? t('dashboard.root_console')
+                    : isClient
+                    ? t('dashboard.client_space')
+                    : t('dashboard.admin_royal')}
                 </span>
               </div>
             )}
@@ -1366,9 +1339,9 @@ function DashboardLayoutInner({
                         >
                           {section.icon}
                         </span>
-                        <span className="relative inline-flex items-start pr-2.5 min-w-0">
+                        <span className="relative inline-flex items-start pe-2.5 min-w-0">
                           <span className="truncate">{section.title}</span>
-                          {sectionIsDev && <span className="absolute top-0 right-0">{renderDevTag(isHrefActive(section.directHref))}</span>}
+                          {sectionIsDev && <span className="absolute top-0 end-0">{renderDevTag(isHrefActive(section.directHref))}</span>}
                         </span>
                       </div>
                     </Link>
@@ -1388,20 +1361,20 @@ function DashboardLayoutInner({
                           <span className="shrink-0 text-[var(--royal-primary)]">
                             {section.icon}
                           </span>
-                          <span className="relative inline-flex items-start pr-2.5 min-w-0">
+                          <span className="relative inline-flex items-start pe-2.5 min-w-0">
                             <span className="truncate">{section.title}</span>
-                            {sectionIsDev && <span className="absolute top-0 right-0">{renderDevTag(false)}</span>}
+                            {sectionIsDev && <span className="absolute top-0 end-0">{renderDevTag(false)}</span>}
                           </span>
                         </div>
                         {isOpen ? (
                           <ChevronDown className="h-3.5 w-3.5 text-[var(--royal-primary)] shrink-0" />
                         ) : (
-                          <ChevronRight className="h-3.5 w-3.5 text-[var(--royal-primary)] shrink-0" />
+                          <ChevronRight className="h-3.5 w-3.5 text-[var(--royal-primary)] shrink-0 rtl:rotate-180" />
                         )}
                       </button>
 
                       {isOpen && (
-                        <nav className="space-y-0.5 ml-3 pl-2.5 border-l border-[var(--royal-border)] pt-0.5">
+                        <nav className="space-y-0.5 ms-3 ps-2.5 border-s border-[var(--royal-border)] pt-0.5">
                           {isHrefVisible(`/dashboard/section/${section.id}`) && (
                             <Link
                               href={`/dashboard/section/${section.id}`}
@@ -1454,7 +1427,7 @@ function DashboardLayoutInner({
               <button
                 type="button"
                 onClick={handleLogout}
-                title="Déconnexion"
+                title={t('dashboard.logout')}
                 className="text-slate-500 hover:text-red-600 p-2 rounded-xl hover:bg-red-50 transition-colors cursor-pointer"
               >
                 <LogOut className="h-4 w-4" />
@@ -1616,7 +1589,9 @@ function DashboardLayoutInner({
             onMouseLeave={scheduleFlyoutClose}
             style={{
               position: 'fixed',
-              left: isSmallScreen ? '74px' : '94px',
+              ...(locale === 'ar'
+                ? { right: isSmallScreen ? '74px' : '94px' }
+                : { left: isSmallScreen ? '74px' : '94px' }),
               ...(activeFlyout.bottom !== undefined
                 ? { bottom: `${activeFlyout.bottom}px` }
                 : { top: `${activeFlyout.top ?? 16}px` }),

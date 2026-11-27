@@ -59,17 +59,14 @@ export default function OrderDetailsPage() {
     if (!orderId) return;
     try {
       setLoading(true);
-      const token = typeof window !== 'undefined' ? localStorage.getItem('royal_token') : null;
-      const res = await fetch(`/api/v1/orders/${orderId}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
-      if (data.data) {
-        setOrder(data.data);
-        setSelectedStatus(data.data.status);
+      const resData = await fetchApi<any>(`/orders/${encodeURIComponent(orderId)}`);
+      if (resData) {
+        setOrder(resData);
+        setSelectedStatus(resData.status);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error fetching order', e);
+      setToastMsg({ text: e?.message || 'Impossible de charger la commande.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -96,33 +93,22 @@ export default function OrderDetailsPage() {
     setErrorMsg('');
 
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('royal_token') : null;
-      const res = await fetch(`/api/v1/orders/${order.id}/status`, {
+      await fetchApi(`/orders/${encodeURIComponent(order.id)}/status`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify({
           status: selectedStatus,
           comment: statusComment || undefined,
         }),
       });
-
-      const data = await res.json();
-      if (res.ok) {
-        const wasDelivered = order.status === 'DELIVERED';
-        setShowStatusModal(false);
-        setStatusComment('');
-        fetchOrder();
-        if (selectedStatus === 'DELIVERED' && !wasDelivered) {
-          openEmailPromptForOrder();
-        }
-      } else {
-        setErrorMsg(data.message || 'Impossible de mettre à jour le statut.');
+      const wasDelivered = order.status === 'DELIVERED';
+      setShowStatusModal(false);
+      setStatusComment('');
+      fetchOrder();
+      if (selectedStatus === 'DELIVERED' && !wasDelivered) {
+        openEmailPromptForOrder();
       }
-    } catch {
-      setErrorMsg('Erreur réseau lors de la mise à jour.');
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Impossible de mettre à jour le statut.');
     } finally {
       setUpdating(false);
     }
@@ -469,7 +455,7 @@ export default function OrderDetailsPage() {
         isOpen={showStatusModal}
         onClose={() => setShowStatusModal(false)}
         title="Faire évoluer le statut de la commande"
-        subtitle={order ? `Commande ${order.orderNumber}` : ''}
+        subtitle={order ? `Commande ${order.reference}` : ''}
         type="edit"
         size="md"
         footer={

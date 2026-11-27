@@ -141,7 +141,7 @@ export function VideoShowcaseSection({ product }: { product?: StorefrontProduct 
                   {formatTndCurrency(activeVariant?.sellingPrice || activePrice)}
                 </span>
                 {hasPromo && (
-                  <span className="ml-3 text-sm text-slate-400 line-through">
+                  <span className="ms-3 text-sm text-slate-400 line-through">
                     {formatTndCurrency(product.sellingPrice)}
                   </span>
                 )}

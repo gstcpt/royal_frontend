@@ -30,12 +30,22 @@ export default function TrackOrderPage() {
       const res = await fetch(`/api/v1/orders/track?reference=${encodeURIComponent(reference.trim())}&contact=${encodeURIComponent(contact.trim())}`);
       const data = await res.json();
       if (res.ok && data.data) {
+        if (data.data?.confirmationToken && data.data?.reference && typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem(
+              `royal_order_token_${data.data.reference}`,
+              data.data.confirmationToken,
+            );
+          } catch {
+            // ignore storage errors
+          }
+        }
         setOrder(data.data);
       } else {
-        setError(data.message || 'Aucune commande trouvée avec ces identifiants.');
+        setError(data.message || t('track_order.not_found'));
       }
     } catch {
-      setError('Erreur lors de la recherche.');
+      setError(t('track_order.network_error'));
     } finally {
       setLoading(false);
     }
@@ -120,7 +130,7 @@ export default function TrackOrderPage() {
           </div>
           <div>
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-              {t('track_order.status_label')} {order.status}
+              {t('track_order.status_label')} {t(`order_status.${order.status}`, order.status)}
             </span>
           </div>
         </div>
@@ -129,15 +139,15 @@ export default function TrackOrderPage() {
         {trackCfg.showNineStepTimeline !== false ? (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-center text-[11px]">
             {[
-              { keys: ['PENDING', 'CONFIRMED', 'PROCESSING', 'PREPARING', 'READY_FOR_PICKUP', 'READY_FOR_SHIPMENT', 'PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: '1. Commande enregistrée' },
-              { keys: ['CONFIRMED', 'PROCESSING', 'PREPARING', 'READY_FOR_PICKUP', 'READY_FOR_SHIPMENT', 'PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: '2. Validée par le service' },
-              { keys: ['PROCESSING', 'PREPARING', 'READY_FOR_PICKUP', 'READY_FOR_SHIPMENT', 'PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: '3. Affectée à un dépôt' },
-              { keys: ['PREPARING', 'READY_FOR_PICKUP', 'READY_FOR_SHIPMENT', 'PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: '4. Préparation colis' },
-              { keys: ['READY_FOR_PICKUP', 'READY_FOR_SHIPMENT', 'PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: '5. Prête pour expédition / retrait' },
-              { keys: ['PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: '6. Prise en charge transporteur' },
-              { keys: ['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: '7. En transit' },
-              { keys: ['OUT_FOR_DELIVERY', 'DELIVERED'], label: '8. En cours de tournée' },
-              { keys: ['DELIVERED'], label: '9. Livrée avec succès' },
+              { keys: ['PENDING', 'CONFIRMED', 'PROCESSING', 'PREPARING', 'READY_FOR_PICKUP', 'READY_FOR_SHIPMENT', 'PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: t('track_order.nine_1') },
+              { keys: ['CONFIRMED', 'PROCESSING', 'PREPARING', 'READY_FOR_PICKUP', 'READY_FOR_SHIPMENT', 'PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: t('track_order.nine_2') },
+              { keys: ['PROCESSING', 'PREPARING', 'READY_FOR_PICKUP', 'READY_FOR_SHIPMENT', 'PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: t('track_order.nine_3') },
+              { keys: ['PREPARING', 'READY_FOR_PICKUP', 'READY_FOR_SHIPMENT', 'PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: t('track_order.nine_4') },
+              { keys: ['READY_FOR_PICKUP', 'READY_FOR_SHIPMENT', 'PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: t('track_order.nine_5') },
+              { keys: ['PICKED_UP_BY_CARRIER', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: t('track_order.nine_6') },
+              { keys: ['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'], label: t('track_order.nine_7') },
+              { keys: ['OUT_FOR_DELIVERY', 'DELIVERED'], label: t('track_order.nine_8') },
+              { keys: ['DELIVERED'], label: t('track_order.nine_9') },
             ].map((st, idx) => {
               const reached = st.keys.includes(order.status);
               return (
@@ -171,11 +181,11 @@ export default function TrackOrderPage() {
 
         <div className="pt-2 text-center">
           <Link
-            href={`/order-confirmation/${order.reference}`}
+            href={`/order-confirmation/${order.reference}${order.confirmationToken ? `?token=${encodeURIComponent(order.confirmationToken)}` : ''}`}
             className="inline-flex items-center gap-1.5 text-xs text-[#0C1A14] hover:text-[#D4AF37] font-semibold tracking-wider uppercase transition"
           >
             <span>{t('track_order.view_summary')}</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
           </Link>
         </div>
       </div>

@@ -24,7 +24,7 @@ export default function ShowroomsPage() {
   const [deleteTarget, setDeleteTarget] = React.useState<ShowroomItem | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
   const [form, setForm] = React.useState({ name: '', code: '', address: '', city: 'Tunis', phone: '' });
-  const [toastMsg, setToastMsg] = React.useState<string | null>(null);
+  const [toastMsg, setToastMsg] = React.useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const loadData = React.useCallback(async () => {
     setLoading(true);
@@ -61,79 +61,95 @@ export default function ShowroomsPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.code.trim()) return;
-    if (editingItem) {
-      await fetchApi(`/storefront-cms/cms/showrooms/${editingItem.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          name: form.name,
-          code: form.code,
-          address: form.address,
-          ...(form.city.trim() ? { city: form.city.trim() } : {}),
-          phone: form.phone,
-        }),
-      });
-      setToastMsg('Salle d’exposition mise à jour.');
-    } else {
-      await fetchApi('/storefront-cms/cms/showrooms', {
-        method: 'POST',
-        body: JSON.stringify(form),
-      });
-      setToastMsg('Salle d’exposition créée en base PostgreSQL.');
+    try {
+      if (editingItem) {
+        await fetchApi(`/storefront-cms/cms/showrooms/${editingItem.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            name: form.name,
+            code: form.code,
+            address: form.address,
+            ...(form.city.trim() ? { city: form.city.trim() } : {}),
+            phone: form.phone,
+          }),
+        });
+        setToastMsg({ text: 'Salle d’exposition mise à jour.', type: 'success' });
+      } else {
+        await fetchApi('/storefront-cms/cms/showrooms', {
+          method: 'POST',
+          body: JSON.stringify(form),
+        });
+        setToastMsg({ text: 'Salle d’exposition créée en base PostgreSQL.', type: 'success' });
+      }
+      setModalOpen(false);
+      setEditingItem(null);
+      setForm({ name: '', code: '', address: '', city: 'Tunis', phone: '' });
+      await loadData();
+    } catch (err: any) {
+      setToastMsg({ text: err?.message || 'Impossible de sauvegarder ce showroom.', type: 'error' });
     }
-    setModalOpen(false);
-    setEditingItem(null);
-    setForm({ name: '', code: '', address: '', city: 'Tunis', phone: '' });
-    await loadData();
   };
 
   const handleBulkShowroomStatus = async (isActive: boolean) => {
     if (selectedIds.length === 0) return;
-    await fetchApi('/storefront-cms/cms/showrooms/bulk-action', {
-      method: 'POST',
-      body: JSON.stringify({
-        ids: selectedIds,
-        action: isActive ? 'ACTIVATE' : 'DEACTIVATE',
-      }),
-    }).catch(async () => {
-      await Promise.allSettled(
-        selectedIds.map((id) =>
-          fetchApi(`/storefront-cms/cms/showrooms/${id}`, {
-            method: 'PATCH',
-            body: JSON.stringify({ isActive }),
-          }),
-        ),
-      );
-    });
-    setToastMsg(`${selectedIds.length} salle(s) ${isActive ? 'ouverte(s)' : 'désactivée(s)'}.`);
-    setSelectedIds([]);
-    await loadData();
+    try {
+      await fetchApi('/storefront-cms/cms/showrooms/bulk-action', {
+        method: 'POST',
+        body: JSON.stringify({
+          ids: selectedIds,
+          action: isActive ? 'ACTIVATE' : 'DEACTIVATE',
+        }),
+      });
+      setToastMsg({
+        text: `${selectedIds.length} salle(s) ${isActive ? 'ouverte(s)' : 'désactivée(s)'}.`,
+        type: 'success',
+      });
+      setSelectedIds([]);
+      await loadData();
+    } catch (err: any) {
+      setToastMsg({ text: err?.message || 'Action groupée impossible.', type: 'error' });
+    }
   };
 
   const confirmDeleteSingle = async () => {
     if (!deleteTarget) return;
-    const res: any = await fetchApi(`/storefront-cms/cms/showrooms/${deleteTarget.id}`, {
-      method: 'DELETE',
-    }).catch(() => null);
-    setToastMsg(
-      res?.softDeactivated
-        ? 'Salle désactivée (historique caisses/commandes conservé).'
-        : 'Salle d’exposition supprimée.',
-    );
-    setDeleteTarget(null);
-    setSelectedIds((prev) => prev.filter((x) => x !== deleteTarget.id));
-    await loadData();
+    try {
+      const res: any = await fetchApi(`/storefront-cms/cms/showrooms/${deleteTarget.id}`, {
+        method: 'DELETE',
+      });
+      setToastMsg({
+        text: res?.softDeactivated
+          ? 'Salle désactivée (historique caisses/commandes conservé).'
+          : 'Salle d’exposition supprimée.',
+        type: 'success',
+      });
+      setDeleteTarget(null);
+      setSelectedIds((prev) => prev.filter((x) => x !== deleteTarget.id));
+      await loadData();
+    } catch (err: any) {
+      setDeleteTarget(null);
+      setToastMsg({ text: err?.message || 'Impossible de supprimer ce showroom.', type: 'error' });
+    }
   };
 
   const confirmBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    await fetchApi('/storefront-cms/cms/showrooms/bulk-action', {
-      method: 'POST',
-      body: JSON.stringify({ ids: selectedIds, action: 'DELETE' }),
-    }).catch(() => null);
-    setToastMsg(`${selectedIds.length} salle(s) traitée(s) (suppression/archivage).`);
-    setSelectedIds([]);
-    setBulkDeleteOpen(false);
-    await loadData();
+    try {
+      await fetchApi('/storefront-cms/cms/showrooms/bulk-action', {
+        method: 'POST',
+        body: JSON.stringify({ ids: selectedIds, action: 'DELETE' }),
+      });
+      setToastMsg({
+        text: `${selectedIds.length} salle(s) traitée(s) (suppression/archivage).`,
+        type: 'success',
+      });
+      setSelectedIds([]);
+      setBulkDeleteOpen(false);
+      await loadData();
+    } catch (err: any) {
+      setBulkDeleteOpen(false);
+      setToastMsg({ text: err?.message || 'Suppression groupée impossible.', type: 'error' });
+    }
   };
 
   const columns: ColumnDef<ShowroomItem>[] = [
@@ -372,7 +388,12 @@ export default function ShowroomsPage() {
         </form>
       </Modal>
 
-      <Toast isOpen={!!toastMsg} message={toastMsg || ''} type="success" onClose={() => setToastMsg(null)} />
+      <Toast
+        isOpen={!!toastMsg}
+        message={toastMsg?.text || ''}
+        type={toastMsg?.type || 'success'}
+        onClose={() => setToastMsg(null)}
+      />
     </div>
   );
 }

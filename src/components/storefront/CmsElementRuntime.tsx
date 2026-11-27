@@ -22,6 +22,7 @@ import {
 import { getSafeImageUrl } from '@/lib/cart-session';
 import { fetchAllPaginated } from '@/lib/api';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
+import { useI18nStore } from '@/stores/i18n.store';
 import { ProductCard, StorefrontProduct } from './ProductCard';
 
 export function CmsElementWrapper({
@@ -264,7 +265,7 @@ function EmbeddedFaqWidget({ title, badgeText, faqCategory }: { title?: string; 
               <button
                 type="button"
                 onClick={() => setOpenId(open ? null : item.id)}
-                className="w-full p-4 flex items-center justify-between text-left font-bold text-sm text-[var(--royal-ink)] cursor-pointer"
+                className="w-full p-4 flex items-center justify-between text-start font-bold text-sm text-[var(--royal-ink)] cursor-pointer"
               >
                 <span>{item.question}</span>
                 {open ? <ChevronUp className="w-4 h-4 shrink-0" /> : <ChevronDown className="w-4 h-4 shrink-0" />}
@@ -293,6 +294,7 @@ export function CmsCustomBlockRenderer({
   categories?: any[];
   products?: StorefrontProduct[];
 }) {
+  const { locale } = useI18nStore();
   const [loadedProducts, setLoadedProducts] = React.useState<StorefrontProduct[]>(propProducts || []);
   const [loadedCategories, setLoadedCategories] = React.useState<any[]>(propCategories || []);
 
@@ -454,11 +456,13 @@ export function CmsCustomBlockRenderer({
                   {cat.imageUrl && (
                     <img
                       src={getSafeImageUrl(cat.imageUrl)}
-                      alt={cat.name}
+                      alt={locale === 'ar' && cat.nameAr ? cat.nameAr : cat.name}
                       className="w-16 h-16 mx-auto rounded-xl object-cover"
                     />
                   )}
-                  <div className="text-xs font-bold text-[var(--royal-ink)] truncate">{cat.name}</div>
+                  <div className="text-xs font-bold text-[var(--royal-ink)] truncate">
+                    {locale === 'ar' && cat.nameAr ? cat.nameAr : cat.name}
+                  </div>
                 </Link>
               ))}
             </div>

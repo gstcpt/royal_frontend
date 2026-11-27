@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { Wrench, Mail, Phone, ShieldAlert, ArrowRight } from 'lucide-react';
 import { useCmsConfig } from '@/providers/CmsConfigProvider';
 import { useAuthStore } from '@/stores/auth.store';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export function MaintenanceGate({ children }: { children: React.ReactNode }) {
   const { config } = useCmsConfig();
   const { user, isAuthenticated } = useAuthStore();
+  const { t } = useI18nStore();
   const isMaintenance = Boolean(config.maintenance?.enabled);
 
   if (!isMaintenance) {
@@ -28,11 +30,9 @@ export function MaintenanceGate({ children }: { children: React.ReactNode }) {
       <>
         <div className="bg-[var(--royal-gold-light)] border-b border-[var(--royal-primary)]/40 px-4 py-2 text-center text-xs font-bold text-[var(--royal-gold-dark)] flex items-center justify-center gap-2 z-[60]">
           <Wrench className="w-3.5 h-3.5 text-[var(--royal-primary)] shrink-0" />
-          <span>
-            Mode Maintenance Boutique actif (aperçu réservé à l&apos;équipe — masqué aux visiteurs).
-          </span>
+          <span>{t('maintenance.staff_banner')}</span>
           <Link href="/dashboard/settings" className="underline text-[var(--royal-ink)]">
-            Désactiver dans Paramètres
+            {t('maintenance.staff_disable_link')}
           </Link>
         </div>
         {children}
@@ -48,14 +48,13 @@ export function MaintenanceGate({ children }: { children: React.ReactNode }) {
         </div>
         <div className="space-y-2">
           <span className="inline-block px-3 py-1 rounded-full bg-[var(--royal-gold-light)] border border-[var(--royal-border)] text-[10px] font-bold uppercase tracking-widest text-[var(--royal-gold-dark)]">
-            {config.appName || 'Royal'} — Maintenance
+            {config.appName || 'Royal'} — {t('maintenance.badge_suffix')}
           </span>
           <h1 className="font-heading text-2xl sm:text-3xl font-black text-[var(--royal-ink)]">
-            Boutique momentanément indisponible
+            {t('maintenance.heading')}
           </h1>
           <p className="text-sm text-slate-600 leading-relaxed">
-            {config.maintenance?.message ||
-              'Notre boutique est momentanément en maintenance technique. Merci de votre patience.'}
+            {config.maintenance?.message || t('maintenance.default_msg')}
           </p>
         </div>
 
@@ -66,7 +65,7 @@ export function MaintenanceGate({ children }: { children: React.ReactNode }) {
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[var(--royal-silver-light)] border border-[var(--royal-border)] font-semibold text-[var(--royal-ink)]"
             >
               <Phone className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
-              <span>{config.identity.phone}</span>
+              <span dir="ltr">{config.identity.phone}</span>
             </a>
           )}
           {config.identity.email && (
@@ -75,7 +74,7 @@ export function MaintenanceGate({ children }: { children: React.ReactNode }) {
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[var(--royal-silver-light)] border border-[var(--royal-border)] font-semibold text-[var(--royal-ink)]"
             >
               <Mail className="w-3.5 h-3.5 text-[var(--royal-primary)]" />
-              <span>{config.identity.email}</span>
+              <span dir="ltr">{config.identity.email}</span>
             </a>
           )}
         </div>
@@ -85,8 +84,8 @@ export function MaintenanceGate({ children }: { children: React.ReactNode }) {
             href="/login"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--royal-gold-dark)] hover:underline"
           >
-            <span>Accès Administration Équipe</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <span>{t('maintenance.admin_access')}</span>
+            <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
           </Link>
         </div>
       </div>

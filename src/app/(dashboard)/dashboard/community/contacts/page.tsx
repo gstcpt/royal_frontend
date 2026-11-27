@@ -312,14 +312,20 @@ export default function ContactsPage() {
   const handleArchiveDiscussion = async (email: string) => {
     const target = email.toLowerCase().trim();
     const msgs = contacts.filter((c) => c.email.toLowerCase().trim() === target);
-    await Promise.all(
+    const results = await Promise.allSettled(
       msgs.map((m) =>
         fetchApi(`/storefront-cms/contacts/${m.id}`, {
           method: 'PATCH',
           body: JSON.stringify({ status: 'ARCHIVED' }),
-        }).catch(() => null)
+        })
       )
     );
+    if (results.some((r) => r.status === 'rejected')) {
+      setToastType('error');
+      setToastMessage('Impossible d’archiver certains messages.');
+      await loadContacts();
+      return;
+    }
     setContacts((prev) =>
       prev.map((c) =>
         c.email.toLowerCase().trim() === target ? { ...c, status: 'ARCHIVED' } : c
@@ -335,14 +341,20 @@ export default function ContactsPage() {
   const handleRestoreDiscussion = async (email: string) => {
     const target = email.toLowerCase().trim();
     const msgs = contacts.filter((c) => c.email.toLowerCase().trim() === target);
-    await Promise.all(
+    const results = await Promise.allSettled(
       msgs.map((m) =>
         fetchApi(`/storefront-cms/contacts/${m.id}`, {
           method: 'PATCH',
           body: JSON.stringify({ status: 'NEW' }),
-        }).catch(() => null)
+        })
       )
     );
+    if (results.some((r) => r.status === 'rejected')) {
+      setToastType('error');
+      setToastMessage('Impossible de restaurer la discussion.');
+      await loadContacts();
+      return;
+    }
     setContacts((prev) =>
       prev.map((c) =>
         c.email.toLowerCase().trim() === target ? { ...c, status: 'NEW' } : c
@@ -355,11 +367,15 @@ export default function ContactsPage() {
   const handleDeletePermanent = async (email: string) => {
     const target = email.toLowerCase().trim();
     const msgs = contacts.filter((c) => c.email.toLowerCase().trim() === target);
-    await Promise.all(
-      msgs.map((m) =>
-        fetchApi(`/storefront-cms/contacts/${m.id}`, { method: 'DELETE' }).catch(() => null)
-      )
+    const results = await Promise.allSettled(
+      msgs.map((m) => fetchApi(`/storefront-cms/contacts/${m.id}`, { method: 'DELETE' }))
     );
+    if (results.some((r) => r.status === 'rejected')) {
+      setToastType('error');
+      setToastMessage('Suppression partielle ou refusée par le serveur.');
+      await loadContacts();
+      return;
+    }
     setContacts((prev) => prev.filter((c) => c.email.toLowerCase().trim() !== target));
     if (activeDiscussionEmail === email) {
       setActiveDiscussionEmail(null);
@@ -399,28 +415,33 @@ export default function ContactsPage() {
       .filter((c) => targets.includes(c.email.toLowerCase().trim()))
       .map((c) => c.id);
     if (ids.length === 0) return;
-    await fetchApi('/storefront-cms/contacts/bulk-action', {
-      method: 'POST',
-      body: JSON.stringify({ ids, action }),
-    }).catch(() => null);
-    setSelectedEmails([]);
-    if (
-      (action === 'DELETE' || action === 'TRASH') &&
-      activeDiscussionEmail &&
-      targets.includes(activeDiscussionEmail.toLowerCase().trim())
-    ) {
-      setActiveDiscussionEmail(null);
+    try {
+      await fetchApi('/storefront-cms/contacts/bulk-action', {
+        method: 'POST',
+        body: JSON.stringify({ ids, action }),
+      });
+      setSelectedEmails([]);
+      if (
+        (action === 'DELETE' || action === 'TRASH') &&
+        activeDiscussionEmail &&
+        targets.includes(activeDiscussionEmail.toLowerCase().trim())
+      ) {
+        setActiveDiscussionEmail(null);
+      }
+      await loadContacts();
+      setToastType(action === 'DELETE' ? 'info' : 'success');
+      const labels: Record<string, string> = {
+        MARK_READ: 'Discussions marquées comme lues.',
+        MARK_UNREAD: 'Discussions marquées comme non lues.',
+        TRASH: 'Discussions déplacées vers la corbeille.',
+        RESTORE: 'Discussions restaurées dans la boîte de réception.',
+        DELETE: 'Discussions sélectionnées supprimées définitivement.',
+      };
+      setToastMessage(labels[action] || 'Action groupée effectuée.');
+    } catch (err: any) {
+      setToastType('error');
+      setToastMessage(err?.message || 'Action groupée impossible.');
     }
-    await loadContacts();
-    setToastType(action === 'DELETE' ? 'info' : 'success');
-    const labels: Record<string, string> = {
-      MARK_READ: 'Discussions marquées comme lues.',
-      MARK_UNREAD: 'Discussions marquées comme non lues.',
-      TRASH: 'Discussions déplacées vers la corbeille.',
-      RESTORE: 'Discussions restaurées dans la boîte de réception.',
-      DELETE: 'Discussions sélectionnées supprimées définitivement.',
-    };
-    setToastMessage(labels[action] || 'Action groupée effectuée.');
   };
 
   return (
@@ -775,18 +796,13 @@ export default function ContactsPage() {
                         {/* Summary Details */}
                         <div className="flex-1 min-w-0 space-y-1">
                           <div className="flex items-center justify-between gap-2">
-                            <span
-                              className={cn(
-                                'font-bold text-xs truncate',
-                                isActive ? 'text-white' : 'text-neutral-900'
-                              )}
-                            >
+                            <span className="font-bold text-xs truncate text-neutral-900">
                               {disc.fullName}
                             </span>
                             <span
                               className={cn(
                                 'text-[10px] font-mono shrink-0',
-                                isActive ? 'text-neutral-300' : 'text-neutral-400'
+                                isActive ? 'text-neutral-600' : 'text-neutral-400'
                               )}
                             >
                               {formatRelativeTime(disc.latestMessage.createdAt)}

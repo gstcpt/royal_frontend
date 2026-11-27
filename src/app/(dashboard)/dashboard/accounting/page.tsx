@@ -45,7 +45,7 @@ export interface AccountingEntryItem {
 export default function AccountingLedgerPage() {
   const [entries, setEntries] = useState<AccountingEntryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [previewEntry, setPreviewEntry] = useState<AccountingEntryItem | null>(null);
   const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
   const [bulkDeleteEntryIds, setBulkDeleteEntryIds] = useState<string[]>([]);
@@ -70,12 +70,21 @@ export default function AccountingLedgerPage() {
   }, [loadEntries]);
 
   const persistEntries = async (next: AccountingEntryItem[], msg: string) => {
+    const previous = entries;
     setEntries(next);
-    await fetchApi('/storefront-cms/sys-config/accountingEntries', {
-      method: 'PUT',
-      body: JSON.stringify({ value: next }),
-    }).catch(() => null);
-    setFeedbackMessage(msg);
+    try {
+      await fetchApi('/storefront-cms/sys-config/accountingEntries', {
+        method: 'PUT',
+        body: JSON.stringify({ value: next }),
+      });
+      setFeedbackMessage({ text: msg, type: 'success' });
+    } catch (err: any) {
+      setEntries(previous);
+      setFeedbackMessage({
+        text: err?.message || 'Erreur lors de la sauvegarde des écritures.',
+        type: 'error',
+      });
+    }
   };
 
   const handleBulkJournalChange = async (journalType: AccountingEntryItem['journalType']) => {
@@ -240,8 +249,8 @@ export default function AccountingLedgerPage() {
     <div className="space-y-6 max-w-[1720px] mx-auto">
       <Toast
         isOpen={!!feedbackMessage}
-        message={feedbackMessage || ''}
-        type="success"
+        message={feedbackMessage?.text || ''}
+        type={feedbackMessage?.type || 'success'}
         onClose={() => setFeedbackMessage(null)}
       />
 

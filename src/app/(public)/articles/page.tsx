@@ -87,7 +87,7 @@ function LuxuryDropdown({
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-2rem)] rounded-2xl bg-white border border-neutral-200 shadow-2xl py-1.5 z-50">
+        <div className="absolute end-0 mt-2 w-56 max-w-[calc(100vw-2rem)] rounded-2xl bg-white border border-neutral-200 shadow-2xl py-1.5 z-50">
           {options.map((opt) => {
             const active = opt.value === value;
             return (
@@ -99,7 +99,7 @@ function LuxuryDropdown({
                   onChange(opt.value);
                   setOpen(false);
                 }}
-                className={`w-full px-3.5 py-2 text-left text-xs flex items-center justify-between gap-2 transition cursor-pointer ${
+                className={`w-full px-3.5 py-2 text-start text-xs flex items-center justify-between gap-2 transition cursor-pointer ${
                   active
                     ? 'bg-amber-50/90 text-neutral-950 font-bold'
                     : 'text-neutral-700 hover:bg-neutral-50 font-medium'
@@ -529,7 +529,7 @@ function ArticlesContent() {
                 aria-label={isExpanded ? 'Replier' : 'Déplier'}
                 className="p-0.5 rounded hover:bg-neutral-200/70 text-neutral-500 shrink-0 cursor-pointer"
               >
-                {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5 rtl:rotate-180" />}
               </button>
             ) : (
               <span className="w-4 shrink-0" />
@@ -543,7 +543,7 @@ function ArticlesContent() {
                 className="w-3.5 h-3.5 rounded border-neutral-300 text-neutral-950 focus:ring-0 shrink-0 cursor-pointer"
               />
               <span className={`truncate ${depth === 0 ? 'font-bold text-neutral-900' : 'font-medium text-neutral-700'}`}>
-                {cat.name}
+                {locale === 'ar' && (cat as any).nameAr ? (cat as any).nameAr : cat.name}
               </span>
             </label>
           </div>

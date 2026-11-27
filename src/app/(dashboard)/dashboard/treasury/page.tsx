@@ -62,7 +62,7 @@ export interface TreasuryAccountItem {
 export default function TreasuryPage() {
   const [accounts, setAccounts] = useState<TreasuryAccountItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<TreasuryAccountItem | null>(null);
   const [activeTab, setActiveTab] = useState<'ALL' | 'CASH_REGISTER' | 'BANK' | 'SAFE_DEPOSIT'>('ALL');
 
@@ -84,12 +84,21 @@ export default function TreasuryPage() {
   }, [loadAccounts]);
 
   const persistAccounts = async (next: TreasuryAccountItem[], msg: string) => {
+    const previous = accounts;
     setAccounts(next);
-    await fetchApi('/storefront-cms/sys-config/treasuryAccounts', {
-      method: 'PUT',
-      body: JSON.stringify({ value: next }),
-    }).catch(() => null);
-    setFeedbackMessage(msg);
+    try {
+      await fetchApi('/storefront-cms/sys-config/treasuryAccounts', {
+        method: 'PUT',
+        body: JSON.stringify({ value: next }),
+      });
+      setFeedbackMessage({ text: msg, type: 'success' });
+    } catch (err: any) {
+      setAccounts(previous);
+      setFeedbackMessage({
+        text: err?.message || 'Erreur lors de la mise à jour des comptes de trésorerie.',
+        type: 'error',
+      });
+    }
   };
 
   // Modal Creation / Edition
@@ -171,7 +180,7 @@ export default function TreasuryPage() {
   const handleSaveAccount = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim()) {
-      setFeedbackMessage('Le nom de la caisse ou du compte est requis.');
+      setFeedbackMessage({ type: 'error', text: 'Le nom de la caisse ou du compte est requis.' });
       return;
     }
 
@@ -457,8 +466,8 @@ export default function TreasuryPage() {
     <div className="space-y-6 max-w-[1720px] mx-auto pb-12">
       <Toast
         isOpen={!!feedbackMessage}
-        message={feedbackMessage || ''}
-        type="success"
+        message={feedbackMessage?.text || ''}
+        type={feedbackMessage?.type || 'success'}
         onClose={() => setFeedbackMessage(null)}
       />
 

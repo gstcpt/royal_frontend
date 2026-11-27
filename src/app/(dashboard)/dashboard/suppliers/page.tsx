@@ -299,7 +299,7 @@ export default function DashboardSuppliersPage() {
         const updated = await fetchApi(`/suppliers/${editingSupplier.id}`, {
           method: 'PATCH',
           body: JSON.stringify(payload),
-        }).catch(() => null);
+        });
 
         setSuppliers((prev) =>
           prev.map((s) =>
@@ -307,6 +307,7 @@ export default function DashboardSuppliersPage() {
               ? {
                   ...s,
                   ...payload,
+                  ...(updated || {}),
                   updatedAt: new Date().toISOString(),
                   isUpdated: true,
                 }
@@ -319,15 +320,19 @@ export default function DashboardSuppliersPage() {
         const created = await fetchApi('/suppliers', {
           method: 'POST',
           body: JSON.stringify(payload),
-        }).catch(() => null);
+        });
+        if (!created?.id) {
+          throw new Error('Réponse serveur invalide lors de la création du fournisseur.');
+        }
 
         const newSupplier: SupplierItem = {
-          id: created?.id || `sup-${Date.now()}`,
+          id: created.id,
           ...payload,
-          productsCount: 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          createdBy: 'SUPER_ADMIN',
+          ...created,
+          productsCount: created.productsCount ?? 0,
+          createdAt: created.createdAt || new Date().toISOString(),
+          updatedAt: created.updatedAt || new Date().toISOString(),
+          createdBy: created.createdBy || 'SYSTEM',
           isUpdated: false,
           isDeleted: false,
         };
@@ -335,8 +340,8 @@ export default function DashboardSuppliersPage() {
         showToast('success', `Nouveau fournisseur "${payload.name}" enregistré.`);
       }
       setIsModalOpen(false);
-    } catch {
-      showToast('error', 'Erreur lors de l’enregistrement du fournisseur.');
+    } catch (err: any) {
+      showToast('error', err?.message || 'Erreur lors de l’enregistrement du fournisseur.');
     }
   };
 
@@ -351,14 +356,17 @@ export default function DashboardSuppliersPage() {
       await fetchApi(`/suppliers/${s.id}`, {
         method: 'PATCH',
         body: JSON.stringify({ isActive: nextState }),
-      }).catch(() => null);
+      });
 
       showToast(
         'success',
         `Le fournisseur "${s.name}" est désormais ${nextState ? 'actif' : 'suspendu'}.`
       );
-    } catch {
-      showToast('error', 'Erreur lors du changement de statut.');
+    } catch (err: any) {
+      setSuppliers((prev) =>
+        prev.map((item) => (item.id === s.id ? { ...item, isActive: s.isActive } : item))
+      );
+      showToast('error', err?.message || 'Erreur lors du changement de statut.');
     }
   };
 
@@ -378,12 +386,12 @@ export default function DashboardSuppliersPage() {
     try {
       await fetchApi(`/suppliers/${supplierToDelete.id}`, {
         method: 'DELETE',
-      }).catch(() => null);
+      });
 
       setSuppliers((prev) => prev.filter((s) => s.id !== supplierToDelete.id));
       showToast('success', `Fournisseur "${supplierToDelete.name}" supprimé avec succès.`);
-    } catch {
-      showToast('error', 'Erreur lors de la suppression.');
+    } catch (err: any) {
+      showToast('error', err?.message || 'Erreur lors de la suppression.');
     } finally {
       setSupplierToDelete(null);
     }

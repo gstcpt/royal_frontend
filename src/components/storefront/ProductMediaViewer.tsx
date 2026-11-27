@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { getSafeImageUrl } from '@/lib/cart-session';
 import { Modal } from '@/components/ui';
+import { useI18nStore } from '@/stores/i18n.store';
 
 interface ProductMediaViewerProps {
   images: string[];
@@ -45,6 +46,7 @@ export function ProductMediaViewer({
   animationMode,
   objectFit = 'cover',
 }: ProductMediaViewerProps) {
+  const { t } = useI18nStore();
   const safeImages = React.useMemo(() => {
     const clean = (images || []).filter(Boolean).map((u) => getSafeImageUrl(u));
     return clean.length > 0 ? Array.from(new Set(clean)) : ['/images/royal-logo.jpg'];
@@ -226,8 +228,8 @@ export function ProductMediaViewer({
 
             {badgeOverlay}
 
-            {/* Top-right Controls: Autoplay Play/Pause + Fullscreen */}
-            <div className="absolute top-3.5 right-3.5 z-20 flex items-center gap-2">
+            {/* Top-end Controls: Autoplay Play/Pause + Fullscreen */}
+            <div className="absolute top-3.5 end-3.5 z-20 flex items-center gap-2">
               {safeImages.length > 1 && (
                 <button
                   type="button"
@@ -235,7 +237,7 @@ export function ProductMediaViewer({
                     e.stopPropagation();
                     setIsAutoplay((p) => !p);
                   }}
-                  title={isAutoplay ? 'Mettre en pause le défilement' : 'Lancer le défilement (3s)'}
+                  title={isAutoplay ? t('media_viewer.pause') : t('media_viewer.play')}
                   className="w-9 h-9 rounded-full bg-white/95 hover:bg-[var(--royal-primary)] hover:text-[var(--royal-primary-text)] border border-neutral-200 text-neutral-800 shadow-sm flex items-center justify-center transition cursor-pointer"
                 >
                   {isAutoplay && !isHovered ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
@@ -247,7 +249,7 @@ export function ProductMediaViewer({
                   e.stopPropagation();
                   setIsFullscreen(true);
                 }}
-                title="Mode plein écran"
+                title={t('media_viewer.fullscreen')}
                 className="w-9 h-9 rounded-full bg-white/95 hover:bg-[var(--royal-primary)] hover:text-[var(--royal-primary-text)] border border-neutral-200 text-neutral-800 shadow-sm flex items-center justify-center transition cursor-pointer"
               >
                 <Maximize2 className="w-4 h-4" />

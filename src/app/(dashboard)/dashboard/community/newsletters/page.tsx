@@ -179,14 +179,20 @@ export default function NewslettersPage() {
   const handleDeleteSelected = async () => {
     if (selectedIds.length === 0) return;
     const toDelete = [...selectedIds];
-    setSubscribers((prev) => prev.filter((s) => !toDelete.includes(s.id)));
-    setSelectedIds([]);
     setDeleteConfirmOpen(false);
-    await Promise.all(
-      toDelete.map((id) => fetchApi(`/storefront-cms/newsletters/${id}`, { method: 'DELETE' }).catch(() => null))
+    const results = await Promise.allSettled(
+      toDelete.map((id) => fetchApi(`/storefront-cms/newsletters/${id}`, { method: 'DELETE' }))
     );
-    setToastType('info');
-    setToastMessage('Les abonnés sélectionnés ont été supprimés.');
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed > 0) {
+      setToastType('error');
+      setToastMessage(`${failed} suppression(s) ont échoué.`);
+    } else {
+      setToastType('info');
+      setToastMessage('Les abonnés sélectionnés ont été supprimés.');
+    }
+    setSelectedIds([]);
+    await loadSubscribers();
   };
 
   const handleBulkNewsletterStatus = async (targetActive: boolean) => {
@@ -194,28 +200,37 @@ export default function NewslettersPage() {
     const toToggle = subscribers.filter(
       (s) => selectedIds.includes(s.id) && s.isActive !== targetActive
     );
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       toToggle.map((s) => fetchApi(`/storefront-cms/newsletters/${s.id}`, { method: 'PATCH' }))
     );
-    setSubscribers((prev) =>
-      prev.map((s) => (selectedIds.includes(s.id) ? { ...s, isActive: targetActive } : s))
-    );
-    setToastType('success');
-    setToastMessage(
-      `${selectedIds.length} abonné(s) ${targetActive ? 'activé(s)' : 'désabonné(s)'}.`
-    );
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed > 0) {
+      setToastType('error');
+      setToastMessage(`${failed} mise(s) à jour de statut ont échoué.`);
+    } else {
+      setToastType('success');
+      setToastMessage(
+        `${selectedIds.length} abonné(s) ${targetActive ? 'activé(s)' : 'désabonné(s)'}.`
+      );
+    }
     setSelectedIds([]);
+    await loadSubscribers();
   };
 
   const handleConfirmSingleDelete = async () => {
     if (!singleDeleteId) return;
     const id = singleDeleteId;
-    setSubscribers((prev) => prev.filter((s) => s.id !== id));
-    setSelectedIds((prev) => prev.filter((item) => item !== id));
     setSingleDeleteId(null);
-    await fetchApi(`/storefront-cms/newsletters/${id}`, { method: 'DELETE' }).catch(() => null);
-    setToastType('info');
-    setToastMessage('Abonné supprimé.');
+    try {
+      await fetchApi(`/storefront-cms/newsletters/${id}`, { method: 'DELETE' });
+      setSubscribers((prev) => prev.filter((s) => s.id !== id));
+      setSelectedIds((prev) => prev.filter((item) => item !== id));
+      setToastType('info');
+      setToastMessage('Abonné supprimé.');
+    } catch (err: any) {
+      setToastType('error');
+      setToastMessage(err?.message || "Impossible de supprimer cet abonné.");
+    }
   };
 
   // Filtered subscribers

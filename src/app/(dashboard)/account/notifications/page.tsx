@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { fetchApi } from '@/lib/api';
 import { Breadcrumb, Button } from '@/components/ui';
+import { useI18nStore } from '@/stores/i18n.store';
 
 interface PersonalNotif {
   id: string;
@@ -46,6 +47,8 @@ const CAT_BADGE: Record<string, { label: string; cls: string; Icon: React.Compon
 };
 
 export default function ClientNotificationsPage() {
+  const { t: tr, locale } = useI18nStore();
+  const dateLoc = locale === 'ar' ? 'ar-TN' : 'fr-TN';
   const [notifications, setNotifications] = React.useState<PersonalNotif[]>([]);
   const [catalogFeed, setCatalogFeed] = React.useState<CatalogFeedItem[]>([]);
   const [personalTotal, setPersonalTotal] = React.useState(0);
@@ -167,43 +170,60 @@ export default function ClientNotificationsPage() {
 
   const handleToggleRead = async (id: string) => {
     const t = notifications.find((n) => n.id === id);
-    await fetchApi(`/storefront-cms/my-notifications/${id}/read`, { method: 'PATCH' }).catch(() => null);
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: !n.isRead } : n)));
-    if (t) setUnreadTotal((c) => Math.max(0, c + (t.isRead ? 1 : -1)));
+    try {
+      await fetchApi(`/storefront-cms/my-notifications/${id}/read`, { method: 'PATCH' });
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: !n.isRead } : n)));
+      if (t) setUnreadTotal((c) => Math.max(0, c + (t.isRead ? 1 : -1)));
+    } catch {
+      await loadData();
+    }
   };
 
   const handleMarkAllRead = async () => {
-    await fetchApi('/storefront-cms/my-notifications/read-all', { method: 'PATCH' }).catch(() => null);
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-    setUnreadTotal(0);
+    try {
+      await fetchApi('/storefront-cms/my-notifications/read-all', { method: 'PATCH' });
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setUnreadTotal(0);
+    } catch {
+      await loadData();
+    }
   };
 
   const handleDelete = async (id: string) => {
-    await fetchApi(`/storefront-cms/my-notifications/${id}`, { method: 'DELETE' }).catch(() => null);
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-    setSelectedIds((prev) => prev.filter((x) => x !== id));
-    setPersonalTotal((c) => Math.max(0, c - 1));
+    try {
+      await fetchApi(`/storefront-cms/my-notifications/${id}`, { method: 'DELETE' });
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      setSelectedIds((prev) => prev.filter((x) => x !== id));
+      setPersonalTotal((c) => Math.max(0, c - 1));
+    } catch {
+      await loadData();
+    }
   };
 
   const handleBulkAction = async (action: 'MARK_READ' | 'MARK_UNREAD' | 'DELETE') => {
     if (selectedIds.length === 0) return;
     const ids = [...selectedIds];
-    setSelectedIds([]);
-    await fetchApi('/storefront-cms/my-notifications/bulk-action', {
-      method: 'POST',
-      body: JSON.stringify({ ids, action }),
-    }).catch(() => null);
-    await loadData();
+    try {
+      await fetchApi('/storefront-cms/my-notifications/bulk-action', {
+        method: 'POST',
+        body: JSON.stringify({ ids, action }),
+      });
+      setSelectedIds([]);
+    } finally {
+      await loadData();
+    }
   };
 
   const unreadCount = unreadTotal;
+  const getCatLabel = (cat: string) =>
+    tr(`account.notif_cat_${cat}`, (CAT_BADGE[cat] || CAT_BADGE.ORDER).label);
 
   return (
     <div className="space-y-6 w-full max-w-[1600px] mx-auto">
       <Breadcrumb
         items={[
-          { label: 'Tableau de bord', href: '/dashboard' },
-          { label: 'Mes Notifications' },
+          { label: tr('account.dashboard_crumb'), href: '/dashboard' },
+          { label: tr('account.notif_crumb') },
         ]}
       />
 
@@ -212,17 +232,17 @@ export default function ClientNotificationsPage() {
           <div className="p-2.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-2xl relative">
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">
+              <span className="absolute -top-1 -end-1 w-4 h-4 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">
                 {unreadCount}
               </span>
             )}
           </div>
           <div>
             <h1 className="text-xl font-heading font-black text-neutral-900 tracking-tight">
-              Centre de Notifications Royal
+              {tr('account.notif_title')}
             </h1>
             <p className="text-xs text-neutral-500">
-              Suivez les évolutions de vos commandes, les réponses du Support Royal, les promotions, nouveaux articles et variations de prix.
+              {tr('account.notif_subtitle')}
             </p>
           </div>
         </div>
@@ -230,13 +250,13 @@ export default function ClientNotificationsPage() {
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
             <Button variant="outline" size="sm" onClick={handleMarkAllRead} className="text-xs">
-              <CheckCheck className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
-              Tout marquer comme lu
+              <CheckCheck className="w-3.5 h-3.5 me-1.5 text-emerald-600" />
+              {tr('account.mark_all_read')}
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={loadData} className="text-xs">
-            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
-            Actualiser
+            <RefreshCw className={`w-3.5 h-3.5 me-1.5 ${loading ? 'animate-spin' : ''}`} />
+            {tr('account.refresh')}
           </Button>
         </div>
       </div>
@@ -246,7 +266,7 @@ export default function ClientNotificationsPage() {
         <div className="lg:col-span-6 bg-white p-6 rounded-2xl border border-neutral-200/80 shadow-sm space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 pb-3">
             <h2 className="text-sm font-bold text-neutral-900 uppercase tracking-wider">
-              Mes Alertes Personnelles ({notifications.length}/{personalTotal})
+              {tr('account.personal_alerts')} ({notifications.length}/{personalTotal})
             </h2>
             <div className="flex items-center gap-2">
               {notifications.length > 0 && (
@@ -259,12 +279,12 @@ export default function ClientNotificationsPage() {
                     }
                     className="rounded border-neutral-300 w-3.5 h-3.5"
                   />
-                  <span>Tout</span>
+                  <span>{tr('account.select_all_short')}</span>
                 </label>
               )}
               {unreadCount > 0 && (
                 <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
-                  {unreadCount} non lue(s)
+                  {unreadCount} {tr('account.unread_count')}
                 </span>
               )}
             </div>
@@ -272,38 +292,40 @@ export default function ClientNotificationsPage() {
 
           {selectedIds.length > 0 && (
             <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-[#FBF6E8] border border-[#E6D6A6] text-xs">
-              <span className="font-bold text-[#1D232E]">{selectedIds.length} sélectionnée(s)</span>
+              <span className="font-bold text-[#1D232E]">
+                {selectedIds.length} {tr('account.selected_count')}
+              </span>
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => handleBulkAction('MARK_READ')}
                   className="px-2.5 py-1 rounded-lg bg-white border border-emerald-200 text-emerald-700 font-bold text-[11px] cursor-pointer"
                 >
-                  Marquer lues
+                  {tr('account.mark_read_bulk')}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleBulkAction('MARK_UNREAD')}
                   className="px-2.5 py-1 rounded-lg bg-white border border-amber-200 text-amber-800 font-bold text-[11px] cursor-pointer"
                 >
-                  Non lues
+                  {tr('account.mark_unread_bulk')}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleBulkAction('DELETE')}
                   className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-bold text-[11px] cursor-pointer"
                 >
-                  Supprimer
+                  {tr('account.delete_btn')}
                 </button>
               </div>
             </div>
           )}
 
           {loading ? (
-            <div className="py-10 text-center text-xs text-neutral-500">Chargement...</div>
+            <div className="py-10 text-center text-xs text-neutral-500">{tr('account.loading_short')}</div>
           ) : notifications.length === 0 ? (
             <div className="py-10 text-center text-xs text-neutral-500 border border-dashed border-neutral-200 rounded-2xl">
-              Aucune alerte personnelle reçue pour le moment. Les changements de statut de vos commandes, réponses support et promotions apparaîtront ici.
+              {tr('account.notif_empty')}
             </div>
           ) : (
             <div className="space-y-3">
@@ -335,10 +357,10 @@ export default function ClientNotificationsPage() {
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold ${meta.cls}`}
                         >
                           <Icon className="w-3 h-3" />
-                          {meta.label}
+                          {getCatLabel(n.category)}
                         </span>
                         <span className="text-[10px] text-neutral-400 font-mono">
-                          {new Date(n.createdAt).toLocaleDateString('fr-TN', {
+                          {new Date(n.createdAt).toLocaleDateString(dateLoc, {
                             day: '2-digit',
                             month: 'short',
                             hour: '2-digit',
@@ -353,8 +375,8 @@ export default function ClientNotificationsPage() {
                           href={n.link}
                           className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 hover:underline pt-1"
                         >
-                          <span>Consulter</span>
-                          <ArrowUpRight className="w-3 h-3" />
+                          <span>{tr('account.consult_link')}</span>
+                          <ArrowUpRight className="w-3 h-3 rtl:-scale-x-100" />
                         </Link>
                       )}
                     </div>
@@ -363,15 +385,15 @@ export default function ClientNotificationsPage() {
                       <button
                         type="button"
                         onClick={() => handleToggleRead(n.id)}
-                        title={n.isRead ? 'Marquer non lu' : 'Marquer lu'}
+                        title={n.isRead ? tr('account.mark_unread_title') : tr('account.mark_read_btn')}
                         className="px-2.5 py-1 rounded-lg bg-white border border-neutral-200 text-[10px] font-bold text-neutral-700 hover:bg-neutral-100 cursor-pointer"
                       >
-                        {n.isRead ? 'Lu ✓' : 'Marquer lu'}
+                        {n.isRead ? tr('account.read_done') : tr('account.mark_read_btn')}
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(n.id)}
-                        title="Supprimer"
+                        title={tr('account.delete_btn')}
                         className="p-1.5 rounded-lg bg-white border border-neutral-200 text-neutral-400 hover:text-rose-600 flex items-center justify-center cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -382,7 +404,7 @@ export default function ClientNotificationsPage() {
               })}
               <div ref={personalSentinelRef} className="pt-2 flex flex-col items-center gap-2">
                 {loadingMorePersonal && (
-                  <span className="text-xs text-neutral-500">Chargement des 10 suivantes...</span>
+                  <span className="text-xs text-neutral-500">{tr('account.loading_more_10')}</span>
                 )}
                 {!loadingMorePersonal && personalHasMore && (
                   <button
@@ -390,7 +412,7 @@ export default function ClientNotificationsPage() {
                     onClick={loadMorePersonal}
                     className="px-4 py-1.5 rounded-full border border-neutral-200 bg-[#FBF9F4] text-xs font-bold text-neutral-700 hover:border-[var(--royal-primary)] cursor-pointer"
                   >
-                    Charger les 10 plus anciennes ({notifications.length}/{personalTotal})
+                    {tr('account.load_older_10')} ({notifications.length}/{personalTotal})
                   </button>
                 )}
               </div>
@@ -402,18 +424,18 @@ export default function ClientNotificationsPage() {
         <div className="lg:col-span-6 bg-white p-6 rounded-2xl border border-neutral-200/80 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
             <h2 className="text-sm font-bold text-neutral-900 uppercase tracking-wider">
-              Actualités Commandes, Promos, Nouveautés &amp; Tarifs ({catalogFeed.length}/{feedTotal})
+              {tr('account.feed_news_title')} ({catalogFeed.length}/{feedTotal})
             </h2>
           </div>
 
           {loading ? (
-            <div className="py-10 text-center text-xs text-neutral-500">Chargement...</div>
+            <div className="py-10 text-center text-xs text-neutral-500">{tr('account.loading_short')}</div>
           ) : catalogFeed.length === 0 ? (
             <div className="py-10 text-center text-xs text-neutral-500 border border-dashed border-neutral-200 rounded-2xl">
-              Aucune mise à jour récente.
+              {tr('account.feed_news_empty')}
             </div>
           ) : (
-            <div className="space-y-3 max-h-[680px] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[680px] overflow-y-auto pe-1">
               {catalogFeed.map((item) => {
                 const meta = CAT_BADGE[item.category] || CAT_BADGE.CATALOG;
                 const Icon = meta.Icon;
@@ -428,11 +450,11 @@ export default function ClientNotificationsPage() {
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold ${meta.cls}`}
                       >
                         <Icon className="w-3 h-3" />
-                        {meta.label}
+                        {getCatLabel(item.category)}
                         {item.badge ? ` • ${item.badge}` : ''}
                       </span>
                       <span className="text-[10px] text-neutral-400 font-mono">
-                        {new Date(item.createdAt).toLocaleDateString('fr-TN')}
+                        {new Date(item.createdAt).toLocaleDateString(dateLoc)}
                       </span>
                     </div>
                     <div className="text-xs font-bold text-neutral-900">{item.title}</div>
@@ -442,7 +464,7 @@ export default function ClientNotificationsPage() {
               })}
               <div ref={feedSentinelRef} className="pt-2 flex flex-col items-center gap-2">
                 {loadingMoreFeed && (
-                  <span className="text-xs text-neutral-500">Chargement des 10 suivantes...</span>
+                  <span className="text-xs text-neutral-500">{tr('account.loading_more_10')}</span>
                 )}
                 {!loadingMoreFeed && feedHasMore && (
                   <button
@@ -450,7 +472,7 @@ export default function ClientNotificationsPage() {
                     onClick={loadMoreFeed}
                     className="px-4 py-1.5 rounded-full border border-neutral-200 bg-[#FBF9F4] text-xs font-bold text-neutral-700 hover:border-[var(--royal-primary)] cursor-pointer"
                   >
-                    Charger les 10 suivantes ({catalogFeed.length}/{feedTotal})
+                    {tr('account.load_next_10')} ({catalogFeed.length}/{feedTotal})
                   </button>
                 )}
               </div>

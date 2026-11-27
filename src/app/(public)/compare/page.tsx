@@ -85,9 +85,9 @@ export default function ComparePage() {
               category: i.category,
               brand: i.brand,
               stockStatus: 'IN_STOCK',
-              availableStock: 10,
-              rating: 5.0,
-              reviewCount: 12,
+              availableStock: Number((i as any).availableStock ?? 0),
+              rating: Number((i as any).rating ?? 0),
+              reviewCount: Number((i as any).reviewCount ?? 0),
             }))
           );
         }
@@ -162,7 +162,7 @@ export default function ComparePage() {
           className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs uppercase tracking-[0.2em] font-semibold hover:bg-[var(--royal-primary-hover)] transition shadow-md"
         >
           <span>{t('compare.explore_collections')}</span>
-          <ArrowRight className="w-4 h-4" />
+          <ArrowRight className="w-4 h-4 rtl:rotate-180" />
         </Link>
       </div>
     ) : (
@@ -170,10 +170,12 @@ export default function ComparePage() {
         <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th className="w-40 sm:w-48 p-4 text-left font-sans font-bold tracking-tight text-sm font-semibold text-[#0C1A14] bg-[#F7F5F0] border border-[#ECE7DE] rounded-tl-2xl">
+              <th className="w-40 sm:w-48 p-4 text-start font-sans font-bold tracking-tight text-sm font-semibold text-[#0C1A14] bg-[#F7F5F0] border border-[#ECE7DE] rounded-ss-2xl">
                 {t('compare.features')}
               </th>
-              {displayedDetails.map((item) => (
+              {displayedDetails.map((item) => {
+                const itemName = locale === 'ar' && (item as any).nameAr ? (item as any).nameAr : item.name;
+                return (
                 <th
                   key={item.id}
                   className="p-5 text-center bg-white border border-[#ECE7DE] min-w-[280px] max-w-[320px] align-top"
@@ -181,33 +183,34 @@ export default function ComparePage() {
                   <div className="relative group">
                     <button
                       onClick={() => removeFromCompare(item.id)}
-                      className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 text-rose-600 hover:bg-rose-600 hover:text-white shadow-sm transition"
-                      title="Retirer"
+                      className="absolute top-2 end-2 p-1.5 rounded-full bg-white/90 text-rose-600 hover:bg-rose-600 hover:text-white shadow-sm transition"
+                      title={t('compare.remove')}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
 
                     <div className="relative h-48 w-full rounded-2xl overflow-hidden bg-[#EFECE6] mb-4">
                       <Image
-                        src={item.primaryImage || 'https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?auto=format&fit=crop&w=600&q=80'}
-                        alt={item.name}
+                        src={item.primaryImage || '/images/royal-logo.jpg'}
+                        alt={itemName}
                         fill
                         className="object-cover"
                       />
                     </div>
 
                     <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#D4AF37] block mb-1">
-                      {item.brand?.name || 'Maison Royal'}
+                      {item.brand?.name || 'Royal'}
                     </span>
                     <h3 className="text-sm font-semibold text-[#0C1A14] line-clamp-2 h-10">
-                      {item.name}
+                      {itemName}
                     </h3>
                     <p className="text-[11px] font-mono text-[#8C827A] mt-1">
                       {item.sku}
                     </p>
                   </div>
                 </th>
-              ))}
+                );
+              })}
             </tr>
           </thead>
 
@@ -215,7 +218,7 @@ export default function ComparePage() {
             {/* Price Row */}
             <tr className="hover:bg-[#FAF8F5]">
               <td className="p-4 font-semibold text-[#6B635B] bg-[#F7F5F0] border border-[#ECE7DE]">
-                Prix Unitaire (TND)
+                {t('compare.unit_price')}
               </td>
               {displayedDetails.map((item) => {
                 const isPromo = item.discountPrice && item.discountPrice < item.sellingPrice;
@@ -239,7 +242,7 @@ export default function ComparePage() {
             {/* Stock Availability */}
             <tr className="hover:bg-[#FAF8F5]">
               <td className="p-4 font-semibold text-[#6B635B] bg-[#F7F5F0] border border-[#ECE7DE]">
-                Disponibilité
+                {t('compare.availability')}
               </td>
               {displayedDetails.map((item) => {
                 const inStock = item.availableStock > 0;
@@ -249,12 +252,12 @@ export default function ComparePage() {
                       {inStock ? (
                         <>
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          <span className="text-emerald-700">En Stock ({item.availableStock} unités)</span>
+                          <span className="text-emerald-700">{t('compare.in_stock_units')} ({item.availableStock} {t('compare.units_unit')})</span>
                         </>
                       ) : (
                         <>
                           <XCircle className="w-3.5 h-3.5 text-rose-600" />
-                          <span className="text-rose-700">Sur Commande</span>
+                          <span className="text-rose-700">{t('compare.out_of_stock')}</span>
                         </>
                       )}
                     </div>
@@ -266,12 +269,12 @@ export default function ComparePage() {
             {/* Category */}
             <tr className="hover:bg-[#FAF8F5]">
               <td className="p-4 font-semibold text-[#6B635B] bg-[#F7F5F0] border border-[#ECE7DE]">
-                Univers / Catégorie
+                {t('compare.universe')}
               </td>
               {displayedDetails.map((item) => (
                 <td key={item.id} className="p-4 text-center border border-[#ECE7DE] bg-white">
                   <span className="px-3 py-1 rounded-full bg-[#F4F1EA] text-[#0C1A14] font-medium">
-                    {item.category?.name || 'Gastronomie'}
+                    {(locale === 'ar' && (item.category as any)?.nameAr ? (item.category as any).nameAr : item.category?.name) || '—'}
                   </span>
                 </td>
               ))}
@@ -280,17 +283,17 @@ export default function ComparePage() {
             {/* Rating */}
             <tr className="hover:bg-[#FAF8F5]">
               <td className="p-4 font-semibold text-[#6B635B] bg-[#F7F5F0] border border-[#ECE7DE]">
-                Avis Clients Vérifiés
+                {t('compare.reviews_verified')}
               </td>
               {displayedDetails.map((item) => (
                 <td key={item.id} className="p-4 text-center border border-[#ECE7DE] bg-white">
                   <div className="flex items-center justify-center gap-1 text-[#D4AF37]">
                     <Star className="w-4 h-4 fill-current" />
                     <span className="font-bold text-[#0C1A14] text-xs">
-                      {item.rating?.toFixed(1) || '4.9'}
+                      {Number(item.rating || 0) > 0 ? Number(item.rating).toFixed(1) : '—'}
                     </span>
                     <span className="text-[#8C827A] text-[11px]">
-                      ({item.reviewCount || 15} avis)
+                      ({Number(item.reviewCount || 0)} {t('compare.reviews_suffix')})
                     </span>
                   </div>
                 </td>
@@ -300,11 +303,11 @@ export default function ComparePage() {
             {/* Weight */}
             <tr className="hover:bg-[#FAF8F5]">
               <td className="p-4 font-semibold text-[#6B635B] bg-[#F7F5F0] border border-[#ECE7DE]">
-                Poids Net
+                {t('compare.weight')}
               </td>
               {displayedDetails.map((item) => (
                 <td key={item.id} className="p-4 text-center border border-[#ECE7DE] bg-white font-mono">
-                  {item.weightGrams ? `${(item.weightGrams / 1000).toFixed(2)} kg` : '6.50 kg'}
+                  {item.weightGrams ? `${(item.weightGrams / 1000).toFixed(2)} kg` : '—'}
                 </td>
               ))}
             </tr>
@@ -312,13 +315,13 @@ export default function ComparePage() {
             {/* Warranty */}
             <tr className="hover:bg-[#FAF8F5]">
               <td className="p-4 font-semibold text-[#6B635B] bg-[#F7F5F0] border border-[#ECE7DE]">
-                Garantie Manufacture
+                {t('compare.warranty')}
               </td>
               {displayedDetails.map((item) => (
                 <td key={item.id} className="p-4 text-center border border-[#ECE7DE] bg-white">
                   <div className="inline-flex items-center gap-1.5 text-emerald-700">
                     <Shield className="w-3.5 h-3.5 text-[#D4AF37]" />
-                    <span>À vie (fonte minérale)</span>
+                    <span>{t('compare.warranty_official')}</span>
                   </div>
                 </td>
               ))}
@@ -327,8 +330,8 @@ export default function ComparePage() {
             {/* Direct Action */}
             {cmpCfg.showAddToCart !== false && (
               <tr>
-                <td className="p-4 font-semibold text-[#6B635B] bg-[#F7F5F0] border border-[#ECE7DE] rounded-bl-2xl">
-                  Action Rapide
+                <td className="p-4 font-semibold text-[#6B635B] bg-[#F7F5F0] border border-[#ECE7DE] rounded-es-2xl">
+                  {t('compare.quick_action')}
                 </td>
                 {displayedDetails.map((item) => (
                   <td key={item.id} className="p-4 text-center border border-[#ECE7DE] bg-white">
@@ -337,7 +340,7 @@ export default function ComparePage() {
                       className="inline-flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] hover:bg-[var(--royal-primary-hover)] text-xs font-semibold tracking-wider uppercase transition shadow-sm"
                     >
                       <ShoppingCart className="w-3.5 h-3.5" />
-                      <span>Voir la pièce</span>
+                      <span>{t('compare.view_item')}</span>
                     </Link>
                   </td>
                 ))}

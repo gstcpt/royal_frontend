@@ -164,29 +164,41 @@ export default function StockInDashboardPage() {
 
   const handleBulkReceiptStatus = async (status: StockInStatus) => {
     if (selectedReceiptIds.length === 0) return;
+    const previous = receipts;
     const idSet = new Set(selectedReceiptIds);
     const nextList = receipts.map((r) => (idSet.has(r.id) ? { ...r, status } : r));
     setReceipts(nextList);
-    await fetchApi('/storefront-cms/sys-config/stockIns', {
-      method: 'PUT',
-      body: JSON.stringify({ value: nextList }),
-    }).catch(() => null);
-    showToast('success', `${selectedReceiptIds.length} bon(s) d’entrée passé(s) en ${status}.`);
-    setSelectedReceiptIds([]);
+    try {
+      await fetchApi('/storefront-cms/sys-config/stockIns', {
+        method: 'PUT',
+        body: JSON.stringify({ value: nextList }),
+      });
+      showToast('success', `${selectedReceiptIds.length} bon(s) d’entrée passé(s) en ${status}.`);
+      setSelectedReceiptIds([]);
+    } catch (err: any) {
+      setReceipts(previous);
+      showToast('error', err?.message || 'Erreur lors de la mise à jour des bons d’entrée.');
+    }
   };
 
   const confirmBulkDeleteReceipts = async () => {
     if (bulkDeleteReceiptIds.length === 0) return;
+    const previous = receipts;
     const idSet = new Set(bulkDeleteReceiptIds);
     const nextList = receipts.filter((r) => !idSet.has(r.id));
     setReceipts(nextList);
-    await fetchApi('/storefront-cms/sys-config/stockIns', {
-      method: 'PUT',
-      body: JSON.stringify({ value: nextList }),
-    }).catch(() => null);
-    showToast('success', `${bulkDeleteReceiptIds.length} bon(s) d’entrée supprimé(s).`);
-    setBulkDeleteReceiptIds([]);
-    setSelectedReceiptIds([]);
+    try {
+      await fetchApi('/storefront-cms/sys-config/stockIns', {
+        method: 'PUT',
+        body: JSON.stringify({ value: nextList }),
+      });
+      showToast('success', `${bulkDeleteReceiptIds.length} bon(s) d’entrée supprimé(s).`);
+      setBulkDeleteReceiptIds([]);
+      setSelectedReceiptIds([]);
+    } catch (err: any) {
+      setReceipts(previous);
+      showToast('error', err?.message || 'Erreur lors de la suppression.');
+    }
   };
 
   // Filters State
@@ -363,27 +375,34 @@ export default function StockInDashboardPage() {
       updatedAt: new Date().toISOString(),
     };
 
+    const previous = receipts;
     const nextList = [newReceipt, ...receipts];
     setReceipts(nextList);
-    await fetchApi('/storefront-cms/sys-config/stockIns', {
-      method: 'PUT',
-      body: JSON.stringify({ value: nextList }),
-    }).catch(() => null);
-    await fetchApi('/storefront-cms/stock-lifecycle/apply', {
-      method: 'POST',
-      body: JSON.stringify({
-        docType: 'BE',
-        docReference: nextReceiptNum,
-        restore: false,
-        items: itemsWithVat.map((it) => ({ sku: it.sku, quantity: it.receivedQty })),
-      }),
-    }).catch(() => null);
-
-    setIsWizardOpen(false);
-    showToast(
-      'success',
-      `Bon d'Entrée ${nextReceiptNum} validé ! Stock réel mis à jour en base.`
-    );
+    try {
+      await fetchApi('/storefront-cms/sys-config/stockIns', {
+        method: 'PUT',
+        body: JSON.stringify({ value: nextList }),
+      });
+      if (itemsWithVat.length > 0) {
+        await fetchApi('/storefront-cms/stock-lifecycle/apply', {
+          method: 'POST',
+          body: JSON.stringify({
+            docType: 'BE',
+            docReference: nextReceiptNum,
+            restore: false,
+            items: itemsWithVat.map((it) => ({ sku: it.sku, quantity: it.receivedQty })),
+          }),
+        });
+      }
+      setIsWizardOpen(false);
+      showToast(
+        'success',
+        `Bon d'Entrée ${nextReceiptNum} validé ! Stock réel mis à jour en base.`
+      );
+    } catch (err: any) {
+      setReceipts(previous);
+      showToast('error', err?.message || "Échec lors de l'enregistrement du bon d'entrée.");
+    }
   };
 
   // Columns definition

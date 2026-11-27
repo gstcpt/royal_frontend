@@ -160,14 +160,14 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
           >
             <Mail className="w-4 h-4 text-[#C59B27]" />
             {unreadContacts > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-rose-600 text-white text-[9px] font-black shadow-xs">
+              <span className="absolute -top-0.5 -end-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-rose-600 text-white text-[9px] font-black shadow-xs">
                 {unreadContacts}
               </span>
             )}
           </button>
 
           {openMenu === 'contacts' && (
-            <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl border border-[#E6E1D6] shadow-2xl overflow-hidden z-[9999]">
+            <div className="absolute end-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl border border-[#E6E1D6] shadow-2xl overflow-hidden z-[9999]">
               <div className="px-4 py-3 border-b border-slate-100 bg-[#FBF9F4] flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <span className="text-xs font-extrabold text-[#1D232E] block truncate">
@@ -210,7 +210,7 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
                         setOpenMenu(null);
                         router.push('/dashboard/community/contacts');
                       }}
-                      className={`w-full text-left px-4 py-3 hover:bg-[#FBF6E8]/70 transition flex items-start gap-2.5 cursor-pointer ${
+                      className={`w-full text-start px-4 py-3 hover:bg-[#FBF6E8]/70 transition flex items-start gap-2.5 cursor-pointer ${
                         !c.isRead ? 'bg-[#FBF9F4]' : ''
                       }`}
                     >
@@ -238,7 +238,7 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
                 className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-[#FBF9F4] border-t border-slate-100 text-xs font-bold text-[#9A7414] hover:bg-[#FBF6E8] transition"
               >
                 <span>{t('dashboard.view_all_contacts')}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
               </Link>
             </div>
           )}
@@ -261,14 +261,14 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
         >
           <Bell className="w-4 h-4 text-[#C59B27]" />
           {unreadNotifs > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-[#C59B27] text-white text-[9px] font-black shadow-xs">
+            <span className="absolute -top-0.5 -end-0.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-[#C59B27] text-white text-[9px] font-black shadow-xs">
               {unreadNotifs}
             </span>
           )}
         </button>
 
         {openMenu === 'notifications' && (
-          <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl border border-[#E6E1D6] shadow-2xl overflow-hidden z-[9999]">
+          <div className="absolute end-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl border border-[#E6E1D6] shadow-2xl overflow-hidden z-[9999]">
             <div className="px-4 py-3 border-b border-slate-100 bg-[#FBF9F4] flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <span className="text-xs font-extrabold text-[#1D232E] block truncate">
@@ -300,7 +300,7 @@ export function HeaderInboxPopovers({ isClientOnly }: { isClientOnly: boolean })
                     key={n.id}
                     type="button"
                     onClick={() => markNotifRead(n)}
-                    className={`w-full text-left px-4 py-3 hover:bg-[#FBF6E8]/70 transition flex items-start gap-2.5 cursor-pointer ${
+                    className={`w-full text-start px-4 py-3 hover:bg-[#FBF6E8]/70 transition flex items-start gap-2.5 cursor-pointer ${
                       !n.isRead ? 'bg-[#FBF9F4]' : ''
                     }`}
                   >

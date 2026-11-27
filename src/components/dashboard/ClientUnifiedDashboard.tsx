@@ -35,6 +35,7 @@ import { formatTndCurrency } from '@/lib/utils';
 import { ProductCard, StorefrontProduct } from '@/components/storefront/ProductCard';
 import { ORDER_STATUS_LABEL_MAP } from '@/components/common/PrintableOrderSheet';
 import { SectionAiRecapPanel } from '@/components/dashboard/SectionAiRecapPanel';
+import { useI18nStore } from '@/stores/i18n.store';
 
 type FeedEventType =
   | 'ORDER'
@@ -114,6 +115,8 @@ const EVENT_BADGE: Record<
 
 export function ClientUnifiedDashboard() {
   const { user } = useAuthStore();
+  const { t, locale } = useI18nStore();
+  const dateLoc = locale === 'ar' ? 'ar-TN' : 'fr-TN';
   const { isRouteVisible } = useRouteVisibility();
   const canSeeOrders = isRouteVisible('/account/orders');
   const canSeeFavorites = isRouteVisible('/account/favorites');
@@ -197,6 +200,7 @@ export function ClientUnifiedDashboard() {
     if (!prod?.id) return;
     const currentlySaved = isInWishlist(prod.id);
     const nextAction = currentlySaved ? 'REMOVE' : 'ADD';
+    const prevWishlistProducts = interactions.wishlistProducts;
 
     if (currentlySaved) {
       removeItem(prod.id);
@@ -217,13 +221,35 @@ export function ClientUnifiedDashboard() {
       });
     }
 
-    fetch('/api/v1/storefront-cms/wishlist/toggle', {
-      method: 'POST',
-      headers: getCartHeaders(true),
-      credentials: 'include',
-      keepalive: true,
-      body: JSON.stringify({ productId: prod.id, action: nextAction }),
-    }).catch(() => null);
+    try {
+      const res = await fetch('/api/v1/storefront-cms/wishlist/toggle', {
+        method: 'POST',
+        headers: getCartHeaders(true),
+        credentials: 'include',
+        keepalive: true,
+        body: JSON.stringify({ productId: prod.id, action: nextAction }),
+      });
+      if (!res.ok) throw new Error('wishlist');
+    } catch {
+      if (currentlySaved) {
+        addItem({
+          id: prod.id,
+          name: prod.name,
+          slug: prod.slug,
+          price: Number(prod.discountPrice || prod.sellingPrice || 0),
+          image: prod.primaryImage,
+          category: prod.category?.name,
+          sku: prod.sku,
+          inStock: true,
+        });
+        setInteractions((prev) => ({
+          ...prev,
+          wishlistProducts: prevWishlistProducts,
+        }));
+      } else {
+        removeItem(prod.id);
+      }
+    }
   };
 
   const initials = `${user?.firstName?.[0] || 'U'}${user?.lastName?.[0] || ''}`;
@@ -239,7 +265,7 @@ export function ClientUnifiedDashboard() {
       {/* Unified Welcome Banner */}
       <div className="p-6 sm:p-7 rounded-2xl bg-white border border-[#E6E1D6] shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-5">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-[var(--royal-primary)] text-white font-heading font-black text-xl flex items-center justify-center shrink-0 shadow-sm overflow-hidden border border-[#E6D6A6]">
+          <div className="w-14 h-14 rounded-2xl bg-[var(--royal-primary)] text-[var(--royal-primary-text)] font-heading font-black text-xl flex items-center justify-center shrink-0 shadow-sm overflow-hidden border border-[#E6D6A6]">
             {user?.avatar ? (
               <img
                 src={user.avatar}
@@ -253,24 +279,24 @@ export function ClientUnifiedDashboard() {
           <div className="space-y-1">
             <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[11px] font-bold tracking-wider uppercase border border-amber-200">
               <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
-              <span>Mon Espace Client VIP Royal</span>
+              <span>{t('account.vip_badge')}</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-heading font-black tracking-tight text-neutral-900">
-              Bienvenue, {user?.firstName} {user?.lastName}
+              {t('account.welcome_prefix')} {user?.firstName} {user?.lastName}
             </h1>
             <p className="text-xs text-neutral-500 truncate max-w-2xl">
-              Fil d&apos;actualité complet de vos interactions, articles aimés, commentaires et commandes.
+              {t('account.feed_subtitle')}
             </p>
             <div className="pt-1">
-              <Breadcrumb items={[{ label: 'Mon Espace Client' }]} />
+              <Breadcrumb items={[{ label: t('account.breadcrumb_home') }]} />
             </div>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <Button variant="outline" size="sm" onClick={loadAll} className="text-xs">
-            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
-            Actualiser
+            <RefreshCw className={`w-3.5 h-3.5 me-1.5 ${loading ? 'animate-spin' : ''}`} />
+            {t('account.refresh')}
           </Button>
           {canSeeMessages && (
             <Link
@@ -278,7 +304,7 @@ export function ClientUnifiedDashboard() {
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#F8F9FA] border border-[#E6E1D6] text-neutral-900 text-xs font-bold hover:border-[var(--royal-primary)] transition"
             >
               <MessageSquare className="w-3.5 h-3.5 text-amber-600" />
-              <span>Royal Support</span>
+              <span>{t('account.support_cta')}</span>
             </Link>
           )}
           <Link
@@ -286,7 +312,7 @@ export function ClientUnifiedDashboard() {
             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[var(--royal-primary)] hover:bg-[var(--royal-primary-hover)] text-[var(--royal-primary-text)] text-xs font-bold transition shadow-sm"
           >
             <Store className="w-4 h-4" />
-            <span>Continuer mes achats</span>
+            <span>{t('account.continue_shopping')}</span>
           </Link>
         </div>
       </div>
@@ -299,32 +325,32 @@ export function ClientUnifiedDashboard() {
             className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs hover:border-[var(--royal-primary)] transition-all group"
           >
             <div className="flex items-center justify-between text-neutral-500 mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider">Commandes</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">{t('account.stat_orders')}</span>
               <ShoppingBag className="h-3.5 w-3.5 text-[#C59B27]" />
             </div>
             <div className="text-xl font-black text-neutral-900 font-mono">{interactions.orders.length}</div>
-            <div className="text-[10px] text-neutral-500 mt-0.5">{inProgressOrders} en cours</div>
+            <div className="text-[10px] text-neutral-500 mt-0.5">{inProgressOrders} {t('account.stat_in_progress')}</div>
           </Link>
         ) : (
           <div className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs">
             <div className="flex items-center justify-between text-neutral-500 mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider">Commandes</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">{t('account.stat_orders')}</span>
               <ShoppingBag className="h-3.5 w-3.5 text-[#C59B27]" />
             </div>
             <div className="text-xl font-black text-neutral-900 font-mono">{interactions.orders.length}</div>
-            <div className="text-[10px] text-neutral-500 mt-0.5">{inProgressOrders} en cours</div>
+            <div className="text-[10px] text-neutral-500 mt-0.5">{inProgressOrders} {t('account.stat_in_progress')}</div>
           </div>
         )}
 
         <div className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs">
           <div className="flex items-center justify-between text-neutral-500 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Achats TND</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider">{t('account.stat_spent')}</span>
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
           </div>
           <div className="text-base font-black text-[#9A7414] font-mono truncate">
             {formatTndCurrency(totalSpentTnd)}
           </div>
-          <div className="text-[10px] text-neutral-500 mt-0.5">Total validé</div>
+          <div className="text-[10px] text-neutral-500 mt-0.5">{t('account.stat_validated_total')}</div>
         </div>
 
         {canSeeFavorites ? (
@@ -333,48 +359,48 @@ export function ClientUnifiedDashboard() {
             className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs hover:border-[var(--royal-primary)] transition-all"
           >
             <div className="flex items-center justify-between text-neutral-500 mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider">Favoris</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">{t('account.stat_favorites')}</span>
               <Heart className="h-3.5 w-3.5 text-rose-500" />
             </div>
             <div className="text-xl font-black text-neutral-900 font-mono">{interactions.wishlistProducts.length}</div>
-            <div className="text-[10px] text-neutral-500 mt-0.5">Wishlist</div>
+            <div className="text-[10px] text-neutral-500 mt-0.5">{t('account.stat_wishlist')}</div>
           </Link>
         ) : (
           <div className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs">
             <div className="flex items-center justify-between text-neutral-500 mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider">Favoris</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">{t('account.stat_favorites')}</span>
               <Heart className="h-3.5 w-3.5 text-rose-500" />
             </div>
             <div className="text-xl font-black text-neutral-900 font-mono">{interactions.wishlistProducts.length}</div>
-            <div className="text-[10px] text-neutral-500 mt-0.5">Wishlist</div>
+            <div className="text-[10px] text-neutral-500 mt-0.5">{t('account.stat_wishlist')}</div>
           </div>
         )}
 
         <div className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs">
           <div className="flex items-center justify-between text-emerald-700 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Aimés</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider">{t('account.stat_liked')}</span>
             <ThumbsUp className="h-3.5 w-3.5 text-emerald-600" />
           </div>
           <div className="text-xl font-black text-emerald-700 font-mono">{interactions.likedProducts.length}</div>
-          <div className="text-[10px] text-neutral-500 mt-0.5">Articles J&apos;aime</div>
+          <div className="text-[10px] text-neutral-500 mt-0.5">{t('account.stat_liked_sub')}</div>
         </div>
 
         <div className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs">
           <div className="flex items-center justify-between text-rose-700 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Dislikés</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider">{t('account.stat_disliked')}</span>
             <ThumbsDown className="h-3.5 w-3.5 text-rose-600" />
           </div>
           <div className="text-xl font-black text-rose-700 font-mono">{interactions.dislikedProducts.length}</div>
-          <div className="text-[10px] text-neutral-500 mt-0.5">Articles dislikés</div>
+          <div className="text-[10px] text-neutral-500 mt-0.5">{t('account.stat_disliked_sub')}</div>
         </div>
 
         <div className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs">
           <div className="flex items-center justify-between text-amber-700 mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Avis</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider">{t('account.stat_reviews')}</span>
             <Star className="h-3.5 w-3.5 text-[#C59B27]" />
           </div>
           <div className="text-xl font-black text-amber-700 font-mono">{interactions.commentedItems.length}</div>
-          <div className="text-[10px] text-neutral-500 mt-0.5">Commentaires</div>
+          <div className="text-[10px] text-neutral-500 mt-0.5">{t('account.stat_comments')}</div>
         </div>
 
         {canSeeNotifications ? (
@@ -383,20 +409,20 @@ export function ClientUnifiedDashboard() {
             className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs hover:border-[var(--royal-primary)] transition-all"
           >
             <div className="flex items-center justify-between text-neutral-500 mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider">Alertes</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">{t('account.stat_alerts')}</span>
               <Bell className="h-3.5 w-3.5 text-[#C59B27]" />
             </div>
             <div className="text-xl font-black text-neutral-900 font-mono">{unreadNotifCount}</div>
-            <div className="text-[10px] text-neutral-500 mt-0.5">Non lues</div>
+            <div className="text-[10px] text-neutral-500 mt-0.5">{t('account.stat_unread')}</div>
           </Link>
         ) : (
           <div className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs">
             <div className="flex items-center justify-between text-neutral-500 mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider">Alertes</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">{t('account.stat_alerts')}</span>
               <Bell className="h-3.5 w-3.5 text-[#C59B27]" />
             </div>
             <div className="text-xl font-black text-neutral-900 font-mono">{unreadNotifCount}</div>
-            <div className="text-[10px] text-neutral-500 mt-0.5">Non lues</div>
+            <div className="text-[10px] text-neutral-500 mt-0.5">{t('account.stat_unread')}</div>
           </div>
         )}
 
@@ -406,28 +432,28 @@ export function ClientUnifiedDashboard() {
             className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs hover:border-[var(--royal-primary)] transition-all"
           >
             <div className="flex items-center justify-between text-neutral-500 mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider">Support</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">{t('account.stat_support')}</span>
               <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
             </div>
             <div className="text-xl font-black text-neutral-900 font-mono">{threadsCount}</div>
-            <div className="text-[10px] text-neutral-500 mt-0.5">Discussions</div>
+            <div className="text-[10px] text-neutral-500 mt-0.5">{t('account.stat_discussions')}</div>
           </Link>
         ) : (
           <div className="p-4 bg-white rounded-2xl border border-[#E6E1D6] shadow-xs">
             <div className="flex items-center justify-between text-neutral-500 mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider">Support</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">{t('account.stat_support')}</span>
               <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
             </div>
             <div className="text-xl font-black text-neutral-900 font-mono">{threadsCount}</div>
-            <div className="text-[10px] text-neutral-500 mt-0.5">Discussions</div>
+            <div className="text-[10px] text-neutral-500 mt-0.5">{t('account.stat_discussions')}</div>
           </div>
         )}
       </div>
 
       <SectionAiRecapPanel
         sectionId="client"
-        title="Mon Espace Client VIP Royal"
-        subtitle="Résumé personnalisé de vos commandes, favoris, alertes et messages"
+        title={t('account.recap_title')}
+        subtitle={t('account.recap_subtitle')}
         kpis={{
           orders: interactions.orders.length,
           inProgressOrders,
@@ -450,27 +476,27 @@ export function ClientUnifiedDashboard() {
             </div>
             <div>
               <h3 className="text-base font-heading font-black text-[#1D232E]">
-                Chronologie • Fil d&apos;Actualité Unifié ({posts.length})
+                {t('account.timeline_title')} ({posts.length})
               </h3>
               <p className="text-xs text-slate-500">
-                Toutes vos commandes, articles aimés/dislikés, favoris et avis affichés en continu sur toute la largeur.
+                {t('account.timeline_subtitle')}
               </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
             {canSeeProfile && (
               <Link href="/account/profile" className="px-3.5 py-1.5 rounded-full bg-[#F8F9FA] border border-[#E6E1D6] hover:border-[#C59B27] transition">
-                Mon Profil
+                {t('account.my_profile')}
               </Link>
             )}
             {canSeeOrders && (
               <Link href="/account/orders" className="px-3.5 py-1.5 rounded-full bg-[#F8F9FA] border border-[#E6E1D6] hover:border-[#C59B27] transition">
-                Mes Commandes
+                {t('account.my_orders')}
               </Link>
             )}
             {canSeeFavorites && (
               <Link href="/account/favorites" className="px-3.5 py-1.5 rounded-full bg-[#F8F9FA] border border-[#E6E1D6] hover:border-[#C59B27] transition">
-                Mes Favoris
+                {t('account.my_favorites')}
               </Link>
             )}
           </div>
@@ -479,19 +505,19 @@ export function ClientUnifiedDashboard() {
         <div className="space-y-4">
           {loading ? (
             <div className="bg-white p-10 rounded-2xl border border-[#E6E1D6] text-center text-xs text-slate-500">
-              Chargement de votre fil d&apos;actualité...
+              {t('account.loading_feed')}
             </div>
           ) : posts.length === 0 ? (
             <div className="bg-white p-10 rounded-2xl border border-[#E6E1D6] text-center space-y-3">
               <Clock className="w-10 h-10 text-slate-300 mx-auto" />
               <div className="text-sm font-bold text-[#1D232E]">
-                Aucune activité enregistrée pour le moment.
+                {t('account.empty_activity')}
               </div>
               <Link
                 href="/articles"
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[var(--royal-primary)] text-white text-xs font-bold shadow-xs"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-bold shadow-xs"
               >
-                Découvrir nos articles
+                {t('account.discover_articles')}
               </Link>
             </div>
           ) : (
@@ -505,6 +531,14 @@ export function ClientUnifiedDashboard() {
                   ? getCounts(prod.id, prod.likeCount || 0, prod.dislikeCount || 0)
                   : { likeCount: 0, dislikeCount: 0 };
                 const savedWishlist = prod ? isInWishlist(prod.id) : false;
+                const prodDisplayName =
+                  prod && locale === 'ar' && prod.nameAr ? prod.nameAr : prod?.name;
+                const prodCategoryDisplay =
+                  prod?.category
+                    ? locale === 'ar' && prod.category.nameAr
+                      ? prod.category.nameAr
+                      : prod.category.name
+                    : null;
 
                 return (
                   <article
@@ -513,7 +547,7 @@ export function ClientUnifiedDashboard() {
                   >
                     <div className="p-5 flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-full bg-[var(--royal-primary)] text-white font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden">
+                        <div className="w-10 h-10 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden">
                           {post.actorAvatar || user?.avatar ? (
                             <img
                               src={post.actorAvatar || user?.avatar || ''}
@@ -529,7 +563,7 @@ export function ClientUnifiedDashboard() {
                             {post.headline}
                           </div>
                           <div className="text-[11px] text-neutral-400 font-mono mt-0.5">
-                            {new Date(post.createdAt).toLocaleDateString('fr-TN', {
+                            {new Date(post.createdAt).toLocaleDateString(dateLoc, {
                               day: '2-digit',
                               month: 'long',
                               year: 'numeric',
@@ -544,7 +578,7 @@ export function ClientUnifiedDashboard() {
                         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wider shrink-0 ${badge.className}`}
                       >
                         <Icon className="w-3 h-3" />
-                        <span>{badge.label}</span>
+                        <span>{t(`account.event_${post.type}`, badge.label)}</span>
                       </span>
                     </div>
 
@@ -560,7 +594,7 @@ export function ClientUnifiedDashboard() {
                                 }`}
                               />
                             ))}
-                            <span className="ml-2 text-xs font-black text-neutral-900">
+                            <span className="ms-2 text-xs font-black text-neutral-900">
                               {post.rating}/5
                             </span>
                           </div>
@@ -579,7 +613,7 @@ export function ClientUnifiedDashboard() {
                         >
                           <img
                             src={getSafeImageUrl(prod.primaryImage)}
-                            alt={prod.name}
+                            alt={prodDisplayName}
                             className="w-full h-full object-cover object-center scale-[1.06] hover:scale-110 transition-transform duration-300"
                           />
                         </Link>
@@ -587,13 +621,13 @@ export function ClientUnifiedDashboard() {
                           <div className="space-y-1">
                             <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
                               {prod.brand?.name || 'Royal'}
-                              {prod.category?.name ? ` • ${prod.category.name}` : ''}
+                              {prodCategoryDisplay ? ` • ${prodCategoryDisplay}` : ''}
                             </div>
                             <Link
                               href={`/articles/${prod.slug}`}
                               className="text-sm font-black text-neutral-900 hover:text-amber-700 transition block line-clamp-2"
                             >
-                              {prod.name}
+                              {prodDisplayName}
                             </Link>
                           </div>
 
@@ -603,10 +637,10 @@ export function ClientUnifiedDashboard() {
                             </div>
                             <Link
                               href={`/articles/${prod.slug}`}
-                              className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-white border border-[#E6E1D6] text-xs font-bold text-[#1D232E] hover:bg-[var(--royal-primary)] hover:text-white transition"
+                              className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-white border border-[#E6E1D6] text-xs font-bold text-[#1D232E] hover:bg-[var(--royal-primary)] hover:text-[var(--royal-primary-text)] transition"
                             >
-                              <span>Voir l&apos;article</span>
-                              <ArrowUpRight className="w-3.5 h-3.5" />
+                              <span>{t('account.view_article')}</span>
+                              <ArrowUpRight className="w-3.5 h-3.5 rtl:-scale-x-100" />
                             </Link>
                           </div>
                         </div>
@@ -617,17 +651,20 @@ export function ClientUnifiedDashboard() {
                       <div className="mx-5 mb-4 rounded-2xl border border-neutral-200 bg-[#F8F9FA] p-4 space-y-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
-                            <div className="text-xs font-black font-mono text-neutral-900">
-                              Réf. {post.order.reference}
+                            <div className="text-xs font-black font-mono text-neutral-900" dir="ltr">
+                              {t('account.ref_prefix')} {post.order.reference}
                             </div>
                             <div className="text-[11px] text-neutral-500">
-                              Statut :{' '}
+                              {t('account.status_prefix')}{' '}
                               <strong className="text-neutral-900">
-                                {ORDER_STATUS_LABEL_MAP[post.order.status] || post.order.status}
+                                {t(
+                                  `order_status.${post.order.status}`,
+                                  ORDER_STATUS_LABEL_MAP[post.order.status] || post.order.status
+                                )}
                               </strong>
                             </div>
                           </div>
-                          <div className="text-right">
+                          <div className="text-end">
                             <div className="text-sm font-black font-mono text-neutral-950">
                               {formatTndCurrency(post.order.totalAmount)}
                             </div>
@@ -635,7 +672,7 @@ export function ClientUnifiedDashboard() {
                               href={`/order-confirmation/${post.order.reference}`}
                               className="text-[11px] font-bold text-amber-700 hover:underline inline-flex items-center gap-0.5"
                             >
-                              Suivre &amp; Imprimer <ArrowUpRight className="w-3 h-3" />
+                              {t('account.track_and_print')} <ArrowUpRight className="w-3 h-3 rtl:-scale-x-100" />
                             </Link>
                           </div>
                         </div>
@@ -657,7 +694,7 @@ export function ClientUnifiedDashboard() {
                             }`}
                           >
                             <ThumbsUp className={`w-3.5 h-3.5 ${myReaction === 'LIKE' ? 'fill-current' : ''}`} />
-                            <span>J&apos;aime ({rxCounts.likeCount})</span>
+                            <span>{t('account.like_btn')} ({rxCounts.likeCount})</span>
                           </button>
                           <button
                             type="button"
@@ -687,7 +724,7 @@ export function ClientUnifiedDashboard() {
                           }`}
                         >
                           <Heart className={`w-3.5 h-3.5 ${savedWishlist ? 'fill-current' : ''}`} />
-                          <span>{savedWishlist ? 'Dans ma wishlist' : 'Ajouter aux favoris'}</span>
+                          <span>{savedWishlist ? t('account.in_wishlist') : t('account.add_wishlist')}</span>
                         </button>
                       </div>
                     )}
@@ -702,7 +739,7 @@ export function ClientUnifiedDashboard() {
                     onClick={() => setVisibleCount((prev) => Math.min(posts.length, prev + 8))}
                     className="px-6 py-2.5 rounded-full bg-[#FBF6E8] border border-[#E6D6A6] text-xs font-bold text-[#9A7414] hover:bg-[#C59B27] hover:text-white transition cursor-pointer"
                   >
-                    Charger plus d&apos;actions ({posts.length - visibleCount} restantes)
+                    {t('account.load_more_actions')} ({posts.length - visibleCount} {t('account.remaining_actions')})
                   </button>
                 </div>
               )}
@@ -719,10 +756,10 @@ export function ClientUnifiedDashboard() {
           </div>
           <div>
             <h3 className="text-base font-heading font-black text-neutral-900">
-              Vos Articles &amp; Commandes par Interaction
+              {t('account.interactions_title')}
             </h3>
             <p className="text-xs text-neutral-500">
-              Retrouvez ci-dessous tous les articles que vous avez aimés, non aimés, commentés/notés et commandés.
+              {t('account.interactions_subtitle')}
             </p>
           </div>
         </div>
@@ -734,11 +771,11 @@ export function ClientUnifiedDashboard() {
               <ThumbsUp className="w-4 h-4" />
             </span>
             <h4 className="text-sm font-heading font-black text-neutral-900">
-              Articles Aimés ({interactions.likedProducts.length})
+              {t('account.liked_section')} ({interactions.likedProducts.length})
             </h4>
           </div>
           {interactions.likedProducts.length === 0 ? (
-            <p className="text-xs text-neutral-500">Aucun article aimé pour le moment.</p>
+            <p className="text-xs text-neutral-500">{t('account.liked_empty')}</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {interactions.likedProducts.map((product) => (
@@ -755,11 +792,11 @@ export function ClientUnifiedDashboard() {
               <ThumbsDown className="w-4 h-4" />
             </span>
             <h4 className="text-sm font-heading font-black text-neutral-900">
-              Articles Non Aimés ({interactions.dislikedProducts.length})
+              {t('account.disliked_section')} ({interactions.dislikedProducts.length})
             </h4>
           </div>
           {interactions.dislikedProducts.length === 0 ? (
-            <p className="text-xs text-neutral-500">Aucun article disliké.</p>
+            <p className="text-xs text-neutral-500">{t('account.disliked_empty')}</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {interactions.dislikedProducts.map((product) => (
@@ -776,11 +813,11 @@ export function ClientUnifiedDashboard() {
               <MessageSquare className="w-4 h-4" />
             </span>
             <h4 className="text-sm font-heading font-black text-neutral-900">
-              Articles Commentés &amp; Notés ({interactions.commentedItems.length})
+              {t('account.commented_section')} ({interactions.commentedItems.length})
             </h4>
           </div>
           {interactions.commentedItems.length === 0 ? (
-            <p className="text-xs text-neutral-500">Aucun avis publié pour le moment.</p>
+            <p className="text-xs text-neutral-500">{t('account.commented_empty')}</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {interactions.commentedItems.map((entry) => (
@@ -794,7 +831,7 @@ export function ClientUnifiedDashboard() {
                           className={`w-3.5 h-3.5 ${s <= entry.rating ? 'fill-current' : 'text-amber-200'}`}
                         />
                       ))}
-                      <span className="ml-1.5 text-[11px] font-black text-neutral-900">
+                      <span className="ms-1.5 text-[11px] font-black text-neutral-900">
                         {entry.rating}/5
                       </span>
                     </div>
@@ -814,12 +851,13 @@ export function ClientUnifiedDashboard() {
                 <ShoppingBag className="w-4 h-4" />
               </span>
               <h4 className="text-sm font-heading font-black text-neutral-900">
-                Commandes ({interactions.orders.length}) &amp; Articles Commandés ({interactions.orderedProducts.length})
+                {t('account.orders_section')} ({interactions.orders.length}) &amp; {t('account.ordered_articles')} ({interactions.orderedProducts.length})
               </h4>
             </div>
             {canSeeOrders && (
-              <Link href="/account/orders" className="text-xs font-bold text-amber-700 hover:underline">
-                Toutes mes commandes →
+              <Link href="/account/orders" className="text-xs font-bold text-amber-700 hover:underline inline-flex items-center gap-1">
+                <span>{t('account.all_my_orders')}</span>
+                <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
               </Link>
             )}
           </div>
@@ -833,20 +871,20 @@ export function ClientUnifiedDashboard() {
                   className="p-4 rounded-2xl bg-[#F8F9FA] border border-neutral-200/80 hover:border-neutral-900 transition flex items-center justify-between gap-3"
                 >
                   <div className="space-y-1 min-w-0">
-                    <div className="text-xs font-black font-mono text-neutral-900">{ord.reference}</div>
+                    <div className="text-xs font-black font-mono text-neutral-900" dir="ltr">{ord.reference}</div>
                     <div className="text-[11px] text-neutral-500">
-                      {ord.itemsCount} article(s) • {new Date(ord.createdAt).toLocaleDateString('fr-TN')}
+                      {ord.itemsCount} {t('account.articles_count_unit')} • {new Date(ord.createdAt).toLocaleDateString(dateLoc)}
                     </div>
                     <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                      {ORDER_STATUS_LABEL_MAP[ord.status] || ord.status}
+                      {t(`order_status.${ord.status}`, ORDER_STATUS_LABEL_MAP[ord.status] || ord.status)}
                     </span>
                   </div>
-                  <div className="text-right shrink-0">
+                  <div className="text-end shrink-0">
                     <div className="text-sm font-black font-mono text-neutral-950">
                       {formatTndCurrency(ord.totalAmount)}
                     </div>
                     <span className="text-[11px] font-bold text-neutral-600 inline-flex items-center gap-0.5">
-                      Voir <ArrowUpRight className="w-3 h-3" />
+                      {t('account.view_short')} <ArrowUpRight className="w-3 h-3 rtl:-scale-x-100" />
                     </span>
                   </div>
                 </Link>

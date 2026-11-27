@@ -5,12 +5,15 @@ import { Ticket, Copy, Check, Percent, Truck, DollarSign, Sparkles, Download } f
 import { Breadcrumb, Badge, Toast, DataTable, ColumnDef, Button } from '@/components/ui';
 import { fetchApi } from '@/lib/api';
 import { formatTndCurrency } from '@/lib/utils';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export default function AccountCouponsPage() {
+  const { t, locale } = useI18nStore();
   const [coupons, setCoupons] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [copiedCode, setCopiedCode] = React.useState<string | null>(null);
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const dateLoc = locale === 'ar' ? 'ar-TN' : 'fr-FR';
 
   React.useEffect(() => {
     const load = async () => {
@@ -40,13 +43,20 @@ export default function AccountCouponsPage() {
     const sel = coupons.filter((c) => selectedIds.includes(c.id));
     if (sel.length === 0) return;
     const csv = [
-      ['Code', 'Type', 'Valeur', 'Minimum TND', 'Expiration', 'Description'],
+      [
+        t('account.csv_col_code'),
+        t('account.csv_col_type'),
+        t('account.csv_col_value'),
+        t('account.csv_col_min'),
+        t('account.col_expiration'),
+        t('account.csv_col_desc'),
+      ],
       ...sel.map((c) => [
         c.code,
         c.type,
         c.value,
         c.minOrderAmount || 0,
-        c.expiresAt ? new Date(c.expiresAt).toLocaleDateString('fr-FR') : 'Sans limite',
+        c.expiresAt ? new Date(c.expiresAt).toLocaleDateString(dateLoc) : t('account.unlimited'),
         `"${String(c.description || '').replace(/"/g, '""')}"`,
       ]),
     ]
@@ -64,11 +74,11 @@ export default function AccountCouponsPage() {
   const columns: ColumnDef<any>[] = [
     {
       key: 'code',
-      header: 'Code Privilège',
+      header: t('account.col_code'),
       sortable: true,
       sortValue: (c) => c.code,
       render: (c) => (
-        <code className="px-2.5 py-1 rounded-lg bg-[#F4F5F7] border border-[#E6E1D6] font-mono text-xs font-black text-[#9A7414]">
+        <code className="px-2.5 py-1 rounded-lg bg-[#F4F5F7] border border-[#E6E1D6] font-mono text-xs font-black text-[#9A7414]" dir="ltr">
           {c.code}
         </code>
       ),
@@ -76,7 +86,7 @@ export default function AccountCouponsPage() {
     },
     {
       key: 'value',
-      header: 'Avantage',
+      header: t('account.col_benefit'),
       render: (c) => (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FBF6E8] text-[#9A7414] border border-[#E6D6A6] text-[11px] font-bold">
           {c.type === 'PERCENTAGE' && <Percent className="h-3 w-3" />}
@@ -85,7 +95,7 @@ export default function AccountCouponsPage() {
           {c.type === 'PERCENTAGE'
             ? `-${c.value}%`
             : c.type === 'FREE_SHIPPING'
-            ? 'Livraison Offerte'
+            ? t('account.free_shipping_benefit')
             : `-${formatTndCurrency(Number(c.value || 0))}`}
         </span>
       ),
@@ -93,12 +103,14 @@ export default function AccountCouponsPage() {
     },
     {
       key: 'description',
-      header: 'Conditions',
+      header: t('account.col_conditions'),
       render: (c) => (
         <div className="text-xs text-[#1D232E]">
-          <div className="font-semibold">{c.description || `Remise exclusive ${c.code}`}</div>
+          <div className="font-semibold">{c.description || `${t('account.exclusive_discount')} ${c.code}`}</div>
           {c.minOrderAmount ? (
-            <div className="text-[11px] text-slate-500">Min: {formatTndCurrency(Number(c.minOrderAmount))}</div>
+            <div className="text-[11px] text-slate-500">
+              {t('account.min_prefix')} {formatTndCurrency(Number(c.minOrderAmount))}
+            </div>
           ) : null}
         </div>
       ),
@@ -106,27 +118,27 @@ export default function AccountCouponsPage() {
     },
     {
       key: 'expiresAt',
-      header: 'Expiration',
+      header: t('account.col_expiration'),
       render: (c) => (
         <span className="text-xs text-slate-500">
-          {c.expiresAt ? new Date(c.expiresAt).toLocaleDateString('fr-FR') : 'Illimité'}
+          {c.expiresAt ? new Date(c.expiresAt).toLocaleDateString(dateLoc) : t('account.unlimited')}
         </span>
       ),
-      printRender: (c) => (c.expiresAt ? new Date(c.expiresAt).toLocaleDateString('fr-FR') : 'Illimité'),
+      printRender: (c) => (c.expiresAt ? new Date(c.expiresAt).toLocaleDateString(dateLoc) : t('account.unlimited')),
     },
     {
       key: 'actions',
-      header: 'Actions',
-      className: 'text-right no-print',
+      header: t('account.col_actions'),
+      className: 'text-end no-print',
       render: (c) => (
         <button
           type="button"
           onClick={() => handleCopy(c.code)}
-          title="Copier le code"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--royal-primary)] text-white text-xs font-bold shadow-xs hover:opacity-95 transition cursor-pointer"
+          title={t('account.copy_code_title')}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-bold shadow-xs hover:opacity-95 transition cursor-pointer"
         >
           {copiedCode === c.code ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-          <span>{copiedCode === c.code ? 'Copié' : 'Copier'}</span>
+          <span>{copiedCode === c.code ? t('account.copied_btn') : t('account.copy_btn')}</span>
         </button>
       ),
     },
@@ -136,8 +148,8 @@ export default function AccountCouponsPage() {
     <div className="space-y-6 w-full max-w-[1600px] mx-auto">
       <Breadcrumb
         items={[
-          { label: 'Mon Espace Client', href: '/account/home' },
-          { label: 'Mes Codes Privilèges' },
+          { label: t('account.breadcrumb_home'), href: '/account/home' },
+          { label: t('account.coupons_crumb') },
         ]}
       />
 
@@ -148,16 +160,16 @@ export default function AccountCouponsPage() {
           </div>
           <div>
             <h1 className="text-xl font-heading font-black text-[#1D232E] tracking-tight">
-              Mes Codes Privilèges &amp; Offres Royal
+              {t('account.coupons_title')}
             </h1>
             <p className="text-xs text-slate-500">
-              Copiez un code actif ci-dessous pour l&apos;appliquer directement lors de votre passage en caisse.
+              {t('account.coupons_subtitle')}
             </p>
           </div>
         </div>
         <Badge variant="warning" size="md">
-          <Sparkles className="h-3.5 w-3.5 mr-1 inline" />
-          {coupons.length} offre(s) active(s)
+          <Sparkles className="h-3.5 w-3.5 me-1 inline" />
+          {coupons.length} {t('account.active_offers_count')}
         </Badge>
       </div>
 
@@ -166,7 +178,7 @@ export default function AccountCouponsPage() {
         columns={columns}
         keyExtractor={(c) => c.id}
         isLoading={loading}
-        searchPlaceholder="Rechercher un code ou offre..."
+        searchPlaceholder={t('account.coupons_search_ph')}
         searchKeys={['code', 'description']}
         supportedModes={['matrix', 'table', 'list']}
         defaultMode="matrix"
@@ -177,8 +189,8 @@ export default function AccountCouponsPage() {
         onSelectionChange={setSelectedIds}
         renderBulkActions={() => (
           <Button variant="outline" size="sm" onClick={handleBulkExportCsv}>
-            <Download className="h-3.5 w-3.5 mr-1.5" />
-            <span>Exporter sélection ({selectedIds.length})</span>
+            <Download className="h-3.5 w-3.5 me-1.5" />
+            <span>{t('account.export_sel_count')} ({selectedIds.length})</span>
           </Button>
         )}
         renderMatrixCard={(c) => {
@@ -194,49 +206,49 @@ export default function AccountCouponsPage() {
                     {c.type === 'PERCENTAGE'
                       ? `-${c.value}%`
                       : c.type === 'FREE_SHIPPING'
-                      ? 'Livraison Offerte'
+                      ? t('account.free_shipping_benefit')
                       : `-${formatTndCurrency(Number(c.value || 0))}`}
                   </span>
                   {c.expiresAt && (
                     <span className="text-[10px] font-medium text-slate-400">
-                      Exp: {new Date(c.expiresAt).toLocaleDateString('fr-FR')}
+                      {t('account.exp_prefix')} {new Date(c.expiresAt).toLocaleDateString(dateLoc)}
                     </span>
                   )}
                 </div>
                 <h3 className="text-sm font-heading font-black text-[#1D232E]">
-                  {c.description || `Remise exclusive ${c.code}`}
+                  {c.description || `${t('account.exclusive_discount')} ${c.code}`}
                 </h3>
                 {c.minOrderAmount ? (
                   <p className="text-[11px] text-slate-500">
-                    Commande minimum : <strong className="text-[#1D232E]">{formatTndCurrency(Number(c.minOrderAmount))}</strong>
+                    {t('account.min_order_prefix')} <strong className="text-[#1D232E]">{formatTndCurrency(Number(c.minOrderAmount))}</strong>
                   </p>
                 ) : null}
               </div>
 
               <div className="pt-3 border-t border-dashed border-[#E6D6A6] flex items-center justify-between gap-2">
-                <code className="px-3 py-2 rounded-xl bg-[#F4F5F7] border border-[#E6E1D6] font-mono text-xs font-black text-[#9A7414] tracking-wider">
+                <code className="px-3 py-2 rounded-xl bg-[#F4F5F7] border border-[#E6E1D6] font-mono text-xs font-black text-[#9A7414] tracking-wider" dir="ltr">
                   {c.code}
                 </code>
                 <button
                   type="button"
                   onClick={() => handleCopy(c.code)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--royal-primary)] text-white text-xs font-bold shadow-xs hover:opacity-95 transition cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-bold shadow-xs hover:opacity-95 transition cursor-pointer"
                 >
                   {isCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  <span>{isCopied ? 'Copié' : 'Copier'}</span>
+                  <span>{isCopied ? t('account.copied_btn') : t('account.copy_btn')}</span>
                 </button>
               </div>
             </div>
           );
         }}
         exportFileName="codes_privileges_royal"
-        printTitle="Mes Codes Privilèges — Royal"
+        printTitle={t('account.print_coupons_title')}
       />
 
       {copiedCode && (
         <Toast
           isOpen={true}
-          message={`Code promo "${copiedCode}" copié dans le presse-papiers !`}
+          message={t('account.coupon_copied_toast').replace('{code}', copiedCode)}
           type="success"
           onClose={() => setCopiedCode(null)}
         />

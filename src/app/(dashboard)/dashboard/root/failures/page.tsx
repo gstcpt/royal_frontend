@@ -17,6 +17,7 @@ import {
   Button,
   Badge,
   Modal,
+  DeleteConfirmModal,
   Breadcrumb,
   Toast,
 } from '@/components/ui';
@@ -38,6 +39,9 @@ export default function SystemFailuresPage() {
   const [loading, setLoading] = React.useState(true);
   const [selectedFailure, setSelectedFailure] = React.useState<SystemFailureItem | null>(null);
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [confirmDelete, setConfirmDelete] = React.useState<
+    { type: 'one'; id: string } | { type: 'selected' } | { type: 'all' } | null
+  >(null);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [toast, setToast] = React.useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
@@ -165,7 +169,7 @@ export default function SystemFailuresPage() {
           <button
             type="button"
             title="Supprimer la ligne"
-            onClick={() => handleDeleteOne(item.id)}
+            onClick={() => setConfirmDelete({ type: 'one', id: item.id })}
             className="h-8 w-8 rounded-lg border border-neutral-200 flex items-center justify-center text-neutral-400 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-colors cursor-pointer"
           >
             <Trash2 className="h-4 w-4" />
@@ -205,7 +209,7 @@ export default function SystemFailuresPage() {
               <Button
                 variant="danger"
                 size="sm"
-                onClick={handleDeleteSelected}
+                onClick={() => setConfirmDelete({ type: 'selected' })}
                 className="text-xs"
               >
                 <Trash2 className="h-3.5 w-3.5 mr-1" />
@@ -216,7 +220,7 @@ export default function SystemFailuresPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleClearAll}
+              onClick={() => setConfirmDelete({ type: 'all' })}
               disabled={failures.length === 0}
               className="text-xs text-neutral-600"
             >
@@ -252,7 +256,7 @@ export default function SystemFailuresPage() {
         enableMultiSelect={true}
         selectedKeys={selectedIds}
         onSelectionChange={setSelectedIds}
-        onBulkDelete={handleDeleteSelected}
+        onBulkDelete={() => setConfirmDelete({ type: 'selected' })}
         renderBulkActions={() => (
           <button
             type="button"
@@ -344,6 +348,37 @@ export default function SystemFailuresPage() {
             )}
           </div>
         </Modal>
+      )}
+
+      {confirmDelete && (
+        <DeleteConfirmModal
+          isOpen={true}
+          onClose={() => setConfirmDelete(null)}
+          onConfirm={async () => {
+            if (confirmDelete.type === 'one') {
+              await handleDeleteOne(confirmDelete.id);
+            } else if (confirmDelete.type === 'selected') {
+              await handleDeleteSelected();
+            } else {
+              await handleClearAll();
+            }
+            setConfirmDelete(null);
+          }}
+          title={
+            confirmDelete.type === 'all'
+              ? 'Purger tout le journal des incidents'
+              : confirmDelete.type === 'selected'
+              ? 'Supprimer les incidents sélectionnés'
+              : 'Supprimer cet incident'
+          }
+          message={
+            confirmDelete.type === 'all'
+              ? 'Confirmez-vous la suppression définitive de tous les incidents enregistrés ?'
+              : confirmDelete.type === 'selected'
+              ? `Confirmez-vous la suppression des ${selectedIds.length} incident(s) sélectionné(s) ?`
+              : 'Confirmez-vous la suppression définitive de cette entrée du journal ?'
+          }
+        />
       )}
     </div>
   );

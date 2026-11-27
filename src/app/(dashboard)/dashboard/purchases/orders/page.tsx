@@ -88,13 +88,13 @@ function PurchaseOrdersContent() {
   const [toast, setToast] = React.useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   // Add/Edit form state
-  const [formSupplier, setFormSupplier] = React.useState('Comptoir Tunisien de l’Électroménager (CTE)');
-  const [formExpectedDate, setFormExpectedDate] = React.useState('2026-11-28');
+  const [formSupplier, setFormSupplier] = React.useState('');
+  const [formExpectedDate, setFormExpectedDate] = React.useState(() =>
+    new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10)
+  );
   const [formStatus, setFormStatus] = React.useState<PurchaseOrderItem['status']>('CONFIRMED');
   const [formNotes, setFormNotes] = React.useState('');
-  const [formLines, setFormLines] = React.useState<PurchaseOrderLine[]>([
-    { id: 'ln-1', sku: 'RYL-APP-01', name: 'Appareil Électroménager Royal Standard', qty: 10, unitPriceHt: 450, taxRate: 19 },
-  ]);
+  const [formLines, setFormLines] = React.useState<PurchaseOrderLine[]>([]);
 
   const loadData = React.useCallback(async () => {
     setLoading(true);
@@ -167,12 +167,12 @@ function PurchaseOrdersContent() {
 
   const openCreateModal = () => {
     setEditingOrder(null);
-    setFormSupplier(suppliers[0]?.name || 'Comptoir Tunisien de l’Électroménager (CTE)');
+    setFormSupplier(suppliers[0]?.name || '');
     setFormExpectedDate(new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10));
     setFormStatus('CONFIRMED');
     setFormNotes('');
     setFormLines([
-      { id: `ln-${Date.now()}`, sku: 'RYL-ART-01', name: 'Friteuse Électrique Sans Huile 8.5L', qty: 10, unitPriceHt: 220, taxRate: 19 },
+      { id: `ln-${Date.now()}`, sku: '', name: '', qty: 1, unitPriceHt: 0, taxRate: sysDoc.defaultVatRate || 19 },
     ]);
     setIsModalOpen(true);
   };

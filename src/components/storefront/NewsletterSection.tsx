@@ -69,14 +69,14 @@ export function NewsletterSection() {
             ) : (
               <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
-                  <Mail className="w-4 h-4 text-[var(--royal-primary)] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <Mail className="w-4 h-4 text-[var(--royal-primary)] absolute start-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={locale === 'ar' ? t('storefront.newsletter_placeholder') : (home.newsletterPlaceholder || t('storefront.newsletter_placeholder'))}
-                    className="w-full pl-11 pr-4 py-3.5 rounded-full bg-[var(--royal-silver-light)] border border-[var(--royal-border)] text-sm text-[var(--royal-ink)] focus:outline-none focus:border-[var(--royal-primary)] transition"
+                    className="w-full ps-11 pe-4 py-3.5 rounded-full bg-[var(--royal-silver-light)] border border-[var(--royal-border)] text-sm text-[var(--royal-ink)] focus:outline-none focus:border-[var(--royal-primary)] transition"
                   />
                 </div>
                 <button
@@ -89,12 +89,12 @@ export function NewsletterSection() {
                   className="px-7 py-3.5 rounded-full hover:opacity-95 text-xs font-bold uppercase tracking-wider inline-flex items-center justify-center gap-2 transition shadow-md cursor-pointer disabled:opacity-60 shrink-0"
                 >
                   <span>{loading ? t('storefront.newsletter_sending') : (locale === 'ar' ? t('storefront.newsletter_button') : (home.newsletterButtonText || t('storefront.newsletter_button')))}</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4 rtl:rotate-180" />
                 </button>
               </form>
             )}
             {status === 'error' && (
-              <p className="text-xs text-rose-600 font-medium pl-2">{message}</p>
+              <p className="text-xs text-rose-600 font-medium ps-2">{message}</p>
             )}
           </div>
         </div>

@@ -101,7 +101,7 @@ export function ModalArticlesTable({
           <div className="md:hidden divide-y divide-neutral-100 rounded-xl border border-neutral-200 bg-white">
             {paginatedArticles.map((item) => {
               const isLive = item.status === 'ACTIVE' || !item.status;
-              const totalStock = item.dimensionsJson?.stockQuantity ?? 24;
+              const totalStock = Number(item.dimensionsJson?.stockQuantity ?? 0);
               const isLow = totalStock <= 3;
               const variantsCount = item.variantsCount || item.variants?.length || 1;
               const imgSrc = item.primaryImage || item.images?.[0];
@@ -161,7 +161,7 @@ export function ModalArticlesTable({
             <tbody className="divide-y divide-neutral-100">
               {paginatedArticles.map((item) => {
                 const isLive = item.status === 'ACTIVE' || !item.status;
-                const totalStock = item.dimensionsJson?.stockQuantity ?? 24;
+                const totalStock = Number(item.dimensionsJson?.stockQuantity ?? 0);
                 const isLow = totalStock <= 3;
                 const variantsCount = item.variantsCount || item.variants?.length || 1;
                 const imgSrc = item.primaryImage || item.images?.[0];

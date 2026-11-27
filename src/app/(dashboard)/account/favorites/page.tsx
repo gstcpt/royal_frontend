@@ -9,10 +9,12 @@ import { useAuthStore } from '@/stores/auth.store';
 import { fetchApi } from '@/lib/api';
 import { getSafeImageUrl } from '@/lib/cart-session';
 import { ProductCard, StorefrontProduct } from '@/components/storefront/ProductCard';
+import { useI18nStore } from '@/stores/i18n.store';
 
 export default function AccountFavoritesPage() {
   const { items, setItems } = useWishlistStore();
   const { isAuthenticated } = useAuthStore();
+  const { t } = useI18nStore();
   const [serverProducts, setServerProducts] = React.useState<StorefrontProduct[] | null>(null);
   const [loading, setLoading] = React.useState(false);
 
@@ -78,8 +80,8 @@ export default function AccountFavoritesPage() {
     <div className="space-y-6 w-full max-w-[1600px] mx-auto">
       <Breadcrumb
         items={[
-          { label: 'Tableau de bord', href: '/dashboard' },
-          { label: 'Mes Articles Favoris' },
+          { label: t('account.dashboard_crumb'), href: '/dashboard' },
+          { label: t('account.favorites_title') },
         ]}
       />
 
@@ -90,28 +92,28 @@ export default function AccountFavoritesPage() {
           </div>
           <div>
             <h1 className="text-xl font-heading font-black text-neutral-900 tracking-tight">
-              Mes Articles Favoris (Wishlist • {cardProducts.length})
+              {t('account.favorites_title')} ({t('account.stat_wishlist')} • {cardProducts.length})
             </h1>
             <p className="text-xs text-neutral-500">
-              Retrouvez vos articles sauvegardés avec le même aperçu complet, réactions et ajout panier.
+              {t('account.favorites_subtitle')}
             </p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={loadWishlist} className="text-xs">
-          <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
-          Synchroniser
+          <RefreshCw className={`h-3.5 w-3.5 me-1.5 ${loading ? 'animate-spin' : ''}`} />
+          {t('account.sync_btn')}
         </Button>
       </div>
 
       {cardProducts.length === 0 ? (
         <div className="bg-white p-12 rounded-2xl border border-neutral-200 text-center space-y-4">
           <Heart className="h-10 w-10 text-neutral-300 mx-auto" />
-          <div className="text-sm font-bold text-neutral-900">Aucun article favori enregistré.</div>
+          <div className="text-sm font-bold text-neutral-900">{t('account.favorites_empty')}</div>
           <Link
             href="/articles"
             className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[var(--royal-primary)] text-[var(--royal-primary-text)] text-xs font-bold shadow-xs"
           >
-            Explorer le catalogue
+            {t('account.explore_catalog')}
           </Link>
         </div>
       ) : (
